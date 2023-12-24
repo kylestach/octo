@@ -6,6 +6,7 @@ from octo.data.oxe.oxe_dataset_configs import ActionEncoding, OXE_DATASET_CONFIG
 from octo.data.oxe.oxe_dataset_mixes import OXE_NAMED_MIXES
 from octo.data.oxe.oxe_standardization_transforms import OXE_STANDARDIZATION_TRANSFORMS
 from octo.data.utils.data_utils import NormalizationType
+from octo.utils.spec import ModuleSpec
 
 
 def make_oxe_dataset_kwargs(
@@ -72,7 +73,9 @@ def make_oxe_dataset_kwargs(
     del dataset_kwargs["state_encoding"]
     del dataset_kwargs["action_encoding"]
 
-    dataset_kwargs["standardize_fn"] = OXE_STANDARDIZATION_TRANSFORMS[name]
+    dataset_kwargs["standardize_fn"] = ModuleSpec.create(
+        OXE_STANDARDIZATION_TRANSFORMS[name]
+    )
 
     return {"name": name, "data_dir": data_dir, **dataset_kwargs}
 
