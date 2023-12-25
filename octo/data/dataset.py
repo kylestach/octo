@@ -377,11 +377,9 @@ def make_dataset_from_rlds(
             hash_dependencies=(
                 str(builder.info),
                 str(state_obs_keys),
-                str(
-                    {k: standardize_fn[k] for k in sorted(standardize_fn.keys())}
-                    if standardize_fn
-                    else ""
-                ),
+                ModuleSpec.to_string(standardize_fn)
+                if standardize_fn is not None
+                else "",
             ),
             save_dir=builder.data_dir,
         )
