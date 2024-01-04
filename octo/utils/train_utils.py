@@ -13,6 +13,7 @@ import jax.numpy as jnp
 from ml_collections import ConfigDict
 import numpy as np
 import optax
+import tensorflow as tf
 
 from octo.data.utils.text_processing import TextProcessor
 from octo.model.octo_model import OctoModel
@@ -462,4 +463,42 @@ def hf_weights_loader(params, hf_model):
 
     find_and_replace(params, "hf_model", model_variables)
     assert replaced, "Failed to load weights"
+    return params
+
+
+def siglip_weights_loader(
+    params, siglip_path="gs://big_vision/siglip/webli_en_b16_256_60500360.npz"
+):
+    # load siglip params, and parse keys from np array
+    with tf.io.gfile.GFile(siglip_path, "rb") as f:
+        siglip_params = np.load(f)
+    skip_len = len("params/img/Transformer/")
+    siglip_params = {
+        k[skip_len:]: v
+        for k, v in siglip_params.items()
+        if "img" in k and "encoderblock" in k
+    }
+
+    # get matching transformer params from octo model
+    octo_params = params["octo_transformer"]["BlockTransformer_0"]["Transformer_0"]
+
+    # replace parameters for all 12 ViT-B encoder blocks
+    replace_ctr = 0
+
+    def replace_block_params(params, replacement_key):
+        nonlocal replace_ctr
+        for k, v in params.items():
+            siglip_key = f"{replacement_key}/{k}"
+            if siglip_key in siglip_params:
+                replacement_param = siglip_params[siglip_key]
+                assert params[k].shape == replacement_param.shape, "shapes don't match!"
+                params[k] = jnp.array(replacement_param)
+                replace_ctr += 1
+            else:
+                replace_block_params(v, siglip_key)
+
+    for b in range(12):
+        k = f"encoderblock_{b}"
+        replace_block_params(octo_params[k], k)
+    logging.info(f"Loaded {replace_ctr} siglip keys.")
     return params
