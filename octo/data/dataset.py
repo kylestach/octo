@@ -1,5 +1,4 @@
 from functools import partial
-import inspect
 import json
 from typing import Callable, Mapping, Optional, Sequence, Tuple, Union
 
@@ -19,6 +18,7 @@ from octo.data.utils.data_utils import (
     pprint_data_mixture,
     tree_map,
 )
+from octo.utils.spec import ModuleSpec
 
 
 def apply_trajectory_transforms(
@@ -202,7 +202,7 @@ def make_dataset_from_rlds(
     data_dir: str,
     *,
     train: bool,
-    standardize_fn: Optional[Callable[[dict], dict]] = None,
+    standardize_fn: Optional[ModuleSpec] = None,
     shuffle: bool = True,
     image_obs_keys: Mapping[str, Optional[str]] = {},
     depth_obs_keys: Mapping[str, Optional[str]] = {},
@@ -293,7 +293,7 @@ def make_dataset_from_rlds(
     def restructure(traj):
         # apply a standardization function, if provided
         if standardize_fn is not None:
-            traj = standardize_fn(traj)
+            traj = ModuleSpec.instantiate(standardize_fn)(traj)
 
         if not all(k in traj for k in REQUIRED_KEYS):
             raise ValueError(
@@ -369,15 +369,17 @@ def make_dataset_from_rlds(
             dataset_statistics = json.load(f)
     elif dataset_statistics is None:
         full_dataset = dl.DLataset.from_rlds(
-            builder, split="all", shuffle=False, num_parallel_reads=num_parallel_reads
-        ).traj_map(restructure, num_parallel_calls)
+            builder, split="all", shuffle=False
+        ).traj_map(restructure)
         # tries to load from cache, otherwise computes on the fly
         dataset_statistics = get_dataset_statistics(
             full_dataset,
             hash_dependencies=(
                 str(builder.info),
                 str(state_obs_keys),
-                inspect.getsource(standardize_fn) if standardize_fn is not None else "",
+                ModuleSpec.to_string(standardize_fn)
+                if standardize_fn is not None
+                else "",
             ),
             save_dir=builder.data_dir,
         )
