@@ -209,6 +209,25 @@ class OctoTransformer(nn.Module):
                     attention_rules=observation_attention_rules,
                 )
             )
+
+        # get language tokens
+        if all_prefix_groups[0].name == "task_language":
+            # lang (batch, n_tokens, token_embedding_size)
+            lang_tokens = all_prefix_groups[0].tokens
+            lang_tokens = lang_tokens[:, jnp.newaxis, :, :]
+            ws = all_timestep_groups[0].tokens.shape[1]
+            lang_tokens = jnp.tile(lang_tokens, [1, ws, 1, 1])
+            lang_pad_mask = all_prefix_groups[0].mask[:, jnp.newaxis, :]
+            lang_pad_mask = jnp.tile(lang_pad_mask, [1, ws, 1])
+            group_name = f"obs_language"
+            all_timestep_groups.append(
+                TimestepGroup(
+                    tokens=lang_tokens,
+                    mask=lang_pad_mask,
+                    name=group_name,
+                    attention_rules=observation_attention_rules,
+                )
+            )
         #
         # Finally, add the readout tokens
         #
