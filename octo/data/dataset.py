@@ -210,6 +210,7 @@ def make_dataset_from_rlds(
     language_key: Optional[str] = None,
     action_proprio_normalization_type: NormalizationType = NormalizationType.NORMAL,
     dataset_statistics: Optional[Union[dict, str]] = None,
+    force_recompute_dataset_statistics: bool = False,
     absolute_action_mask: Optional[Sequence[bool]] = None,
     action_normalization_mask: Optional[Sequence[bool]] = None,
     num_parallel_reads: int = tf.data.AUTOTUNE,
@@ -263,6 +264,8 @@ def make_dataset_from_rlds(
             "std" keys. If `action_proprio_normalization_type` is "bounds", this should contain "min" and "max"
             keys. May also provide "num_transitions" and "num_trajectories" keys for downstream usage (e.g., for
             `make_interleaved_dataset`). If not provided, the statistics will be computed on the fly.
+        force_recompute_dataset_statistics (bool, optional): If True and `dataset_statistics` is None, will
+            recompute the dataset statistics regardless of whether they are already cached.
         absolute_action_mask (Sequence[bool], optional): By default, all action dimensions are assumed to be
             relative. This is important for when `future_action_window_size > 0`: actions that are taken
             from beyond the end of the trajectory (or beyond the goal timestep when goal relabeling is used)
@@ -382,6 +385,7 @@ def make_dataset_from_rlds(
                 else "",
             ),
             save_dir=builder.data_dir,
+            force_recompute=force_recompute_dataset_statistics,
         )
     dataset_statistics = tree_map(np.array, dataset_statistics)
 

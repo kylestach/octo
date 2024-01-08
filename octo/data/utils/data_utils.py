@@ -80,6 +80,7 @@ def get_dataset_statistics(
     dataset: dl.DLataset,
     hash_dependencies: Tuple[str, ...],
     save_dir: Optional[str] = None,
+    force_recompute: bool = False,
 ) -> dict:
     """Either computes the statistics of a dataset or loads them from a cache file if this function has been
     called before with the same `hash_dependencies`. Currently, the statistics include the min/max/mean/std of
@@ -106,13 +107,13 @@ def get_dataset_statistics(
         path = local_path
 
     # check if cache file exists and load
-    if tf.io.gfile.exists(path):
+    if tf.io.gfile.exists(path) and not force_recompute:
         logging.info(f"Loading existing dataset statistics from {path}.")
         with tf.io.gfile.GFile(path, "r") as f:
             metadata = json.load(f)
         return metadata
 
-    if os.path.exists(local_path):
+    if os.path.exists(local_path) and not force_recompute:
         logging.info(f"Loading existing dataset statistics from {local_path}.")
         with open(local_path, "r") as f:
             metadata = json.load(f)
