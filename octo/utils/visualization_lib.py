@@ -389,11 +389,12 @@ class RolloutVisualizer:
 
 
 def unnormalize(arr, mean, std, **kwargs):
-    return arr * np.array(std) + np.array(mean)
+    # TODO temp fix
+    return arr[..., : mean.shape[0]] * np.array(std) + np.array(mean)
 
 
 def normalize(arr, mean, std, **kwargs):
-    return (arr - np.array(mean)) / np.array(std)
+    return (arr[..., : mean.shape[0]] - np.array(mean)) / np.array(std)
 
 
 def add_unnormalized_info(

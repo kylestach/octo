@@ -232,6 +232,7 @@ def main(_):
         action_loss, action_metrics = bound_module.heads["action"].loss(
             transformer_embeddings,  # action head knows to pull out the "action" readout_key
             batch["action"],
+            batch["action_pad_mask"],
             pad_mask=batch["observation"]["pad_mask"],
             train=train,
         )

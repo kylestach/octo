@@ -30,6 +30,7 @@ class ActionHead(ABC):
         self,
         transformer_outputs: Dict[str, TokenGroup],
         actions: ArrayLike,
+        action_pad_mask: ArrayLike,
         pad_mask: ArrayLike,
         train: bool = True,
     ) -> Tuple[Array, Dict[str, Array]]:
@@ -211,6 +212,7 @@ class ContinuousActionHead(nn.Module, ActionHead):
         self,
         transformer_outputs: Dict[str, TokenGroup],
         actions: ArrayLike,
+        action_pad_mask: ArrayLike,
         pad_mask: ArrayLike,
         train: bool = True,
     ) -> Tuple[Array, Dict[str, Array]]:
@@ -234,8 +236,13 @@ class ContinuousActionHead(nn.Module, ActionHead):
         actions_chunked = chunk_actions(actions, self.pred_horizon)
         actions_chunked = actions_chunked[:, :window_size]
 
+        mask = (
+            jnp.broadcast_to(action_pad_mask[:, None, None, :], actions_chunked.shape)
+            * pad_mask
+        )
+
         loss, metrics = continuous_loss(
-            mean, actions_chunked, pad_mask[:, :, None, None], loss_type=self.loss_type
+            mean, actions_chunked, mask, loss_type=self.loss_type
         )
         # Sum over action dimension instead of averaging
         loss = loss * self.action_dim
@@ -340,6 +347,7 @@ class DiscreteActionHead(nn.Module, ActionHead):
         self,
         transformer_outputs: Dict[str, TokenGroup],
         actions: ArrayLike,
+        action_pad_mask: ArrayLike,
         pad_mask: ArrayLike,
         train: bool = True,
     ):
@@ -366,11 +374,16 @@ class DiscreteActionHead(nn.Module, ActionHead):
         actions_chunked = chunk_actions(actions, self.pred_horizon)
         actions_chunked = actions_chunked[:, :window_size]
 
+        mask = (
+            jnp.broadcast_to(action_pad_mask[:, None, None, :], actions_chunked.shape)
+            * pad_mask
+        )
+
         loss, metrics = discrete_loss(
             self.action_tokenizer,
             action_logits,
             actions_chunked,
-            pad_mask[:, :, None, None],
+            mask,
         )
 
         # For MSE, sum over action dimension instead of averaging
@@ -506,6 +519,7 @@ class DiffusionActionHead(nn.Module):
         self,
         transformer_outputs: Dict[str, TokenGroup],
         actions: ArrayLike,
+        action_pad_mask: ArrayLike,
         pad_mask: ArrayLike,
         train: bool = True,
     ) -> Tuple[Array, Dict[str, Array]]:
@@ -546,9 +560,13 @@ class DiffusionActionHead(nn.Module):
             transformer_outputs, train=train, time=time, noisy_actions=noisy_actions
         )
 
-        loss, metrics = continuous_loss(
-            pred_eps, noise, pad_mask[:, :, None], loss_type=self.loss_type
+        mask = (
+            jnp.broadcast_to(action_pad_mask[:, None, None, :], actions_chunked.shape)
+            * pad_mask
         )
+        mask = rearrange(mask, "b w p a -> b w (p a)")
+
+        loss, metrics = continuous_loss(pred_eps, noise, mask, loss_type=self.loss_type)
         # Sum over action dimension instead of averaging
         loss = loss * self.action_dim
         metrics["loss"] = metrics["loss"] * self.action_dim
