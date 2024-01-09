@@ -188,21 +188,21 @@ def apply_frame_transforms(
 
     if train:
         # augment all images with the same seed, skipping padding images
-        def aug(frame: dict):
+        def aug_and_dropout(frame: dict):
             seed = tf.random.uniform([2], maxval=tf.dtypes.int32.max, dtype=tf.int32)
-            aug_fn = partial(
-                obs_transforms.augment, seed=seed, augment_kwargs=image_augment_kwargs
-            )
             dropout_fn = partial(
                 obs_transforms.image_dropout,
                 seed=seed,
                 dropout_prob=image_dropout_prob,
             )
-            frame = apply_obs_transform(aug_fn, frame)
+            aug_fn = partial(
+                obs_transforms.augment, seed=seed, augment_kwargs=image_augment_kwargs
+            )
             frame = apply_obs_transform(dropout_fn, frame)
+            frame = apply_obs_transform(aug_fn, frame)
             return frame
 
-        dataset = dataset.frame_map(aug, num_parallel_calls)
+        dataset = dataset.frame_map(aug_and_dropout, num_parallel_calls)
 
     return dataset
 
