@@ -139,6 +139,7 @@ def apply_frame_transforms(
     image_augment_kwargs: Union[dict, Mapping[str, dict]] = {},
     resize_size: Union[Tuple[int, int], Mapping[str, Tuple[int, int]]] = {},
     depth_resize_size: Union[Tuple[int, int], Mapping[str, Tuple[int, int]]] = {},
+    observation_dropout_prob: float = 0.0,
     num_parallel_calls: int = tf.data.AUTOTUNE,
 ) -> dl.DLataset:
     """Applies common transforms that happen at a frame level. These transforms are usually more
@@ -193,6 +194,19 @@ def apply_frame_transforms(
             return apply_obs_transform(aug_fn, frame)
 
         dataset = dataset.frame_map(aug, num_parallel_calls)
+
+        def obs_dropout(frame: dict):
+            seed = tf.random.uniform([2], maxval=tf.dtypes.int32.max, dtype=tf.int32)
+            return apply_obs_transform(
+                partial(
+                    obs_transforms.obs_image_dropout,
+                    seed=seed,
+                    dropout_prob=observation_dropout_prob,
+                ),
+                frame,
+            )
+
+        dataset = dataset.frame_map(obs_dropout, num_parallel_calls)
 
     return dataset
 

@@ -39,6 +39,34 @@ def augment(
     return obs
 
 
+def obs_image_dropout(obs: dict, seed: tf.Tensor, dropout_prob: float) -> dict:
+    """
+    Drops out image keys with probability `dropout_prob`, but always keeps at least one image per timestep.
+    """
+    image_names = {key for key in obs if key.startswith("image_")}
+    zs = {}
+    seeds = tf.random.split(seed, len(image_names))
+    for i, name in enumerate(image_names):
+        z = tf.random.stateless_uniform(
+            tf.shape(obs["pad_mask_dict"][name]), seed=seeds[i]
+        )
+        zs[name] = tf.cast(obs["pad_mask_dict"][name], tf.float32) + z
+    max_z = tf.reduce_max(tf.stack(list(zs.values())), axis=0)
+    for i, name in enumerate(image_names):
+        keep = tf.logical_or(
+            tf.equal(zs[name], max_z),
+            zs[name] > (1 + dropout_prob),
+        )  # always keep at least one image, and keep images with probability 1 - dropout_prob
+
+        obs["pad_mask_dict"][name] = tf.logical_and(obs["pad_mask_dict"][name], keep)
+        obs[name] = tf.where(
+            keep,
+            obs[name],
+            tf.zeros_like(obs[name]),
+        )
+    return obs
+
+
 def decode_and_resize(
     obs: dict,
     resize_size: Union[Tuple[int, int], Mapping[str, Tuple[int, int]]],
