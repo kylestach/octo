@@ -104,3 +104,26 @@ def add_pad_mask_dict(traj: dict) -> dict:
                 pad_mask_dict[subkey] = tf.ones([traj_len], dtype=tf.bool)
         traj[key]["pad_mask_dict"] = pad_mask_dict
     return traj
+
+
+def pad_actions(traj: dict, max_action_dim: int) -> dict:
+    """Pads actions to the maximum number of action dimensions across all datasets.
+
+    Assumes that actions have already been chunked. Records which dimensions are padding in "action_pad_mask".
+    """
+    traj_len = tf.shape(traj["action"])[0]
+    action_dim = tf.shape(traj["action"])[2]
+    n_pad_dims = max_action_dim - action_dim
+
+    traj["action_pad_mask"] = tf.cast(
+        tf.concat(
+            [tf.zeros([traj_len, action_dim]), tf.ones([traj_len, n_pad_dims])], axis=1
+        ),
+        tf.bool,
+    )
+    traj["action"] = tf.pad(traj["action"], [[0, 0], [0, 0], [0, n_pad_dims]])
+    # pretend the padding dimensions are relative so that they get set to zero after goal reached
+    traj["absolute_action_mask"] = tf.pad(
+        traj["absolute_action_mask"], [[0, 0], [0, n_pad_dims]]
+    )
+    return traj

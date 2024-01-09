@@ -35,6 +35,7 @@ def apply_trajectory_transforms(
     max_proprio: Optional[float] = None,
     task_augment_strategy: Optional[str] = None,
     task_augment_kwargs: dict = {},
+    max_action_dim: Optional[int] = None,
     num_parallel_calls: int = tf.data.AUTOTUNE,
 ) -> dl.DLataset:
     """Applies common transforms that happen at a trajectory level. Such transforms are usually some sort of
@@ -122,6 +123,13 @@ def apply_trajectory_transforms(
         ),
         num_parallel_calls,
     )
+
+    # pad actions to maximum action dimension and add action pad mask
+    if max_action_dim:
+        dataset = dataset.traj_map(
+            partial(traj_transforms.pad_actions, max_action_dim=max_action_dim),
+            num_parallel_calls,
+        )
 
     if train and subsample_length is not None:
         dataset = dataset.traj_map(
