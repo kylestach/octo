@@ -1,119 +1,159 @@
 from ml_collections import ConfigDict
-from ml_collections.config_dict import placeholder
-from copy import deepcopy
+from ml_collections.config_dict import FieldReference, placeholder
+
+from octo.data.utils.text_processing import MuseEmbedding
+from octo.model.components.action_heads import MSEActionHead
+from octo.model.components.tokenizers import ImageTokenizer
+from octo.model.components.transformer import common_transformer_sizes
+from octo.model.components.vit_encoders import SmallStem16
+from octo.utils.spec import ModuleSpec
 
 
-def update_config(config, **kwargs):
-    new_config = deepcopy(config)
-    for key, value in kwargs.items():
-        if key in config:
-            if isinstance(config[key], dict) or isinstance(config[key], ConfigDict):
-                new_config[key] = update_config(config[key], **value)
-            else:
-                new_config[key] = value
-        else:
-            new_config[key] = value
-    return ConfigDict(new_config)
+def get_model_config(transformer_size):
+    """
+    Transformer_size is one of ["dummy", "vanilla", "vit_s", "vit_b", "vit_l", "vit_h"]
 
+    This model stacks all the images from different cameras together, and passes it through
+    a small convolutional stem before entering the transformer.
 
-def get_config(config_string):
-    base_wandb_config = dict(
-        project="octo", group=placeholder(str), entity=placeholder(str)
+    The action head pools all the observation token embeddings, and passes it through a small MLP
+    before predicting the action using a MSE loss.
+    """
+    token_embedding_size, transformer_kwargs = common_transformer_sizes(
+        transformer_size
     )
-
-    base_config = dict(
-        batch_size=256,
-        num_steps=int(2e6),
-        start_step=placeholder(int),
-        log_interval=1000,
-        eval_interval=5000,
-        save_interval=int(2e6),
-        save_dir="/mnt2/homer/jaxrl_log",
-        resume_path=None,
-        seed=42,
-        env_name="franka_shoe_pick_and_place",
-        save_video=True,
-        max_episode_steps=55,
-        deterministic_eval=True,
-        num_episodes_per_video=8,
-        num_episodes_per_row=4,
-        eval_episodes=20,
-        num_val_batches=8,
-        pretrained_loaders=[],
-        pretrained_loader_kwargs=[],
-        wandb=base_wandb_config,
-        shuffle_buffer_size=25000,
-        exec_horizon=2,
-    )
-
-    # params that need to be specified multiple places
-    normalization_type = "normal"
-
-    base_data_config = dict(
-        data_path="/mnt2/homer/datasets/mujoco_sim/franka_shoe_pick_and_place_2K_20230709-201001",
-        window_size=8,
-        image_augment_kwargs=dict(
-            random_resized_crop=dict(scale=[0.8, 1.0], ratio=[0.9, 1.1]),
-            random_brightness=[0.2],
-            random_contrast=[0.8, 1.2],
-            random_saturation=[0.8, 1.2],
-            random_hue=[0.1],
-            augment_order=[
-                "random_resized_crop",
-                "random_brightness",
-                "random_contrast",
-                "random_saturation",
-                "random_hue",
-            ],
+    return dict(
+        observation_tokenizers=dict(
+            image=ModuleSpec.create(
+                ImageTokenizer,
+                num_tokens=256,
+                obs_stack_keys=["image_.*"],
+                task_stack_keys=["image_.*"],
+                task_film_keys=["language_instruction"],
+                encoder=ModuleSpec.create(SmallStem16, use_film=True),
+            ),
         ),
-        goal_relabeling_strategy="uniform",
-        action_proprio_normalization_type=normalization_type,
+        task_tokenizers=dict(),
+        heads=dict(
+            action=ModuleSpec.create(
+                MSEActionHead,
+                pred_horizon=1,
+                action_dim=7,
+                readout_key="obs",
+            ),
+        ),
+        readouts=dict(),
+        token_embedding_size=token_embedding_size,
+        transformer_kwargs=transformer_kwargs,
+        max_horizon=10,
     )
 
-    base_optimizer_config = dict(
-        learning_rate=3e-4, warmup_steps=2000, decay_steps=int(2e6)
-    )
 
-    base_model_config = dict(
-        policy_kwargs=dict(
-            num_layers=4,
-            mlp_dim=1024,
-            vocab_size=256,
-            num_heads=8,
-            dropout_rate=0.1,
-            normalization_type=normalization_type,
-            pred_horizon=4,
+def get_config(
+    transformer_size="vit_s",
+):
+    print("Creating config with: ", locals())
+    num_steps = FieldReference(default=int(2e6))
+    window_size = FieldReference(default=1)
+    return ConfigDict(
+        dict(
+            seed=42,
+            num_steps=num_steps,
+            save_dir=placeholder(str),
+            model=get_model_config(transformer_size),
+            window_size=window_size,
+            dataset_kwargs=get_dataset_config(window_size),
+            optimizer=dict(
+                learning_rate=dict(
+                    name="rsqrt",
+                    init_value=0.0,
+                    peak_value=3e-4,
+                    warmup_steps=2000,
+                    timescale=10000,
+                ),
+                weight_decay=0.1,
+                clip_gradient=1.0,
+                frozen_keys=tuple(),
+            ),
+            prefetch_num_batches=0,
+            start_step=placeholder(int),
+            log_interval=100,
+            eval_interval=1,
+            viz_interval=1,
+            save_interval=1,
+            val_kwargs=dict(
+                val_shuffle_buffer_size=1000,
+                num_val_batches=16,
+            ),
+            viz_kwargs=dict(
+                eval_batch_size=128,
+                trajs_for_metrics=100,
+                trajs_for_viz=8,
+                samples_per_state=8,
+            ),
+            resume_path=placeholder(str),
+            text_processor=ModuleSpec.create(MuseEmbedding),
+            pretrained_loaders=tuple(),
+            wandb=dict(
+                project="octo",
+                group=placeholder(str),
+                entity=placeholder(str),
+            ),
+            wandb_resume_id=placeholder(str),
+            eval_datasets=(
+                "bridge_dataset",
+                "taco_play",
+                "berkeley_cable_routing",
+                "berkeley_autolab_ur5",
+            ),
         )
     )
 
-    base_tokenizer_kwargs = dict(
-        encoder="resnetv1-18-bridge",
-        encoder_kwargs=dict(
-            pooling_method="none", add_spatial_coordinates=True, act="swish"
+
+def get_dataset_config(window_size=1):
+    task_augmentation = dict(
+        task_augment_strategy="delete_task_conditioning",
+        task_augment_kwargs=dict(
+            keep_image_prob=0.5,
         ),
-        task_stack_keys=[
-            "image_.*"
-        ],  # by default, early fuse goal images into visual encoder
     )
 
-    possible_structures = {
-        "sim": ConfigDict(
-            dict(
-                model=update_config(
-                    base_model_config,
-                    observation_tokenizers=[
-                        (
-                            "image_tokenizer",
-                            {"num_tokens": 16, **base_tokenizer_kwargs},
-                        ),
-                    ],
-                    task_tokenizers=[],
-                ),
-                optimizer=base_optimizer_config,
-                dataset_kwargs=base_data_config,
-                **base_config,
-            )
+    return {
+        # oxe_kwargs will generate dataset_kwargs_list and sampling weights
+        "oxe_kwargs": dict(
+            data_mix=placeholder(str),
+            data_dir=placeholder(str),
+            load_camera_views=("primary", "wrist"),
+            load_depth=False,
         ),
+        "traj_transform_kwargs": dict(
+            window_size=window_size,
+            future_action_window_size=0,
+            goal_relabeling_strategy="uniform",
+            subsample_length=100,
+            **task_augmentation,
+        ),
+        "frame_transform_kwargs": dict(
+            resize_size=(256, 256),
+            image_augment_kwargs=dict(
+                random_resized_crop=dict(scale=[0.8, 1.0], ratio=[0.9, 1.1]),
+                random_brightness=[0.2],
+                random_contrast=[0.8, 1.2],
+                random_saturation=[0.8, 1.2],
+                random_hue=[0.1],
+                augment_order=[
+                    "random_resized_crop",
+                    "random_brightness",
+                    "random_contrast",
+                    "random_saturation",
+                    "random_hue",
+                ],
+            ),
+            num_parallel_calls=200,
+        ),
+        "traj_transform_threads": 48,  # shared between all datasets
+        "traj_read_threads": 48,  # shared between all datasets
+        "shuffle_buffer_size": 100000,  # shared between all datasets
+        "batch_size": 1024,
+        "balance_weights": True,
     }
-
-    return possible_structures[config_string]

@@ -9,10 +9,9 @@ TPU01="export TPU_VISIBLE_DEVICES=0,1 TPU_CHIPS_PER_HOST_BOUNDS=1,2,1 TPU_HOST_B
 TPU23="export TPU_VISIBLE_DEVICES=2,3 TPU_CHIPS_PER_HOST_BOUNDS=1,2,1 TPU_HOST_BOUNDS=1,1,1 TPU_MESH_CONTROLLER_ADDRESS=localhost:8478 TPU_MESH_CONTROLLER_PORT=8478"
 
 NAME="test"
-CONFIG="gc_bridge"
 
-CMD="python train.py \
-    --config config.py:$CONFIG \
+CMD="python scripts/train.py \
+    --config experiments/homer/configs/octo_pretrain_config.py:vit_s \
     --name $NAME"
 
 $CMD --debug
