@@ -1,5 +1,4 @@
 from functools import partial
-import inspect
 import json
 from typing import Callable, Mapping, Optional, Sequence, Tuple, Union
 
@@ -19,6 +18,7 @@ from octo.data.utils.data_utils import (
     pprint_data_mixture,
     tree_map,
 )
+from octo.utils.spec import ModuleSpec
 
 
 def apply_trajectory_transforms(
@@ -139,6 +139,7 @@ def apply_frame_transforms(
     image_augment_kwargs: Union[dict, Mapping[str, dict]] = {},
     resize_size: Union[Tuple[int, int], Mapping[str, Tuple[int, int]]] = {},
     depth_resize_size: Union[Tuple[int, int], Mapping[str, Tuple[int, int]]] = {},
+    image_dropout_prob: float = 0.0,
     num_parallel_calls: int = tf.data.AUTOTUNE,
 ) -> dl.DLataset:
     """Applies common transforms that happen at a frame level. These transforms are usually more
@@ -158,6 +159,8 @@ def apply_frame_transforms(
             keys (so pass an empty dict to skip resizing for all images).
         depth_resize_size (Tuple[int, int]|Mapping[str, Tuple[int, int]]): Same as resize_size, but for depth
             images.
+        image_dropout_prob (float): Probability of dropping out images, applied to each image key
+            independently. At least one image will always be present.
         num_parallel_calls (int): number of parallel calls for frame_map operations. Default to AUTOTUNE.
     """
 
@@ -185,14 +188,21 @@ def apply_frame_transforms(
 
     if train:
         # augment all images with the same seed, skipping padding images
-        def aug(frame: dict):
+        def aug_and_dropout(frame: dict):
             seed = tf.random.uniform([2], maxval=tf.dtypes.int32.max, dtype=tf.int32)
+            dropout_fn = partial(
+                obs_transforms.image_dropout,
+                seed=seed,
+                dropout_prob=image_dropout_prob,
+            )
             aug_fn = partial(
                 obs_transforms.augment, seed=seed, augment_kwargs=image_augment_kwargs
             )
-            return apply_obs_transform(aug_fn, frame)
+            frame = apply_obs_transform(dropout_fn, frame)
+            frame = apply_obs_transform(aug_fn, frame)
+            return frame
 
-        dataset = dataset.frame_map(aug, num_parallel_calls)
+        dataset = dataset.frame_map(aug_and_dropout, num_parallel_calls)
 
     return dataset
 
@@ -202,7 +212,7 @@ def make_dataset_from_rlds(
     data_dir: str,
     *,
     train: bool,
-    standardize_fn: Optional[Callable[[dict], dict]] = None,
+    standardize_fn: Optional[ModuleSpec] = None,
     shuffle: bool = True,
     image_obs_keys: Mapping[str, Optional[str]] = {},
     depth_obs_keys: Mapping[str, Optional[str]] = {},
@@ -210,6 +220,7 @@ def make_dataset_from_rlds(
     language_key: Optional[str] = None,
     action_proprio_normalization_type: NormalizationType = NormalizationType.NORMAL,
     dataset_statistics: Optional[Union[dict, str]] = None,
+    force_recompute_dataset_statistics: bool = False,
     absolute_action_mask: Optional[Sequence[bool]] = None,
     action_normalization_mask: Optional[Sequence[bool]] = None,
     num_parallel_reads: int = tf.data.AUTOTUNE,
@@ -263,6 +274,8 @@ def make_dataset_from_rlds(
             "std" keys. If `action_proprio_normalization_type` is "bounds", this should contain "min" and "max"
             keys. May also provide "num_transitions" and "num_trajectories" keys for downstream usage (e.g., for
             `make_interleaved_dataset`). If not provided, the statistics will be computed on the fly.
+        force_recompute_dataset_statistics (bool, optional): If True and `dataset_statistics` is None, will
+            recompute the dataset statistics regardless of whether they are already cached.
         absolute_action_mask (Sequence[bool], optional): By default, all action dimensions are assumed to be
             relative. This is important for when `future_action_window_size > 0`: actions that are taken
             from beyond the end of the trajectory (or beyond the goal timestep when goal relabeling is used)
@@ -293,7 +306,7 @@ def make_dataset_from_rlds(
     def restructure(traj):
         # apply a standardization function, if provided
         if standardize_fn is not None:
-            traj = standardize_fn(traj)
+            traj = ModuleSpec.instantiate(standardize_fn)(traj)
 
         if not all(k in traj for k in REQUIRED_KEYS):
             raise ValueError(
@@ -369,17 +382,20 @@ def make_dataset_from_rlds(
             dataset_statistics = json.load(f)
     elif dataset_statistics is None:
         full_dataset = dl.DLataset.from_rlds(
-            builder, split="all", shuffle=False, num_parallel_reads=num_parallel_reads
-        ).traj_map(restructure, num_parallel_calls)
+            builder, split="all", shuffle=False
+        ).traj_map(restructure)
         # tries to load from cache, otherwise computes on the fly
         dataset_statistics = get_dataset_statistics(
             full_dataset,
             hash_dependencies=(
                 str(builder.info),
                 str(state_obs_keys),
-                inspect.getsource(standardize_fn) if standardize_fn is not None else "",
+                ModuleSpec.to_string(standardize_fn)
+                if standardize_fn is not None
+                else "",
             ),
             save_dir=builder.data_dir,
+            force_recompute=force_recompute_dataset_statistics,
         )
     dataset_statistics = tree_map(np.array, dataset_statistics)
 

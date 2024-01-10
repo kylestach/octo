@@ -112,6 +112,7 @@ def get_config(config_string=None):
                 data_dir="gs://rail-octo-central2/resize_256_256",
                 load_camera_views=("primary", "wrist"),
                 load_depth=False,
+                force_recompute_dataset_statistics=False,
             ),
             traj_transform_kwargs=dict(
                 future_action_window_size=3,
