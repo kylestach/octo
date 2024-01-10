@@ -115,7 +115,7 @@ class ImageTokenizer(nn.Module):
 
         # stack all spatial observation and task inputs
         enc_inputs = extract_inputs(obs_stack_keys, observations, check_spatial=True)
-        if tasks and self.task_stack_keys:
+        if self.task_stack_keys:
             needed_task_keys = regex_filter(self.task_stack_keys, observations.keys())
             # if any task inputs are missing, replace with zero padding (TODO: be more flexible)
             for k in needed_task_keys:
