@@ -1,6 +1,5 @@
 import datetime
 from functools import partial
-import imp
 import os
 
 from absl import app, flags, logging
@@ -163,15 +162,14 @@ def main(_):
         del batch["dataset_name"]
         return batch
 
-    # load standardize_fn from `path/to/file.py:fn_name` format
+    # create standardize_fn ModelSpec from `path/to/file.py:fn_name` format
     if (
         standardize_fn := FLAGS.config["dataset_kwargs"].get("standardize_fn", None)
     ) is not None:
-        path, name = standardize_fn.split(":")
-        # imp is deprecated, but it's also what ml_collections uses
-        standardize_fn = getattr(imp.load_source("standardize_fn", path), name)
         del FLAGS.config["dataset_kwargs"]["standardize_fn"]
-        FLAGS.config["dataset_kwargs"]["standardize_fn"] = standardize_fn
+        FLAGS.config["dataset_kwargs"]["standardize_fn"] = ModuleSpec.create(
+            standardize_fn
+        )
 
     dataset = make_single_dataset(
         FLAGS.config.dataset_kwargs,

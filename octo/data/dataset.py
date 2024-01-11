@@ -147,6 +147,7 @@ def apply_frame_transforms(
     image_augment_kwargs: Union[dict, Mapping[str, dict]] = {},
     resize_size: Union[Tuple[int, int], Mapping[str, Tuple[int, int]]] = {},
     depth_resize_size: Union[Tuple[int, int], Mapping[str, Tuple[int, int]]] = {},
+    image_dropout_prob: float = 0.0,
     num_parallel_calls: int = tf.data.AUTOTUNE,
 ) -> dl.DLataset:
     """Applies common transforms that happen at a frame level. These transforms are usually more
@@ -166,6 +167,8 @@ def apply_frame_transforms(
             keys (so pass an empty dict to skip resizing for all images).
         depth_resize_size (Tuple[int, int]|Mapping[str, Tuple[int, int]]): Same as resize_size, but for depth
             images.
+        image_dropout_prob (float): Probability of dropping out images, applied to each image key
+            independently. At least one image will always be present.
         num_parallel_calls (int): number of parallel calls for frame_map operations. Default to AUTOTUNE.
     """
 
@@ -193,14 +196,21 @@ def apply_frame_transforms(
 
     if train:
         # augment all images with the same seed, skipping padding images
-        def aug(frame: dict):
+        def aug_and_dropout(frame: dict):
             seed = tf.random.uniform([2], maxval=tf.dtypes.int32.max, dtype=tf.int32)
+            dropout_fn = partial(
+                obs_transforms.image_dropout,
+                seed=seed,
+                dropout_prob=image_dropout_prob,
+            )
             aug_fn = partial(
                 obs_transforms.augment, seed=seed, augment_kwargs=image_augment_kwargs
             )
-            return apply_obs_transform(aug_fn, frame)
+            frame = apply_obs_transform(dropout_fn, frame)
+            frame = apply_obs_transform(aug_fn, frame)
+            return frame
 
-        dataset = dataset.frame_map(aug, num_parallel_calls)
+        dataset = dataset.frame_map(aug_and_dropout, num_parallel_calls)
 
     return dataset
 

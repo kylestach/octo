@@ -141,7 +141,8 @@ def discrete_loss(
     labels = discrete_tokenizer(ground_truth_value)
     labels_one_hot = jax.nn.one_hot(labels, logits.shape[-1])
 
-    loss = -jnp.sum(logits * labels_one_hot, axis=-1)
+    logprobs = jax.nn.log_softmax(logits, axis=-1)
+    loss = -jnp.sum(logprobs * labels_one_hot, axis=-1)
     loss = masked_mean(loss, mask)
 
     # compute accuracy between predicted actions and target actions

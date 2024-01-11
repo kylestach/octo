@@ -107,6 +107,7 @@ def main(_):
                 wandb_id,
             )
             logging.info("Saving to %s", save_dir)
+            wandb.config.update(dict(save_dir=save_dir), allow_val_change=True)
         else:
             save_dir = None
             logging.info("save_dir not passed in, not saving checkpoints")
