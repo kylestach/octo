@@ -13,6 +13,7 @@ import jax.numpy as jnp
 from ml_collections import ConfigDict
 import numpy as np
 import optax
+import tensorflow as tf
 
 from octo.data.utils.text_processing import TextProcessor
 from octo.model.octo_model import OctoModel
@@ -463,3 +464,35 @@ def hf_weights_loader(params, hf_model):
     find_and_replace(params, "hf_model", model_variables)
     assert replaced, "Failed to load weights"
     return params
+
+
+def siglip_weights_loader(
+    params, siglip_path="gs://big_vision/siglip/webli_en_b16_256_60500360.npz"
+):
+    # load siglip params, and parse keys from np array
+    with tf.io.gfile.GFile(siglip_path, "rb") as f:
+        siglip_params = np.load(f)
+
+    flat_params = flax.traverse_util.flatten_dict(params)
+    relevant_params = {
+        k: jnp.array(v)
+        for k, v in siglip_params.items()
+        if k.startswith("params/img/Transformer/encoderblock")
+    }
+    translated_params = {
+        k.replace(
+            "params/img/Transformer/",
+            "octo_transformer/BlockTransformer_0/Transformer_0/",
+        ): v
+        for k, v in relevant_params.items()
+    }
+    translated_params = {tuple(k.split("/")): v for k, v in translated_params.items()}
+    assert set(translated_params) - set(flat_params) == set()
+    assert all(
+        [translated_params[k].shape == flat_params[k].shape for k in translated_params]
+    )
+    flat_params.update(translated_params)
+    updated_params = flax.traverse_util.unflatten_dict(flat_params)
+
+    logging.info("Loaded siglip encoder blocks")
+    return updated_params
