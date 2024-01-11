@@ -472,33 +472,27 @@ def siglip_weights_loader(
     # load siglip params, and parse keys from np array
     with tf.io.gfile.GFile(siglip_path, "rb") as f:
         siglip_params = np.load(f)
-    skip_len = len("params/img/Transformer/")
-    siglip_params = {
-        k[skip_len:]: v
+
+    flat_params = flax.traverse_util.flatten_dict(params)
+    relevant_params = {
+        k: jnp.array(v)
         for k, v in siglip_params.items()
-        if "img" in k and "encoderblock" in k
+        if k.startswith("params/img/Transformer/encoderblock")
     }
+    translated_params = {
+        k.replace(
+            "params/img/Transformer/",
+            "octo_transformer/BlockTransformer_0/Transformer_0/",
+        ): v
+        for k, v in relevant_params.items()
+    }
+    translated_params = {tuple(k.split("/")): v for k, v in translated_params.items()}
+    assert set(translated_params) - set(flat_params) == set()
+    assert all(
+        [translated_params[k].shape == flat_params[k].shape for k in translated_params]
+    )
+    flat_params.update(translated_params)
+    updated_params = flax.traverse_util.unflatten_dict(flat_params)
 
-    # get matching transformer params from octo model
-    octo_params = params["octo_transformer"]["BlockTransformer_0"]["Transformer_0"]
-
-    # replace parameters for all 12 ViT-B encoder blocks
-    replace_ctr = 0
-
-    def replace_block_params(params, replacement_key):
-        nonlocal replace_ctr
-        for k, v in params.items():
-            siglip_key = f"{replacement_key}/{k}"
-            if siglip_key in siglip_params:
-                replacement_param = siglip_params[siglip_key]
-                assert params[k].shape == replacement_param.shape, "shapes don't match!"
-                params[k] = jnp.array(replacement_param)
-                replace_ctr += 1
-            else:
-                replace_block_params(v, siglip_key)
-
-    for b in range(12):
-        k = f"encoderblock_{b}"
-        replace_block_params(octo_params[k], k)
-    logging.info(f"Loaded {replace_ctr} siglip keys.")
-    return params
+    logging.info("Loaded siglip encoder blocks")
+    return updated_params
