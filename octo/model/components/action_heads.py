@@ -239,7 +239,7 @@ class ContinuousActionHead(nn.Module, ActionHead):
 
         mask = (
             jnp.broadcast_to(action_pad_mask[:, None, None, :], actions_chunked.shape)
-            * pad_mask
+            * pad_mask[:, :, None, None]
         )
 
         loss, metrics = continuous_loss(
@@ -377,7 +377,7 @@ class DiscreteActionHead(nn.Module, ActionHead):
 
         mask = (
             jnp.broadcast_to(action_pad_mask[:, None, None, :], actions_chunked.shape)
-            * pad_mask
+            * pad_mask[:, :, None, None]
         )
 
         loss, metrics = discrete_loss(
@@ -563,7 +563,7 @@ class DiffusionActionHead(nn.Module):
 
         mask = (
             jnp.broadcast_to(action_pad_mask[:, None, None, :], actions_chunked.shape)
-            * pad_mask
+            * pad_mask[:, :, None, None]
         )
         mask = rearrange(mask, "b w p a -> b w (p a)")
 
