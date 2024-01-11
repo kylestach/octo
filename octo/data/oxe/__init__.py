@@ -42,6 +42,10 @@ def make_oxe_dataset_kwargs(
         # with JOINT_POS actions, all dimensions are deltas
         dataset_kwargs["absolute_action_mask"] = [False] * 8
         dataset_kwargs["action_normalization_mask"] = [True] * 8
+    elif dataset_kwargs["action_encoding"] is ActionEncoding.NAV_2D:
+        # with NAV_2D actions, all dimensions are deltas
+        dataset_kwargs["absolute_action_mask"] = [False] * 2
+        dataset_kwargs["action_normalization_mask"] = [True] * 2
     else:
         raise ValueError(
             f"Cannot load {name} since only EEF and joint delta action encodings are supported."

@@ -27,6 +27,7 @@ class StateEncoding(IntEnum):
     POS_QUAT = 2  # EEF XYZ + quaternion + gripper open/close
     JOINT = 3  # 7 x joint angles (padding added if fewer) + gripper open/close
     JOINT_BIMANUAL = 4  # 2 x [6 x joint angles + gripper open/close]
+    POS_NAV = 5  # XY + yaw
 
 
 class ActionEncoding(IntEnum):
@@ -35,6 +36,7 @@ class ActionEncoding(IntEnum):
     EEF_POS = 1  # EEF delta XYZ + roll-pitch-yaw + gripper open/close
     JOINT_POS = 2  # 7 x joint delta position + gripper open/close
     JOINT_POS_BIMANUAL = 3  # 2 x [6 x joint pos + gripper]
+    NAV_2D = 4  # [delta_x, delta_y] waypoint
 
 
 OXE_DATASET_CONFIGS = {
@@ -483,25 +485,11 @@ OXE_DATASET_CONFIGS = {
         "state_encoding": StateEncoding.POS_EULER,
         "action_encoding": ActionEncoding.EEF_POS,
     },
-    "berkeley_gnm_recon": {
-        "image_obs_keys": {"primary": None, "secondary": None, "wrist": "image"},
+    "gnm_dataset": {
+        "image_obs_keys": {"primary": "image", "secondary": None, "wrist": None},
         "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
-        "state_obs_keys": ["state", None, None],
-        "state_encoding": StateEncoding.POS_EULER,
-        "action_encoding": ActionEncoding.EEF_POS,
-    },
-    "berkeley_gnm_cory_hall": {
-        "image_obs_keys": {"primary": None, "secondary": None, "wrist": "image"},
-        "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
-        "state_obs_keys": ["state", None, None],
-        "state_encoding": StateEncoding.POS_EULER,
-        "action_encoding": ActionEncoding.EEF_POS,
-    },
-    "berkeley_gnm_sac_son": {
-        "image_obs_keys": {"primary": None, "secondary": None, "wrist": "image"},
-        "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
-        "state_obs_keys": ["state", None, None],
-        "state_encoding": StateEncoding.POS_EULER,
-        "action_encoding": ActionEncoding.EEF_POS,
+        "state_obs_keys": ["state", None, None, None, None, None],
+        "state_encoding": StateEncoding.POS_NAV,
+        "action_encoding": ActionEncoding.NAV_2D,
     },
 }

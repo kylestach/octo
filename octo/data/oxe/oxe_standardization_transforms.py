@@ -775,23 +775,6 @@ def cmu_stretch_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def gnm_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
-    trajectory["observation"]["state"] = tf.concat(
-        (
-            trajectory["observation"]["position"],
-            tf.zeros_like(trajectory["observation"]["state"][:, :3]),
-            trajectory["observation"]["yaw"],
-        ),
-        axis=-1,
-    )
-    trajectory["action"] = tf.concat(
-        (
-            trajectory["action"],
-            tf.zeros_like(trajectory["action"]),
-            tf.zeros_like(trajectory["action"]),
-            tf.zeros_like(trajectory["action"][:, :1]),
-        ),
-        axis=-1,
-    )
     return trajectory
 
 
@@ -845,7 +828,5 @@ OXE_STANDARDIZATION_TRANSFORMS = {
     "cmu_playing_with_food": cmu_playing_with_food_dataset_transform,
     "cmu_play_fusion": playfusion_dataset_transform,
     "cmu_stretch": cmu_stretch_dataset_transform,
-    "berkeley_gnm_recon": gnm_dataset_transform,
-    "berkeley_gnm_cory_hall": gnm_dataset_transform,
-    "berkeley_gnm_sac_son": gnm_dataset_transform,
+    "gnm_dataset": gnm_dataset_transform,
 }
