@@ -117,7 +117,7 @@ def pad_actions(traj: dict, max_action_dim: int) -> dict:
 
     traj["action_pad_mask"] = tf.cast(
         tf.concat(
-            [tf.zeros([traj_len, action_dim]), tf.ones([traj_len, n_pad_dims])], axis=1
+            [tf.ones([traj_len, action_dim]), tf.zeros([traj_len, n_pad_dims])], axis=1
         ),
         tf.bool,
     )
