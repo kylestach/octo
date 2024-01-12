@@ -447,6 +447,7 @@ class DiffusionActionHead(nn.Module):
     hidden_dim: int = 256
     use_layer_norm: bool = True
     diffusion_steps: int = 20
+    n_diffusion_samples: int = 32
 
     def setup(self):
         if self.use_map:
@@ -499,7 +500,6 @@ class DiffusionActionHead(nn.Module):
                 (*embeddings.shape[:2], self.action_dim * self.pred_horizon),
                 dtype=jnp.float32,
             )
-
         pred_eps = self.diffusion_model(embeddings, noisy_actions, time, train=train)
         return pred_eps
 
@@ -534,21 +534,27 @@ class DiffusionActionHead(nn.Module):
         rng = self.make_rng("dropout")
         time_key, noise_key = jax.random.split(rng)
         time = jax.random.randint(
-            time_key, (batch_size, window_size, 1), 0, self.diffusion_steps
+            time_key,
+            (self.n_diffusion_samples, batch_size, window_size, 1),
+            0,
+            self.diffusion_steps,
         )
-        noise = jax.random.normal(noise_key, actions_flat.shape)
+        noise = jax.random.normal(
+            noise_key, (self.n_diffusion_samples,) + actions_flat.shape
+        )
 
         alpha_hat = self.alpha_hats[time]
         alpha_1 = jnp.sqrt(alpha_hat)
         alpha_2 = jnp.sqrt(1 - alpha_hat)
-        noisy_actions = alpha_1 * actions_flat + alpha_2 * noise
+        noisy_actions = alpha_1 * actions_flat[None] + alpha_2 * noise
 
         pred_eps = self(
             transformer_outputs, train=train, time=time, noisy_actions=noisy_actions
         )
+        print("pred_eps.shape", pred_eps.shape)
 
         loss, metrics = continuous_loss(
-            pred_eps, noise, pad_mask[:, :, None], loss_type=self.loss_type
+            pred_eps, noise, pad_mask[None, :, :, None], loss_type=self.loss_type
         )
         # Sum over action dimension instead of averaging
         loss = loss * self.action_dim
