@@ -569,11 +569,27 @@ def robo_net_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def berkeley_mvp_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
+    trajectory["observation"]["gripper"] = trajectory["observation"]["gripper"][:, None]
     return trajectory
 
 
 def berkeley_rpt_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
     trajectory["observation"]["gripper"] = trajectory["observation"]["gripper"][:, None]
+
+    # relabel actions to convert from 30Hz to 10Hz
+    factor = 3
+    joint_actions = (
+        trajectory["observation"]["joint_pos"][factor:, :7]
+        - trajectory["observation"]["joint_pos"][:-factor, :7]
+    )
+    # discard the last `factor` timesteps of the trajectory
+    traj_truncated = tf.nest.map_structure(lambda x: x[:-factor], trajectory)
+    # recombine to get full actions
+    traj_truncated["action"] = tf.concat(
+        [joint_actions, trajectory["action"][:-factor, -1:]],
+        axis=1,
+    )
+
     return trajectory
 
 
