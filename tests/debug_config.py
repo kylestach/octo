@@ -49,7 +49,7 @@ def get_config():
                     "name": "bridge_dataset",
                     "data_dir": "./tests/debug_dataset",
                     "image_obs_keys": {"primary": "image_0"},
-                    "state_obs_keys": ["state"],
+                    "proprio_obs_key": "proprio",
                     "language_key": "language_instruction",
                 },
             ],

@@ -162,15 +162,6 @@ def main(_):
         del batch["dataset_name"]
         return batch
 
-    # create standardize_fn ModelSpec from `path/to/file.py:fn_name` format
-    if (
-        standardize_fn := FLAGS.config["dataset_kwargs"].get("standardize_fn", None)
-    ) is not None:
-        del FLAGS.config["dataset_kwargs"]["standardize_fn"]
-        FLAGS.config["dataset_kwargs"]["standardize_fn"] = ModuleSpec.create(
-            standardize_fn
-        )
-
     dataset = make_single_dataset(
         FLAGS.config.dataset_kwargs,
         traj_transform_kwargs=FLAGS.config.traj_transform_kwargs,

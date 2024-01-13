@@ -70,7 +70,7 @@ def main(_):
             name="aloha_sim_cube_scripted_dataset",
             data_dir=FLAGS.data_dir,
             image_obs_keys={"primary": "top"},
-            state_obs_keys=["state"],
+            proprio_obs_key="state",
             language_key="language_instruction",
             action_proprio_normalization_type=NormalizationType.NORMAL,
             absolute_action_mask=[True] * 14,

@@ -41,11 +41,9 @@ def make_oxe_dataset_kwargs(
     elif dataset_kwargs["action_encoding"] is ActionEncoding.JOINT_POS:
         # with JOINT_POS actions, all dimensions are deltas
         dataset_kwargs["absolute_action_mask"] = [False] * 8
-        dataset_kwargs["action_normalization_mask"] = [True] * 8
     elif dataset_kwargs["action_encoding"] is ActionEncoding.NAV_2D:
         # with NAV_2D actions, all dimensions are deltas
         dataset_kwargs["absolute_action_mask"] = [False] * 2
-        dataset_kwargs["action_normalization_mask"] = [True] * 2
     else:
         raise ValueError(
             f"Cannot load {name} with unsupported action encoding {dataset_kwargs['action_encoding']}."
@@ -69,9 +67,8 @@ def make_oxe_dataset_kwargs(
 
     if not load_depth:
         dataset_kwargs.pop("depth_obs_keys")
-    if not load_proprio:
-        dataset_kwargs.pop("state_obs_keys")
-
+    if load_proprio:
+        dataset_kwargs["proprio_obs_key"] = "proprio"
     if load_language:
         dataset_kwargs["language_key"] = "language_instruction"
 
@@ -79,7 +76,7 @@ def make_oxe_dataset_kwargs(
         "action_proprio_normalization_type"
     ] = action_proprio_normalization_type
 
-    del dataset_kwargs["state_encoding"]
+    del dataset_kwargs["proprio_encoding"]
     del dataset_kwargs["action_encoding"]
 
     dataset_kwargs["standardize_fn"] = ModuleSpec.create(
