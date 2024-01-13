@@ -219,7 +219,7 @@ class OctoTransformer(nn.Module):
             lang_tokens = jnp.tile(lang_tokens, [1, ws, 1, 1])
             lang_pad_mask = all_prefix_groups[0].mask[:, jnp.newaxis, :]
             lang_pad_mask = jnp.tile(lang_pad_mask, [1, ws, 1])
-            group_name = f"obs_language"
+            group_name = "obs_language"
             all_timestep_groups.append(
                 TimestepGroup(
                     tokens=lang_tokens,
