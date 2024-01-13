@@ -113,17 +113,27 @@ def pad_actions(traj: dict, max_action_dim: int) -> dict:
     """
     traj_len = tf.shape(traj["action"])[0]
     action_dim = tf.shape(traj["action"])[2]
-    n_pad_dims = max_action_dim - action_dim
+    with tf.control_dependencies(
+        [
+            tf.debugging.assert_less_equal(
+                action_dim,
+                max_action_dim,
+                message="max_action_dim should be greater than or equal to action_dim of all datasets",
+            )
+        ]
+    ):
+        n_pad_dims = max_action_dim - action_dim
 
-    traj["action_pad_mask"] = tf.cast(
-        tf.concat(
-            [tf.ones([traj_len, action_dim]), tf.zeros([traj_len, n_pad_dims])], axis=1
-        ),
-        tf.bool,
-    )
-    traj["action"] = tf.pad(traj["action"], [[0, 0], [0, 0], [0, n_pad_dims]])
-    # pretend the padding dimensions are relative so that they get set to zero after goal reached
-    traj["absolute_action_mask"] = tf.pad(
-        traj["absolute_action_mask"], [[0, 0], [0, n_pad_dims]]
-    )
+        traj["action_pad_mask"] = tf.cast(
+            tf.concat(
+                [tf.ones([traj_len, action_dim]), tf.zeros([traj_len, n_pad_dims])],
+                axis=1,
+            ),
+            tf.bool,
+        )
+        traj["action"] = tf.pad(traj["action"], [[0, 0], [0, 0], [0, n_pad_dims]])
+        # pretend the padding dimensions are relative so that they get set to zero after goal reached
+        traj["absolute_action_mask"] = tf.pad(
+            traj["absolute_action_mask"], [[0, 0], [0, n_pad_dims]]
+        )
     return traj
