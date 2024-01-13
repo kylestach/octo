@@ -44,6 +44,8 @@ def image_dropout(obs: dict, seed: tf.Tensor, dropout_prob: float) -> dict:
     image present.
     """
     image_keys = {key for key in obs if key.startswith("image_")}
+    if not image_keys:
+        return obs
     pad_mask = tf.stack([obs["pad_mask_dict"][key] for key in image_keys])
     # if any non-padding images exist, pick one of them to keep no matter what
     shuffle_seed, seed = tf.unstack(tf.random.split(seed))
