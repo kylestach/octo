@@ -48,7 +48,7 @@ def make_oxe_dataset_kwargs(
         dataset_kwargs["action_normalization_mask"] = [True] * 2
     else:
         raise ValueError(
-            f"Cannot load {name} since only EEF and joint delta action encodings are supported."
+            f"Cannot load {name} with unsupported action encoding {dataset_kwargs['action_encoding']}."
         )
 
     # adjust loaded camera views
