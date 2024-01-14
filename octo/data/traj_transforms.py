@@ -4,6 +4,7 @@ that represents a single trajectory, meaning each tensor has the same leading di
 length).
 """
 import logging
+from typing import Optional
 
 import tensorflow as tf
 
@@ -106,34 +107,30 @@ def add_pad_mask_dict(traj: dict) -> dict:
     return traj
 
 
-def pad_actions(traj: dict, max_action_dim: int) -> dict:
-    """Pads actions to the maximum number of action dimensions across all datasets.
+def pad_actions_and_proprio(
+    traj: dict, max_action_dim: Optional[int], max_proprio_dim: Optional[int]
+) -> dict:
+    """Pads actions and proprio to a maximum number of dimensions across all datasets.
 
-    Assumes that actions have already been chunked. Records which dimensions are padding in "action_pad_mask".
+    Records which action dimensions are padding in "action_pad_mask".
     """
-    traj_len = tf.shape(traj["action"])[0]
-    action_dim = tf.shape(traj["action"])[2]
-    with tf.control_dependencies(
-        [
-            tf.debugging.assert_less_equal(
-                action_dim,
-                max_action_dim,
-                message="max_action_dim should be greater than or equal to action_dim of all datasets",
+    if max_action_dim is not None:
+        action_dim = traj["action"].shape[-1]
+        if action_dim > max_action_dim:
+            raise ValueError(
+                f"action_dim ({action_dim}) is greater than max_action_dim ({max_action_dim})"
             )
-        ]
-    ):
-        n_pad_dims = max_action_dim - action_dim
+        traj["action_pad_mask"] = tf.ones_like(traj["action"], dtype=tf.bool)
+        for key in {"action", "action_pad_mask", "absolute_action_mask"}:
+            traj[key] = tf.pad(traj[key], [[0, 0], [0, max_action_dim - action_dim]])
 
-        traj["action_pad_mask"] = tf.cast(
-            tf.concat(
-                [tf.ones([traj_len, action_dim]), tf.zeros([traj_len, n_pad_dims])],
-                axis=1,
-            ),
-            tf.bool,
-        )
-        traj["action"] = tf.pad(traj["action"], [[0, 0], [0, 0], [0, n_pad_dims]])
-        # pretend the padding dimensions are relative so that they get set to zero after goal reached
-        traj["absolute_action_mask"] = tf.pad(
-            traj["absolute_action_mask"], [[0, 0], [0, n_pad_dims]]
+    if max_proprio_dim is not None and "proprio" in traj["observation"]:
+        proprio_dim = traj["observation"]["proprio"].shape[-1]
+        if proprio_dim > max_proprio_dim:
+            raise ValueError(
+                f"proprio_dim ({proprio_dim}) is greater than max_proprio_dim ({max_proprio_dim})"
+            )
+        traj["observation"]["proprio"] = tf.pad(
+            traj["observation"]["proprio"], [[0, 0], [0, max_proprio_dim - proprio_dim]]
         )
     return traj

@@ -36,6 +36,7 @@ def apply_trajectory_transforms(
     task_augment_strategy: Optional[str] = None,
     task_augment_kwargs: dict = {},
     max_action_dim: Optional[int] = None,
+    max_proprio_dim: Optional[int] = None,
     num_parallel_calls: int = tf.data.AUTOTUNE,
 ) -> dl.DLataset:
     """Applies common transforms that happen at a trajectory level. Such transforms are usually some sort of
@@ -66,6 +67,10 @@ def apply_trajectory_transforms(
             augmentation. See `task_augmentation.py`.
         task_augment_kwargs (dict, optional): Additional keyword arguments to pass to the task augmentation
             function.
+        max_action_dim (int, optional): If provided, datasets with an action dimension less than this will be
+            padded to this dimension.
+        max_proprio_dim (int, optional): If provided, datasets with a proprio dimension less than this will be
+            padded to this dimension.
         num_parallel_calls (int, optional): number of parallel calls for map operations. Default to AUTOTUNE.
     """
     if skip_unlabeled:
@@ -91,6 +96,16 @@ def apply_trajectory_transforms(
 
     # marks which entires of the observation and task dicts are padding
     dataset = dataset.traj_map(traj_transforms.add_pad_mask_dict, num_parallel_calls)
+
+    # optionally pads actions and proprio to a consistent number of dimensions
+    dataset = dataset.traj_map(
+        partial(
+            traj_transforms.pad_actions_and_proprio,
+            max_action_dim=max_action_dim,
+            max_proprio_dim=max_proprio_dim,
+        ),
+        num_parallel_calls,
+    )
 
     # updates the "task" dict
     if goal_relabeling_strategy is not None:
@@ -123,13 +138,6 @@ def apply_trajectory_transforms(
         ),
         num_parallel_calls,
     )
-
-    # pad actions to maximum action dimension and add action pad mask
-    if max_action_dim:
-        dataset = dataset.traj_map(
-            partial(traj_transforms.pad_actions, max_action_dim=max_action_dim),
-            num_parallel_calls,
-        )
 
     if train and subsample_length is not None:
         dataset = dataset.traj_map(

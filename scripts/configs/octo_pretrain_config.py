@@ -26,6 +26,8 @@ def update_config(config, **kwargs):
 def get_config(config_string=None):
     config = get_base_config(config_string)
 
+    action_dim = 8
+
     config["window_size"] = 2
     config["num_steps"] = 300000
     config["model"]["observation_tokenizers"] = {
@@ -55,7 +57,7 @@ def get_config(config_string=None):
         readout_key="readout_action",
         use_map=False,
         pred_horizon=4,
-        action_dim=7,
+        action_dim=action_dim,
     )
 
     # We augment differently for the primary and wrist cameras
@@ -116,7 +118,7 @@ def get_config(config_string=None):
             ),
             traj_transform_kwargs=dict(
                 future_action_window_size=3,
-                max_action_dim=8,
+                max_action_dim=action_dim,
             ),
             batch_size=128,
             shuffle_buffer_size=500000,
