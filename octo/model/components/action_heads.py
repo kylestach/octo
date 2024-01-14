@@ -550,7 +550,6 @@ class DiffusionActionHead(nn.Module):
         pred_eps = self(
             transformer_outputs, train=train, time=time, noisy_actions=noisy_actions
         )
-        print("pred_eps.shape", pred_eps.shape)
 
         loss, metrics = continuous_loss(
             pred_eps, noise, pad_mask[None, :, :, None], loss_type=self.loss_type
