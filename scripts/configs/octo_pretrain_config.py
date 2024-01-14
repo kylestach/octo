@@ -56,6 +56,7 @@ def get_config(config_string=None):
         use_map=False,
         pred_horizon=4,
         action_dim=7,
+        n_diffusion_samples=32,
     )
 
     # We augment differently for the primary and wrist cameras
