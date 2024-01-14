@@ -630,7 +630,7 @@ def berkeley_rpt_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]
         axis=1,
     )
 
-    return trajectory
+    return traj_truncated
 
 
 def kaist_nonprehensible_dataset_transform(
@@ -849,6 +849,81 @@ def gnm_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
     return trajectory
 
 
+def aloha_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
+    trajectory["observation"]["proprio"] = trajectory["observation"]["state"]
+
+    # relabel actions to convert from 50Hz to 10Hz
+    factor = 5
+    actions_subsampled = tf.reduce_sum(
+        tf.stack([trajectory["action"][i : -factor + i] for i in range(factor)]), axis=0
+    )
+
+    # discard the last `factor` timesteps of the trajectory
+    traj_truncated = tf.nest.map_structure(lambda x: x[:-factor], trajectory)
+    # recombine with non-subsampled gripper actions
+    traj_truncated["action"] = tf.concat(
+        [
+            actions_subsampled[:, :6],
+            trajectory["action"][:-factor, 6:7],
+            actions_subsampled[:, 7:13],
+            trajectory["action"][:-factor, 13:14],
+        ],
+        axis=1,
+    )
+    if trajectory["action"].shape[1] == 16:
+        # append subsampled base actions for mobile aloha
+        traj_truncated["action"] = tf.concat(
+            [
+                traj_truncated["action"],
+                actions_subsampled[:, 14:16],
+            ],
+            axis=1,
+        )
+    return traj_truncated
+
+
+def fmb_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
+    # every input feature is batched, ie has leading batch dimension
+    trajectory["observation"]["proprio"] = tf.concat(
+        (
+            trajectory["observation"]["eef_pose"],
+            trajectory["observation"]["state_gripper_pose"][..., None],
+        ),
+        axis=-1,
+    )
+    return trajectory
+
+
+def dobbe_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
+    # every input feature is batched, ie has leading batch dimension
+    trajectory["observation"]["proprio"] = trajectory["observation"]["state"]
+    return trajectory
+
+
+def roboset_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
+    # every input feature is batched, ie has leading batch dimension
+    trajectory["observation"]["proprio"] = trajectory["observation"]["state"]
+    return trajectory
+
+
+def rh20t_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
+    trajectory["action"] = tf.concat(
+        (
+            trajectory["action"]["tcp_base"],
+            tf.cast(trajectory["action"]["gripper"][:, None], tf.float32),
+        ),
+        axis=-1,
+    )
+    trajectory["observation"]["proprio"] = tf.concat(
+        (
+            trajectory["observation"]["tcp_base"],
+            trajectory["observation"]["gripper_width"][..., None],
+        ),
+        axis=-1,
+    )
+    return trajectory
+
+
 OXE_STANDARDIZATION_TRANSFORMS = {
     "bridge_dataset": bridge_dataset_transform,
     "fractal20220817_data": rt1_dataset_transform,
@@ -900,4 +975,11 @@ OXE_STANDARDIZATION_TRANSFORMS = {
     "cmu_play_fusion": playfusion_dataset_transform,
     "cmu_stretch": cmu_stretch_dataset_transform,
     "gnm_dataset": gnm_dataset_transform,
+    "aloha_static_dataset": aloha_dataset_transform,
+    "aloha_dagger_dataset": aloha_dataset_transform,
+    "aloha_mobile_dataset": aloha_dataset_transform,
+    "fmb_dataset": fmb_dataset_transform,
+    "dobbe": dobbe_dataset_transform,
+    "roboset": roboset_dataset_transform,
+    "rh20t": rh20t_dataset_transform,
 }

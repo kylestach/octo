@@ -33,6 +33,9 @@ class ActionEncoding(IntEnum):
     JOINT_POS = 2  # 7 x joint delta position + gripper open/close
     JOINT_POS_BIMANUAL = 3  # 2 x [6 x joint pos + gripper]
     NAV_2D = 4  # [delta_x, delta_y] waypoint
+    JOINT_POS_BIMANUAL_NAV = (
+        5  # 2 x [6 x joint pos + gripper] + linear base vel + angular base vel
+    )
 
 
 OXE_DATASET_CONFIGS = {
@@ -429,5 +432,75 @@ OXE_DATASET_CONFIGS = {
         "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
         "proprio_encoding": ProprioEncoding.POS_NAV,
         "action_encoding": ActionEncoding.NAV_2D,
+    },
+    "aloha_static_dataset": {
+        "image_obs_keys": {
+            "primary": "cam_high",
+            "secondary": "cam_low",
+            "wrist": "cam_right_wrist",
+        },
+        "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
+        "proprio_encoding": ProprioEncoding.JOINT_BIMANUAL,
+        "action_encoding": ActionEncoding.JOINT_POS_BIMANUAL,
+    },
+    "aloha_dagger_dataset": {
+        "image_obs_keys": {
+            "primary": "cam_high",
+            "secondary": "cam_low",
+            "wrist": "cam_right_wrist",
+        },
+        "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
+        "proprio_encoding": ProprioEncoding.JOINT_BIMANUAL,
+        "action_encoding": ActionEncoding.JOINT_POS_BIMANUAL,
+    },
+    "aloha_mobile_dataset": {
+        "image_obs_keys": {
+            "primary": "cam_high",
+            "secondary": None,
+            "wrist": "cam_right_wrist",
+        },
+        "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
+        "proprio_encoding": ProprioEncoding.JOINT_BIMANUAL,
+        "action_encoding": ActionEncoding.JOINT_POS_BIMANUAL_NAV,
+    },
+    "fmb_dataset": {
+        "image_obs_keys": {
+            "primary": "image_side_1",
+            "secondary": "image_side_2",
+            "wrist": "image_wrist_1",
+        },
+        "depth_obs_keys": {
+            "primary": "image_side_1_depth",
+            "secondary": "image_side_2_depth",
+            "wrist": "image_wrist_1_depth",
+        },
+        "proprio_encoding": ProprioEncoding.POS_EULER,
+        "action_encoding": ActionEncoding.EEF_POS,
+    },
+    "dobbe": {
+        "image_obs_keys": {"primary": None, "secondary": None, "wrist": "wrist_image"},
+        "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
+        "proprio_encoding": ProprioEncoding.POS_EULER,
+        "action_encoding": ActionEncoding.EEF_POS,
+    },
+    "roboset": {
+        "image_obs_keys": {
+            "primary": "image_left",
+            "secondary": "image_right",
+            "wrist": "image_wrist",
+        },
+        "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
+        "proprio_encoding": ProprioEncoding.JOINT,
+        "action_encoding": ActionEncoding.JOINT_POS,
+    },
+    "rh20t": {
+        "image_obs_keys": {
+            "primary": "image_front",
+            "secondary": "image_side_right",
+            "wrist": "image_wrist",
+        },
+        "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
+        "state_encoding": ProprioEncoding.POS_EULER,
+        "action_encoding": ActionEncoding.EEF_POS,
     },
 }

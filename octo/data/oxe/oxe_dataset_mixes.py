@@ -73,7 +73,7 @@ OXE_MAGIC_SOUP = [
 ]
 
 
-OXE_MULTI_MORPHOLOGY_SOUP = [
+OXE_FLEX_ACT_SOUP = [
     ("fractal20220817_data", 0.54087122203),
     ("kuka", 0.8341046294),
     ("bridge_dataset", 1.0),
@@ -94,6 +94,8 @@ OXE_MULTI_MORPHOLOGY_SOUP = [
     ("austin_sailor_dataset_converted_externally_to_rlds", 1.0),
     ("austin_sirius_dataset_converted_externally_to_rlds", 1.0),
     ("bc_z", 0.2),
+    ("berkeley_mvp_converted_externally_to_rlds", 1.0),
+    # ("berkeley_rpt_converted_externally_to_rlds", 1.0),
     ("dlr_edan_shared_control_converted_externally_to_rlds", 1.0),
     ("iamlab_cmu_pickup_insert_converted_externally_to_rlds", 1.0),
     # ("uiuc_d3field", 1.0),  --> somehow raw data is broken
@@ -101,6 +103,13 @@ OXE_MULTI_MORPHOLOGY_SOUP = [
     ("berkeley_fanuc_manipulation", 2.0),
     ("cmu_stretch", 1.0),
     ("gnm_dataset", 1.0),
+    ("aloha_static_dataset", 1.0),
+    ("aloha_dagger_dataset", 1.0),
+    ("aloha_mobile_dataset", 1.0),
+    # ("fmb_dataset", 1.0),
+    ("dobbe", 1.0),
+    ("roboset", 1.0),
+    ("rh20t", 1.0),
 ]
 
 
@@ -162,5 +171,5 @@ OXE_NAMED_MIXES = {
     "rtx": RT_X_MIX,
     "rtx_franka": RT_X_MIX + OXE_FRANKA_MIX,
     "oxe_magic_soup": OXE_MAGIC_SOUP,
-    "oxe_multi_morphology_soup": OXE_MULTI_MORPHOLOGY_SOUP,
+    "oxe_flex_act_soup": OXE_FLEX_ACT_SOUP,
 }
