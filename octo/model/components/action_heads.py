@@ -8,7 +8,6 @@ import jax
 from jax import Array
 import jax.numpy as jnp
 from jax.typing import ArrayLike
-import numpy as np
 
 from octo.model.components.base import TokenGroup
 from octo.model.components.diffusion import cosine_beta_schedule, create_diffusion_model
@@ -594,34 +593,30 @@ class DiffusionActionHead(nn.Module):
 
             return (current_x, rng), ()
 
-        def sample_actions(rng):
-            rng, key = jax.random.split(rng)
-            batch_size, window_size = transformer_outputs[
-                self.readout_key
-            ].tokens.shape[:2]
+        rng, key = jax.random.split(rng)
+        batch_size, window_size = transformer_outputs[self.readout_key].tokens.shape[:2]
 
-            (actions_flat, _), () = jax.lax.scan(
-                scan_fn,
-                (
-                    jax.random.normal(
-                        key,
-                        (batch_size, window_size, self.pred_horizon * self.action_dim),
-                    ),
-                    rng,
-                ),
-                jnp.arange(self.diffusion_steps - 1, -1, -1),
-            )
+        noise = jax.random.normal(
+            key,
+            (
+                *sample_shape,
+                batch_size,
+                window_size,
+                self.pred_horizon * self.action_dim,
+            ),
+        )
 
-            actions = rearrange(
-                actions_flat,
-                "b w (p a) -> b w p a",
-                p=self.pred_horizon,
-                a=self.action_dim,
-            )
-            # only get the last timestep in the window
-            return actions[:, -1]
+        (actions_flat, _), () = jax.lax.scan(
+            scan_fn,
+            (noise, rng),
+            jnp.arange(self.diffusion_steps - 1, -1, -1),
+        )
 
-        n_samples = int(np.prod(sample_shape))
-        actions = jax.vmap(sample_actions)(jax.random.split(rng, n_samples))
-        actions = actions.reshape(sample_shape + actions.shape[1:])
-        return actions
+        actions = rearrange(
+            actions_flat,
+            "... (p a) -> ... p a",
+            p=self.pred_horizon,
+            a=self.action_dim,
+        )
+        # only get the last timestep in the window
+        return actions[..., -1, :, :]
