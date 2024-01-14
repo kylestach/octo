@@ -116,6 +116,7 @@ def get_config(config_string=None):
             ),
             traj_transform_kwargs=dict(
                 future_action_window_size=3,
+                max_action_dim=8,
             ),
             batch_size=128,
             shuffle_buffer_size=500000,
