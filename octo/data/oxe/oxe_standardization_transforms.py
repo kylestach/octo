@@ -600,7 +600,7 @@ def berkeley_mvp_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]
     trajectory["observation"]["proprio"] = tf.concat(
         (
             trajectory["observation"]["pose"],
-            trajectory["observation"]["gripper"][:, None],
+            tf.cast(trajectory["observation"]["gripper"], tf.float32)[:, None],
         ),
         axis=-1,
     )

@@ -106,13 +106,13 @@ OXE_FLEX_ACT_SOUP = [
     ("berkeley_fanuc_manipulation", 2.0),
     ("cmu_stretch", 1.0),
     ("gnm_dataset", 1.0),
-    ("aloha_static_dataset", 1.0),
+    ("aloha_static_dataset", 3.0),
     # ("aloha_dagger_dataset", 1.0),
-    ("aloha_mobile_dataset", 1.0),
+    ("aloha_mobile_dataset", 2.0),
     # ("fmb_dataset", 1.0),
     ("dobbe", 1.0),
-    ("roboset", 1.0),
-    ("rh20t", 1.0),
+    ("roboset", 0.5),
+    ("rh20t", 0.5),
 ]
 
 
