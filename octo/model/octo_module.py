@@ -73,6 +73,8 @@ class OctoTransformer(nn.Module):
         max_horizon (int): The maximum number of timesteps that the transformer can be run with. Note that while the
             transformer can be run with any horizon <= max_horizon, the model will only generate sane outputs for
             horizon lengths smaller or equal to the pre-training horizon.
+        repeat_task_tokens: If true, repeats the task tokens at each observation timesetep.
+
     """
 
     observation_tokenizers: Dict[str, nn.Module]
@@ -102,7 +104,6 @@ class OctoTransformer(nn.Module):
             pad_mask: A boolean mask of shape (batch, horizon) where False indicates a padded timestep.
             readouts: A list of readouts to compute. If None, defaults to all readouts. Must be a subset of the readouts specified in the model config.
             train: Whether model is being trained.
-            repeat_task_tokens: If true, repeats the task tokens at each observation timesetep.
             verbose: If True, prints out the transformer structure.
 
         Returns:
