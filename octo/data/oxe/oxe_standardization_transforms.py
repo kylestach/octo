@@ -101,7 +101,7 @@ def kuka_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
     return trajectory
 
 
-def taco_play_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
+def taco_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
     trajectory["action"] = trajectory["action"]["rel_actions_world"]
 
     # invert gripper action + clip, +1 = open, 0 = close
@@ -928,7 +928,8 @@ OXE_STANDARDIZATION_TRANSFORMS = {
     "bridge_dataset": bridge_dataset_transform,
     "fractal20220817_data": rt1_dataset_transform,
     "kuka": kuka_dataset_transform,
-    "taco_play": taco_play_dataset_transform,
+    "taco_play": taco_dataset_transform,
+    "taco_extra": taco_dataset_transform,
     "jaco_play": jaco_play_dataset_transform,
     "berkeley_cable_routing": berkeley_cable_routing_dataset_transform,
     "roboturk": roboturk_dataset_transform,
