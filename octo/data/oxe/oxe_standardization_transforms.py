@@ -852,6 +852,11 @@ def gnm_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
 def aloha_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
     trajectory["observation"]["proprio"] = trajectory["observation"]["state"]
 
+    # correct channel flip error in cameras
+    for key in trajectory["observation"]:
+        if "cam_" in key:
+            trajectory["observation"][key] = trajectory["observation"][key][..., ::-1]
+
     # relabel actions to convert from 50Hz to 10Hz
     factor = 5
     actions_subsampled = tf.reduce_sum(
@@ -903,6 +908,28 @@ def dobbe_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
 def roboset_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
     # every input feature is batched, ie has leading batch dimension
     trajectory["observation"]["proprio"] = trajectory["observation"]["state"]
+
+    # gripper action is in -1...1 --> clip to 0...1
+    gripper_action = trajectory["action"][:, -1:]
+    gripper_action = tf.clip_by_value(gripper_action, 0, 1)
+
+    # kinesthetic dataset has flipped gripper actions, so need to flip based on filename
+    gripper_action = tf.cond(
+        tf.strings.regex_full_match(
+            trajectory["traj_metadata"]["episode_metadata"]["file_path"][0],
+            ".*roboset/v0.4.*",
+        ),
+        gripper_action,
+        invert_gripper_actions(gripper_action),
+    )
+
+    trajectory["action"] = tf.concat(
+        (
+            trajectory["action"][:, :7],
+            gripper_action,
+        ),
+        axis=-1,
+    )
     return trajectory
 
 

@@ -510,7 +510,7 @@ OXE_DATASET_CONFIGS = {
             "wrist": "image_wrist",
         },
         "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
-        "state_encoding": ProprioEncoding.POS_EULER,
+        "proprio_encoding": ProprioEncoding.POS_EULER,
         "action_encoding": ActionEncoding.EEF_POS,
     },
 }
