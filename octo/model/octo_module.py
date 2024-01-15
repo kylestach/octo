@@ -81,6 +81,7 @@ class OctoTransformer(nn.Module):
     transformer_kwargs: Dict
     token_embedding_size: int
     max_horizon: int
+    repeat_task_tokens: bool
 
     @nn.compact
     def __call__(
@@ -101,6 +102,7 @@ class OctoTransformer(nn.Module):
             pad_mask: A boolean mask of shape (batch, horizon) where False indicates a padded timestep.
             readouts: A list of readouts to compute. If None, defaults to all readouts. Must be a subset of the readouts specified in the model config.
             train: Whether model is being trained.
+            repeat_task_tokens: If true, repeats the task tokens at each observation timesetep.
             verbose: If True, prints out the transformer structure.
 
         Returns:
@@ -209,25 +211,28 @@ class OctoTransformer(nn.Module):
                     attention_rules=observation_attention_rules,
                 )
             )
-
-        # get language tokens
-        if all_prefix_groups[0].name == "task_language":
-            # lang (batch, n_tokens, token_embedding_size)
-            lang_tokens = all_prefix_groups[0].tokens
-            lang_tokens = lang_tokens[:, jnp.newaxis, :, :]
-            ws = all_timestep_groups[0].tokens.shape[1]
-            lang_tokens = jnp.tile(lang_tokens, [1, ws, 1, 1])
-            lang_pad_mask = all_prefix_groups[0].mask[:, jnp.newaxis, :]
-            lang_pad_mask = jnp.tile(lang_pad_mask, [1, ws, 1])
-            group_name = "obs_language"
-            all_timestep_groups.append(
-                TimestepGroup(
-                    tokens=lang_tokens,
-                    mask=lang_pad_mask,
-                    name=group_name,
-                    attention_rules=observation_attention_rules,
-                )
+        if self.repeat_task_tokens:
+            logging.info(
+                "repeating task tokens at each timestep to perform cross-modal attention"
             )
+            # get task tokens
+            for tasks in all_prefix_groups:
+                # lang (batch, n_tokens, token_embedding_size)
+                task_tokens = tasks.tokens[:, jnp.newaxis, :, :]
+                ws = all_timestep_groups[0].tokens.shape[1]
+                task_tokens = jnp.tile(task_tokens, [1, ws, 1, 1])
+                task_pad_mask = tasks.mask[:, jnp.newaxis, :]
+                task_pad_mask = jnp.tile(task_pad_mask, [1, ws, 1])
+                group_name = f"obs_{tasks.name}"
+                all_timestep_groups.append(
+                    TimestepGroup(
+                        tokens=task_tokens,
+                        mask=task_pad_mask,
+                        name=group_name,
+                        attention_rules=observation_attention_rules,
+                    )
+                )
+
         #
         # Finally, add the readout tokens
         #
@@ -362,6 +367,7 @@ class OctoModule(nn.Module):
         heads: Dict[str, ModuleSpec],
         readouts: Dict[str, int],
         transformer_kwargs: Dict,
+        repeat_task_tokens: bool,
         token_embedding_size: int,
         max_horizon: int,
     ) -> "OctoModule":
@@ -376,6 +382,7 @@ class OctoModule(nn.Module):
             token_embedding_size (int): The latent dimension of the token embeddings
             max_horizon (int): Sets the size of positional embeddings, and provides an upper limit on the
                 maximum horizon of the model
+            repeat_task_tokens (bool): If true, repeats the task tokens at each observation timestep.
             transformer_kwargs: additional kwargs to forward to the transformer, which include:
                 num_layers (int): number of layers
                 mlp_dim (int): hidden dimension of the MLPs
@@ -400,6 +407,7 @@ class OctoModule(nn.Module):
             readouts=readouts,
             token_embedding_size=token_embedding_size,
             max_horizon=max_horizon,
+            repeat_task_tokens=repeat_task_tokens,
             transformer_kwargs=transformer_kwargs,
         )
 
