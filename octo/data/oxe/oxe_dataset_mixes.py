@@ -107,7 +107,7 @@ OXE_FLEX_ACT_SOUP = [
     ("cmu_stretch", 1.0),
     ("gnm_dataset", 1.0),
     ("aloha_static_dataset", 1.0),
-    ("aloha_dagger_dataset", 1.0),
+    # ("aloha_dagger_dataset", 1.0),
     ("aloha_mobile_dataset", 1.0),
     # ("fmb_dataset", 1.0),
     ("dobbe", 1.0),

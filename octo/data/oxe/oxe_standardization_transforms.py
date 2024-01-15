@@ -608,6 +608,10 @@ def berkeley_mvp_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]
 
 
 def berkeley_rpt_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
+    # relabel actions to convert from 30Hz to 10Hz
+    factor = 3
+    trajectory = tf.nest.map_structure(lambda x: x[::factor], trajectory)
+
     trajectory["observation"]["proprio"] = tf.concat(
         (
             trajectory["observation"]["joint_pos"],
@@ -616,17 +620,16 @@ def berkeley_rpt_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]
         axis=-1,
     )
 
-    # relabel actions to convert from 30Hz to 10Hz
-    factor = 3
+    # recompute actions for downsampled sequence
     joint_actions = (
-        trajectory["observation"]["joint_pos"][factor:, :7]
-        - trajectory["observation"]["joint_pos"][:-factor, :7]
+        trajectory["observation"]["joint_pos"][1:, :7]
+        - trajectory["observation"]["joint_pos"][:-1, :7]
     )
-    # discard the last `factor` timesteps of the trajectory
-    traj_truncated = tf.nest.map_structure(lambda x: x[:-factor], trajectory)
+    traj_truncated = tf.nest.map_structure(lambda x: x[:-1], trajectory)
+
     # recombine to get full actions
     traj_truncated["action"] = tf.concat(
-        [joint_actions, trajectory["action"][:-factor, -1:]],
+        [joint_actions, trajectory["action"][:-1, -1:]],
         axis=1,
     )
 
@@ -850,41 +853,12 @@ def gnm_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def aloha_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
-    trajectory["observation"]["proprio"] = trajectory["observation"]["state"]
-
-    # correct channel flip error in cameras
-    for key in trajectory["observation"]:
-        if "cam_" in key:
-            trajectory["observation"][key] = trajectory["observation"][key][..., ::-1]
-
     # relabel actions to convert from 50Hz to 10Hz
     factor = 5
-    actions_subsampled = tf.reduce_sum(
-        tf.stack([trajectory["action"][i : -factor + i] for i in range(factor)]), axis=0
-    )
+    trajectory = tf.nest.map_structure(lambda x: x[::factor], trajectory)
 
-    # discard the last `factor` timesteps of the trajectory
-    traj_truncated = tf.nest.map_structure(lambda x: x[:-factor], trajectory)
-    # recombine with non-subsampled gripper actions
-    traj_truncated["action"] = tf.concat(
-        [
-            actions_subsampled[:, :6],
-            trajectory["action"][:-factor, 6:7],
-            actions_subsampled[:, 7:13],
-            trajectory["action"][:-factor, 13:14],
-        ],
-        axis=1,
-    )
-    if trajectory["action"].shape[1] == 16:
-        # append subsampled base actions for mobile aloha
-        traj_truncated["action"] = tf.concat(
-            [
-                traj_truncated["action"],
-                actions_subsampled[:, 14:16],
-            ],
-            axis=1,
-        )
-    return traj_truncated
+    trajectory["observation"]["proprio"] = trajectory["observation"]["state"]
+    return trajectory
 
 
 def fmb_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
@@ -909,19 +883,9 @@ def roboset_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
     # every input feature is batched, ie has leading batch dimension
     trajectory["observation"]["proprio"] = trajectory["observation"]["state"]
 
-    # gripper action is in -1...1 --> clip to 0...1
+    # gripper action is in -1...1 --> clip to 0...1, flip
     gripper_action = trajectory["action"][:, -1:]
-    gripper_action = tf.clip_by_value(gripper_action, 0, 1)
-
-    # kinesthetic dataset has flipped gripper actions, so need to flip based on filename
-    gripper_action = tf.cond(
-        tf.strings.regex_full_match(
-            trajectory["traj_metadata"]["episode_metadata"]["file_path"][0],
-            ".*roboset/v0.4.*",
-        ),
-        gripper_action,
-        invert_gripper_actions(gripper_action),
-    )
+    gripper_action = invert_gripper_actions(tf.clip_by_value(gripper_action, 0, 1))
 
     trajectory["action"] = tf.concat(
         (
