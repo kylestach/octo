@@ -51,6 +51,7 @@ def get_config(config_string=None):
             finetune_encoder=False,
         ),
     }
+    config["model"]["repeat_task_tokens"] = True
     config["model"]["readouts"] = {"action": 1}
     config["model"]["heads"]["action"] = ModuleSpec.create(
         DiffusionActionHead,
@@ -58,6 +59,7 @@ def get_config(config_string=None):
         use_map=False,
         pred_horizon=4,
         action_dim=action_dim,
+        n_diffusion_samples=32,
     )
 
     # We augment differently for the primary and wrist cameras

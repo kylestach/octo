@@ -8,7 +8,6 @@ import jax
 from jax import Array
 import jax.numpy as jnp
 from jax.typing import ArrayLike
-import numpy as np
 
 from octo.model.components.base import TokenGroup
 from octo.model.components.diffusion import cosine_beta_schedule, create_diffusion_model
@@ -460,6 +459,7 @@ class DiffusionActionHead(nn.Module):
     hidden_dim: int = 256
     use_layer_norm: bool = True
     diffusion_steps: int = 20
+    n_diffusion_samples: int = 32
 
     def setup(self):
         if self.use_map:
@@ -512,7 +512,6 @@ class DiffusionActionHead(nn.Module):
                 (*embeddings.shape[:2], self.action_dim * self.pred_horizon),
                 dtype=jnp.float32,
             )
-
         pred_eps = self.diffusion_model(embeddings, noisy_actions, time, train=train)
         return pred_eps
 
@@ -548,14 +547,19 @@ class DiffusionActionHead(nn.Module):
         rng = self.make_rng("dropout")
         time_key, noise_key = jax.random.split(rng)
         time = jax.random.randint(
-            time_key, (batch_size, window_size, 1), 0, self.diffusion_steps
+            time_key,
+            (self.n_diffusion_samples, batch_size, window_size, 1),
+            0,
+            self.diffusion_steps,
         )
-        noise = jax.random.normal(noise_key, actions_flat.shape)
+        noise = jax.random.normal(
+            noise_key, (self.n_diffusion_samples,) + actions_flat.shape
+        )
 
         alpha_hat = self.alpha_hats[time]
         alpha_1 = jnp.sqrt(alpha_hat)
         alpha_2 = jnp.sqrt(1 - alpha_hat)
-        noisy_actions = alpha_1 * actions_flat + alpha_2 * noise
+        noisy_actions = alpha_1 * actions_flat[None] + alpha_2 * noise
 
         pred_eps = self(
             transformer_outputs, train=train, time=time, noisy_actions=noisy_actions
@@ -567,7 +571,9 @@ class DiffusionActionHead(nn.Module):
         )
         mask = rearrange(mask, "b w p a -> b w (p a)")
 
-        loss, metrics = continuous_loss(pred_eps, noise, mask, loss_type=self.loss_type)
+        loss, metrics = continuous_loss(
+            pred_eps, noise, mask[None], loss_type=self.loss_type
+        )
         # Sum over action dimension instead of averaging
         loss = loss * self.action_dim
         metrics["loss"] = metrics["loss"] * self.action_dim
@@ -606,34 +612,30 @@ class DiffusionActionHead(nn.Module):
 
             return (current_x, rng), ()
 
-        def sample_actions(rng):
-            rng, key = jax.random.split(rng)
-            batch_size, window_size = transformer_outputs[
-                self.readout_key
-            ].tokens.shape[:2]
+        rng, key = jax.random.split(rng)
+        batch_size, window_size = transformer_outputs[self.readout_key].tokens.shape[:2]
 
-            (actions_flat, _), () = jax.lax.scan(
-                scan_fn,
-                (
-                    jax.random.normal(
-                        key,
-                        (batch_size, window_size, self.pred_horizon * self.action_dim),
-                    ),
-                    rng,
-                ),
-                jnp.arange(self.diffusion_steps - 1, -1, -1),
-            )
+        noise = jax.random.normal(
+            key,
+            (
+                *sample_shape,
+                batch_size,
+                window_size,
+                self.pred_horizon * self.action_dim,
+            ),
+        )
 
-            actions = rearrange(
-                actions_flat,
-                "b w (p a) -> b w p a",
-                p=self.pred_horizon,
-                a=self.action_dim,
-            )
-            # only get the last timestep in the window
-            return actions[:, -1]
+        (actions_flat, _), () = jax.lax.scan(
+            scan_fn,
+            (noise, rng),
+            jnp.arange(self.diffusion_steps - 1, -1, -1),
+        )
 
-        n_samples = int(np.prod(sample_shape))
-        actions = jax.vmap(sample_actions)(jax.random.split(rng, n_samples))
-        actions = actions.reshape(sample_shape + actions.shape[1:])
-        return actions
+        actions = rearrange(
+            actions_flat,
+            "... (p a) -> ... p a",
+            p=self.pred_horizon,
+            a=self.action_dim,
+        )
+        # only get the last timestep in the window
+        return actions[..., -1, :, :]
