@@ -604,6 +604,16 @@ def berkeley_mvp_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]
         ),
         axis=-1,
     )
+
+    # invert gripper
+    trajectory["action"] = tf.concat(
+        [
+            trajectory["action"][:, :-1],
+            invert_gripper_actions(trajectory["action"][:, -1:]),
+        ],
+        axis=1,
+    )
+
     return trajectory
 
 
@@ -615,7 +625,7 @@ def berkeley_rpt_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]
     trajectory["observation"]["proprio"] = tf.concat(
         (
             trajectory["observation"]["joint_pos"],
-            trajectory["observation"]["gripper"][:, None],
+            tf.cast(trajectory["observation"]["gripper"], tf.float32)[:, None],
         ),
         axis=-1,
     )
@@ -627,9 +637,9 @@ def berkeley_rpt_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]
     )
     traj_truncated = tf.nest.map_structure(lambda x: x[:-1], trajectory)
 
-    # recombine to get full actions
+    # recombine to get full actions, invert gripper
     traj_truncated["action"] = tf.concat(
-        [joint_actions, trajectory["action"][:-1, -1:]],
+        [joint_actions, invert_gripper_actions(trajectory["action"][:-1, -1:])],
         axis=1,
     )
 
