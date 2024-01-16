@@ -368,9 +368,9 @@ class OctoModule(nn.Module):
         heads: Dict[str, ModuleSpec],
         readouts: Dict[str, int],
         transformer_kwargs: Dict,
-        repeat_task_tokens: bool,
         token_embedding_size: int,
         max_horizon: int,
+        repeat_task_tokens: bool = False,
     ) -> "OctoModule":
         """
         Canonical way to create an OctoModule from configuration.
