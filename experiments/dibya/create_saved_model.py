@@ -7,6 +7,8 @@ import tensorflow as tf
 from typing import Dict, Any
 import jax
 import flax
+from octo.model.octo_model import OctoModel
+
 
 #################### HELPERS FOR SAVING ###############################
 
@@ -19,7 +21,7 @@ def model_jax(model, params, inputs, default_kwargs):
 
 
 ExampleInputs = Any
-def create_tf_model(model: OctoModel, possible_inputs: Dict[str, ExampleInputs], default_kwargs=default_kwargs):
+def create_tf_model(model: OctoModel, possible_input_patterns: Dict[str, ExampleInputs], default_kwargs):
     params_vars = tf.nest.map_structure(tf.Variable, model.params)
     pred_fn = partial(model_jax, model, default_kwargs=default_kwargs)
     prediction_tf = lambda inputs: jax2tf.convert(pred_fn)(params_vars, inputs)
@@ -28,7 +30,7 @@ def create_tf_model(model: OctoModel, possible_inputs: Dict[str, ExampleInputs],
     tf_model._variables = tf.nest.flatten(params_vars)
     possible_specs = {
         k: jax.tree_map(lambda x: tf.TensorSpec(shape=x.shape, dtype=tf.as_dtype(x.dtype)), v)
-        for k, v in possible_inputs.items()
+        for k, v in possible_input_patterns.items()
     }
 
     for k, spec in possible_specs.items():
@@ -50,7 +52,7 @@ lc_task = {k: jax.tree_map(lambda x: x[:1], model.example_batch['task'][k]) for 
 
 example_rng = np.array(jax.random.PRNGKey(0))
 
-possible_inputs = {
+possible_input_patterns = {
     f'{task_type}_ws{ws}': {
         'observations': obs,
         'tasks': task,
@@ -66,7 +68,7 @@ default_kwargs = dict(
     temperature=1.0,
 )
 
-tf_model = create_tf_model(model, possible_inputs, default_kwargs=default_kwargs)
+tf_model = create_tf_model(model, possible_input_patterns, default_kwargs=default_kwargs)
 tf.saved_model.save(tf_model, 'octo_base')
 
 
