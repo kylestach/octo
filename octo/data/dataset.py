@@ -35,6 +35,8 @@ def apply_trajectory_transforms(
     max_proprio: Optional[float] = None,
     task_augment_strategy: Optional[str] = None,
     task_augment_kwargs: dict = {},
+    max_action_dim: Optional[int] = None,
+    max_proprio_dim: Optional[int] = None,
     num_parallel_calls: int = tf.data.AUTOTUNE,
 ) -> dl.DLataset:
     """Applies common transforms that happen at a trajectory level. Such transforms are usually some sort of
@@ -65,6 +67,10 @@ def apply_trajectory_transforms(
             augmentation. See `task_augmentation.py`.
         task_augment_kwargs (dict, optional): Additional keyword arguments to pass to the task augmentation
             function.
+        max_action_dim (int, optional): If provided, datasets with an action dimension less than this will be
+            padded to this dimension.
+        max_proprio_dim (int, optional): If provided, datasets with a proprio dimension less than this will be
+            padded to this dimension.
         num_parallel_calls (int, optional): number of parallel calls for map operations. Default to AUTOTUNE.
     """
     if skip_unlabeled:
@@ -90,6 +96,16 @@ def apply_trajectory_transforms(
 
     # marks which entires of the observation and task dicts are padding
     dataset = dataset.traj_map(traj_transforms.add_pad_mask_dict, num_parallel_calls)
+
+    # optionally pads actions and proprio to a consistent number of dimensions
+    dataset = dataset.traj_map(
+        partial(
+            traj_transforms.pad_actions_and_proprio,
+            max_action_dim=max_action_dim,
+            max_proprio_dim=max_proprio_dim,
+        ),
+        num_parallel_calls,
+    )
 
     # updates the "task" dict
     if goal_relabeling_strategy is not None:
@@ -216,7 +232,7 @@ def make_dataset_from_rlds(
     shuffle: bool = True,
     image_obs_keys: Mapping[str, Optional[str]] = {},
     depth_obs_keys: Mapping[str, Optional[str]] = {},
-    state_obs_keys: Sequence[Optional[str]] = (),
+    proprio_obs_key: Optional[str] = None,
     language_key: Optional[str] = None,
     action_proprio_normalization_type: NormalizationType = NormalizationType.NORMAL,
     dataset_statistics: Optional[Union[dict, str]] = None,
@@ -241,10 +257,6 @@ def make_dataset_from_rlds(
     "image_primary", "image_secondary", and "image_wrist", where "image_primary" corresponds to "workspace",
     "image_secondary" is a padding image, and "image_wrist" corresponds to "wrist".
 
-    `state_obs_keys` is a list of 1-dimensional proprioceptive keys to concatenate into a single array, which
-    will be placed in the "proprio" key of the "observation" dict. A single padding element (zero) will be
-    inserted for each None entry.
-
     The dataset will also include a "task" dict. If `language_key` is provided, then the "task" dict will
     contain the key "language_instruction", extracted from `traj[language_key]`.
 
@@ -262,9 +274,8 @@ def make_dataset_from_rlds(
             string).
         depth_obs_keys (Mapping[str, str|None]): Same as `image_obs_keys`, but for depth images. Keys will be
             prefixed with "depth_" instead of "image_".
-        state_obs_keys (Sequence[str|None]): List of 1-dimensional proprioception keys to be extracted from
-            the "observation" dict, concatenated, and mapped to "proprio". Inserts 1 element of padding (zero) for
-            each None entry.
+        proprio_obs_key (str, optional): If provided, the "obs" dict will contain the key "proprio", extracted from
+            `traj["observation"][proprio_obs_key]`.
         language_key (str, optional): If provided, the "task" dict will contain the key
             "language_instruction", extracted from `traj[language_key]`.
         action_proprio_normalization_type (str, optional): The type of normalization to perform on the action,
@@ -330,16 +341,8 @@ def make_dataset_from_rlds(
             else:
                 new_obs[f"depth_{new}"] = old_obs[old]
 
-        if state_obs_keys:
-            new_obs["proprio"] = tf.concat(
-                [
-                    tf.zeros((traj_len, 1), dtype=tf.float32)  # padding
-                    if key is None
-                    else tf.cast(old_obs[key], tf.float32)
-                    for key in state_obs_keys
-                ],
-                axis=1,
-            )
+        if proprio_obs_key is not None:
+            new_obs["proprio"] = tf.cast(old_obs[proprio_obs_key], tf.float32)
 
         # add timestep info
         new_obs["timestep"] = tf.range(traj_len)
@@ -389,7 +392,7 @@ def make_dataset_from_rlds(
             full_dataset,
             hash_dependencies=(
                 str(builder.info),
-                str(state_obs_keys),
+                str(proprio_obs_key),
                 ModuleSpec.to_string(standardize_fn)
                 if standardize_fn is not None
                 else "",

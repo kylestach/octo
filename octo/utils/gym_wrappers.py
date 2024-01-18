@@ -18,9 +18,9 @@ def stack_and_pad(history: list, num_obs: int):
     horizon = len(history)
     full_obs = {k: np.stack([dic[k] for dic in history]) for k in history[0]}
     pad_length = horizon - max(num_obs, horizon)
-    pad_mask = np.ones(horizon)
-    pad_mask[:pad_length] = 0
-    full_obs["pad_mask"] = pad_mask
+    timestep_pad_mask = np.ones(horizon)
+    timestep_pad_mask[:pad_length] = 0
+    full_obs["timestep_pad_mask"] = timestep_pad_mask
     return full_obs
 
 
@@ -105,7 +105,7 @@ class HistoryWrapper(gym.Wrapper):
     """
     Accumulates the observation history into `horizon` size chunks. If the length of the history
     is less than the length of the horizon, we pad the history to the full horizon length.
-    A `pad_mask` key is added to the final observation dictionary that denotes which timesteps
+    A `timestep_pad_mask` key is added to the final observation dictionary that denotes which timesteps
     are padding.
     """
 
@@ -320,7 +320,10 @@ class UnnormalizeActionProprio(gym.ActionWrapper, gym.ObservationWrapper):
         return self.unnormalize(action, self.action_proprio_metadata["action"])
 
     def observation(self, obs):
-        obs["proprio"] = self.normalize(
-            obs["proprio"], self.action_proprio_metadata["proprio"]
-        )
+        if "proprio" in self.action_proprio_metadata:
+            obs["proprio"] = self.normalize(
+                obs["proprio"], self.action_proprio_metadata["proprio"]
+            )
+        else:
+            assert "proprio" not in obs, "Cannot normalize proprio without metadata."
         return obs

@@ -129,7 +129,11 @@ class OctoModel:
 
     @partial(jax.jit, static_argnames=("train",))
     def run_transformer(
-        self, observations: Data, tasks: Data, pad_mask: ArrayLike, train: bool = False
+        self,
+        observations: Data,
+        tasks: Data,
+        timestep_pad_mask: ArrayLike,
+        train: bool = False,
     ):
         """Runs the transformer, but does shape checking on the inputs.
 
@@ -138,7 +142,7 @@ class OctoModel:
                 Shape must be consistent with self.example_batch["observation"]
             tasks: dict of tasks of shape (batch_size, *shape)
                 Shape must be consistent with self.example_batch["task"]
-            pad_mask: (batch_size, window_size) Boolean mask that is False when the timestep corresponds to padding
+            timestep_pad_mask: (batch_size, window_size) Boolean mask that is False when the timestep corresponds to padding
             train: whether to run in train mode
         """
         _verify_shapes(
@@ -153,7 +157,7 @@ class OctoModel:
             {"params": self.params},
             observations,
             tasks,
-            pad_mask,
+            timestep_pad_mask,
             train=train,
             method="octo_transformer",
         )
@@ -163,7 +167,7 @@ class OctoModel:
         self,
         observations: Data,
         tasks: Data,
-        pad_mask: Optional[ArrayLike] = None,
+        timestep_pad_mask: Optional[ArrayLike] = None,
         train: bool = False,
         argmax: bool = False,
         sample_shape: Tuple[int, ...] = (),
@@ -175,17 +179,17 @@ class OctoModel:
         Args:
             observations: dictionary of arrays of shape (batch_size, window_size, *)
             tasks: dict of tasks of shape (batch_size, *)
-            pad_mask: (batch_size, window_size) Boolean mask that is False when the timestep corresponds to padding
+            timestep_pad_mask: (batch_size, window_size) Boolean mask that is False when the timestep corresponds to padding
             train: whether to run in train mode
             ...see `action_heads.py` for the rest of the kwargs.
         Returns:
             actions: (*sample_shape, batch_size, pred_horizon, action_dim)
         """
-        if pad_mask is None:
-            pad_mask = observations["pad_mask"]
+        if timestep_pad_mask is None:
+            timestep_pad_mask = observations["timestep_pad_mask"]
 
         transformer_outputs = self.run_transformer(
-            observations, tasks, pad_mask, train=train
+            observations, tasks, timestep_pad_mask, train=train
         )
         action_head: ActionHead = self.module.bind({"params": self.params}).heads[
             "action"
@@ -263,7 +267,7 @@ class OctoModel:
             jax.random.PRNGKey(0),
             example_batch["observation"],
             example_batch["task"],
-            example_batch["observation"]["pad_mask"],
+            example_batch["observation"]["timestep_pad_mask"],
         )["params"]
         # restore params, checking to make sure the shape matches
         checkpointer = orbax.checkpoint.CheckpointManager(
@@ -375,7 +379,7 @@ class OctoModel:
         init_args = (
             example_batch["observation"],
             example_batch["task"],
-            example_batch["observation"]["pad_mask"],
+            example_batch["observation"]["timestep_pad_mask"],
         )
 
         if verbose:
@@ -401,7 +405,7 @@ class OctoModel:
     def get_pretty_spec(self):
         """Brief summary of the model's expected inputs and outputs."""
         # TODO: generalize this to print out proprio when it is being tokenized
-        window_size = self.example_batch["observation"]["pad_mask"].shape[1]
+        window_size = self.example_batch["observation"]["timestep_pad_mask"].shape[1]
 
         observation_space = {
             k: ("batch", "history_window", *v.shape[2:])

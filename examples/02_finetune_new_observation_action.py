@@ -70,7 +70,7 @@ def main(_):
             name="aloha_sim_cube_scripted_dataset",
             data_dir=FLAGS.data_dir,
             image_obs_keys={"primary": "top"},
-            state_obs_keys=["state"],
+            proprio_obs_key="state",
             language_key="language_instruction",
             action_proprio_normalization_type=NormalizationType.NORMAL,
             absolute_action_mask=[True] * 14,
@@ -162,13 +162,13 @@ def main(_):
         transformer_embeddings = bound_module.octo_transformer(
             batch["observation"],
             batch["task"],
-            batch["observation"]["pad_mask"],
+            batch["observation"]["timestep_pad_mask"],
             train=train,
         )
         action_loss, action_metrics = bound_module.heads["action"].loss(
             transformer_embeddings,  # Action head knows to pull out the action readout_key
             batch["action"],
-            pad_mask=batch["observation"]["pad_mask"],
+            timestep_pad_mask=batch["observation"]["timestep_pad_mask"],
             train=train,
         )
         return action_loss, action_metrics

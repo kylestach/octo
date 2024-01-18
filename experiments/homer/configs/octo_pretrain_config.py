@@ -112,10 +112,11 @@ def get_config(config_string=None):
         ),
         dataset_kwargs=dict(
             oxe_kwargs=dict(
-                data_mix="oxe_magic_soup",
+                data_mix="test",
                 data_dir="gs://rail-orca-central2/resize_256_256",
                 load_camera_views=("primary", "wrist"),
                 load_depth=False,
+                load_proprio=True,
                 force_recompute_dataset_statistics=False,
             ),
             traj_transform_kwargs=dict(
@@ -143,7 +144,7 @@ def get_config(config_string=None):
                 hf_model="t5-base",
             ),
         ),
-        eval_datasets=["bridge_dataset"],
+        eval_datasets=["bridge_dataset", "berkeley_rpt_converted_externally_to_rlds", "gnm_dataset"],
     )
 
     return config

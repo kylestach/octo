@@ -55,13 +55,13 @@ class TemporalDistanceValueHead(nn.Module):
         )
         return logits
 
-    def loss(self, embeddings, observations, tasks, pad_mask, train=True):
+    def loss(self, embeddings, observations, tasks, timestep_pad_mask, train=True):
         """
         Args:
             embeddings: jnp.ndarray w/ shape (batch_size, horizon, num_tokens, embedding_size)
             observations: dict of input observations
             tasks: dict of task information
-            pad_mask: boolean array (batch, window_size) which is True if the timestep is not a padding timestep.
+            timestep_pad_mask: boolean array (batch, window_size) which is True if the timestep is not a padding timestep.
         Returns:
             loss: float
             metrics: dict
@@ -92,7 +92,7 @@ class TemporalDistanceValueHead(nn.Module):
         # compute the CE loss using the log probabilities and target distances
         distance_loss = -jnp.sum(distance_logprob * distance_labels_one_hot, axis=-1)
         # mask the loss with the pad mask to avoid supervising padding
-        distance_loss = (distance_loss * pad_mask).mean()
+        distance_loss = (distance_loss * timestep_pad_mask).mean()
 
         # take the highest probability distances as the predicted distances
         distance_pred = jnp.argmax(distance_logits, axis=-1)
@@ -100,14 +100,14 @@ class TemporalDistanceValueHead(nn.Module):
         # compute accuracy between predicted distances and target distances
         accuracy = distance_pred == distance_labels
         # mask the accuracy with the pad mask to remove the contribution of padding
-        accuracy = (accuracy * pad_mask).mean()
+        accuracy = (accuracy * timestep_pad_mask).mean()
 
         # detokenize the predicted distances
         distance_values = self.distance_tokenizer.decode(distance_pred)
         # compute the mean squared error between predicted distances and target distances
         distance_mse = jnp.square(distance_target - distance_values)
         # mask the mse with the pad mask to remove the contribution of padding
-        distance_mse = (distance_mse * pad_mask).mean()
+        distance_mse = (distance_mse * timestep_pad_mask).mean()
 
         return distance_loss, {
             "loss": distance_loss,

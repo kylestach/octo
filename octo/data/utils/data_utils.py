@@ -122,9 +122,11 @@ def get_dataset_statistics(
     dataset = dataset.traj_map(
         lambda traj: {
             "action": traj["action"],
-            "proprio": traj["observation"]["proprio"]
-            if "proprio" in traj["observation"]
-            else tf.zeros_like(traj["action"]),
+            **(
+                {"proprio": traj["observation"]["proprio"]}
+                if "proprio" in traj["observation"]
+                else {}
+            ),
         }
     )
 
@@ -145,11 +147,11 @@ def get_dataset_statistics(
         total=cardinality if cardinality != tf.data.UNKNOWN_CARDINALITY else None,
     ):
         actions.append(traj["action"])
-        proprios.append(traj["proprio"])
+        if "proprio" in traj:
+            proprios.append(traj["proprio"])
         num_transitions += traj["action"].shape[0]
         num_trajectories += 1
     actions = np.concatenate(actions)
-    proprios = np.concatenate(proprios)
     metadata = {
         "action": {
             "mean": actions.mean(0).tolist(),
@@ -157,15 +159,17 @@ def get_dataset_statistics(
             "max": actions.max(0).tolist(),
             "min": actions.min(0).tolist(),
         },
-        "proprio": {
+        "num_transitions": num_transitions,
+        "num_trajectories": num_trajectories,
+    }
+    if proprios:
+        proprios = np.concatenate(proprios)
+        metadata["proprio"] = {
             "mean": proprios.mean(0).tolist(),
             "std": proprios.std(0).tolist(),
             "max": proprios.max(0).tolist(),
             "min": proprios.min(0).tolist(),
-        },
-        "num_transitions": num_transitions,
-        "num_trajectories": num_trajectories,
-    }
+        }
 
     try:
         with tf.io.gfile.GFile(path, "w") as f:
@@ -189,8 +193,9 @@ def normalize_action_and_proprio(
     # maps keys of `metadata` to corresponding keys in `traj`
     keys_to_normalize = {
         "action": "action",
-        "proprio": "observation/proprio",
     }
+    if "proprio" in traj["observation"]:
+        keys_to_normalize["proprio"] = "observation/proprio"
     if normalization_type == NormalizationType.NORMAL:
         # normalize to mean 0, std 1
         for key, traj_key in keys_to_normalize.items():
