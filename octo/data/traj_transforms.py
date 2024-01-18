@@ -19,7 +19,7 @@ def chunk_act_obs(
     "observation" keys are given a new axis (at index 1) of size `window_size` containing `window_size - 1`
     observations from the past and the current observation. "action" is given a new axis (at index 1) of size
     `window_size + future_action_window_size` containing `window_size - 1` actions from the past, the current
-    action, and `future_action_window_size` actions from the future. "pad_mask" is added to "observation" and
+    action, and `future_action_window_size` actions from the future. "timestep_pad_mask" is added to "observation" and
     indicates whether an observation should be considered padding (i.e. if it would have come from a timestep
     before the start of the trajectory).
     """
@@ -54,7 +54,7 @@ def chunk_act_obs(
     traj["action"] = tf.gather(traj["action"], floored_action_chunk_indices)
 
     # indicates whether an entire observation is padding
-    traj["observation"]["pad_mask"] = chunk_indices >= 0
+    traj["observation"]["timestep_pad_mask"] = chunk_indices >= 0
 
     # if no absolute_action_mask was provided, assume all actions are relative
     if "absolute_action_mask" not in traj and future_action_window_size > 0:

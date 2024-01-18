@@ -30,7 +30,7 @@ class ActionHead(ABC):
         transformer_outputs: Dict[str, TokenGroup],
         actions: ArrayLike,
         action_pad_mask: ArrayLike,
-        pad_mask: ArrayLike,
+        timestep_pad_mask: ArrayLike,
         train: bool = True,
     ) -> Tuple[Array, Dict[str, Array]]:
         raise NotImplementedError
@@ -213,7 +213,7 @@ class ContinuousActionHead(nn.Module, ActionHead):
         transformer_outputs: Dict[str, TokenGroup],
         actions: ArrayLike,
         action_pad_mask: ArrayLike,
-        pad_mask: ArrayLike,
+        timestep_pad_mask: ArrayLike,
         train: bool = True,
     ) -> Tuple[Array, Dict[str, Array]]:
         """Computes the loss for the action regression objective.
@@ -222,7 +222,7 @@ class ContinuousActionHead(nn.Module, ActionHead):
             transformer_ouputs: must contain self.readout_key with shape (batch_size, window_size, num_tokens,
                 embedding_size)
             actions: shape (batch_size, >= window_size + pred_horizon - 1, action_dim)
-            pad_mask: boolean array (batch, window_size) which is True if the timestep is not a padding timestep
+            timestep_pad_mask: boolean array (batch, window_size) which is True if the timestep is not a padding timestep
 
         Returns:
             loss: float
@@ -239,7 +239,7 @@ class ContinuousActionHead(nn.Module, ActionHead):
         # combine the timestep-level pad mask with the action-dimension-level pad mask
         mask = (
             jnp.broadcast_to(action_pad_mask[:, None, None, :], actions_chunked.shape)
-            * pad_mask[:, :, None, None]
+            * timestep_pad_mask[:, :, None, None]
         )
 
         loss, metrics = continuous_loss(
@@ -349,7 +349,7 @@ class DiscreteActionHead(nn.Module, ActionHead):
         transformer_outputs: Dict[str, TokenGroup],
         actions: ArrayLike,
         action_pad_mask: ArrayLike,
-        pad_mask: ArrayLike,
+        timestep_pad_mask: ArrayLike,
         train: bool = True,
     ):
         """Computes the loss for the discretized action objective.
@@ -358,7 +358,7 @@ class DiscreteActionHead(nn.Module, ActionHead):
             transformer_ouputs: must contain self.readout_key with shape (batch_size, window_size, num_tokens,
                 embedding_size)
             actions: shape (batch_size, >= window_size + pred_horizon - 1, action_dim)
-            pad_mask: boolean array (batch, window_size) which is True if the timestep is not a padding timestep
+            timestep_pad_mask: boolean array (batch, window_size) which is True if the timestep is not a padding timestep
 
         Returns:
             loss: float
@@ -378,7 +378,7 @@ class DiscreteActionHead(nn.Module, ActionHead):
         # combine the timestep-level pad mask with the action-dimension-level pad mask
         mask = (
             jnp.broadcast_to(action_pad_mask[:, None, None, :], actions_chunked.shape)
-            * pad_mask[:, :, None, None]
+            * timestep_pad_mask[:, :, None, None]
         )
 
         loss, metrics = discrete_loss(
@@ -522,7 +522,7 @@ class DiffusionActionHead(nn.Module):
         transformer_outputs: Dict[str, TokenGroup],
         actions: ArrayLike,
         action_pad_mask: ArrayLike,
-        pad_mask: ArrayLike,
+        timestep_pad_mask: ArrayLike,
         train: bool = True,
     ) -> Tuple[Array, Dict[str, Array]]:
         """Computes the loss for the diffusion objective.
@@ -531,13 +531,13 @@ class DiffusionActionHead(nn.Module):
             transformer_ouputs: must contain self.readout_key with shape (batch_size, window_size, num_tokens,
                 embedding_size)
             actions: shape (batch_size, >= window_size + pred_horizon - 1, action_dim)
-            pad_mask: boolean array (batch, window_size) which is True if the timestep is not a padding timestep
+            timestep_pad_mask: boolean array (batch, window_size) which is True if the timestep is not a padding timestep
 
         Returns:
             loss: float
             metrics: dict
         """
-        batch_size, window_size = pad_mask.shape
+        batch_size, window_size = timestep_pad_mask.shape
         _check_action_window_size(actions, window_size, self.pred_horizon)
         actions_chunked = chunk_actions(actions, self.pred_horizon)
         actions_chunked = actions_chunked[:, :window_size]
@@ -570,7 +570,7 @@ class DiffusionActionHead(nn.Module):
         # combine the timestep-level pad mask with the action-dimension-level pad mask
         mask = (
             jnp.broadcast_to(action_pad_mask[:, None, None, :], actions_chunked.shape)
-            * pad_mask[:, :, None, None]
+            * timestep_pad_mask[:, :, None, None]
         )
         # flatten the mask to match the flat actions
         mask = rearrange(mask, "b w p a -> b w (p a)")

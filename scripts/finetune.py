@@ -236,7 +236,9 @@ def main(_):
 
         # Add window_size to top of config, to make eval easier
         new_config = ConfigDict(model.config)
-        new_config["window_size"] = example_batch["observation"]["pad_mask"].shape[1]
+        new_config["window_size"] = example_batch["observation"][
+            "timestep_pad_mask"
+        ].shape[1]
         model = model.replace(config=new_config)
 
         # Save finetuning config since it's not saved by SaveCallback, i.e. as part of model.save_pretrained()
@@ -267,13 +269,13 @@ def main(_):
         transformer_embeddings = bound_module.octo_transformer(
             batch["observation"],
             batch["task"],
-            batch["observation"]["pad_mask"],
+            batch["observation"]["timestep_pad_mask"],
             train=train,
         )
         action_loss, action_metrics = bound_module.heads["action"].loss(
             transformer_embeddings,  # Action head knows to pull out the action readout_key
             batch["action"],
-            pad_mask=batch["observation"]["pad_mask"],
+            timestep_pad_mask=batch["observation"]["timestep_pad_mask"],
             train=train,
         )
         return action_loss, action_metrics

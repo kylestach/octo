@@ -162,13 +162,13 @@ def main(_):
         transformer_embeddings = bound_module.octo_transformer(
             batch["observation"],
             batch["task"],
-            batch["observation"]["pad_mask"],
+            batch["observation"]["timestep_pad_mask"],
             train=train,
         )
         action_loss, action_metrics = bound_module.heads["action"].loss(
             transformer_embeddings,  # Action head knows to pull out the action readout_key
             batch["action"],
-            pad_mask=batch["observation"]["pad_mask"],
+            timestep_pad_mask=batch["observation"]["timestep_pad_mask"],
             train=train,
         )
         return action_loss, action_metrics
