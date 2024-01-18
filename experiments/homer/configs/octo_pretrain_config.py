@@ -28,7 +28,7 @@ def get_config(config_string=None):
 
     action_dim = 8
 
-    config["window_size"] = 1
+    config["window_size"] = 2
     config["num_steps"] = 300000
     config["model"]["observation_tokenizers"] = {
         "primary": ModuleSpec.create(
@@ -51,6 +51,7 @@ def get_config(config_string=None):
             finetune_encoder=False,
         ),
     }
+    config["model"]["repeat_task_tokens"] = True
     config["model"]["readouts"] = {"action": 1}
     config["model"]["heads"]["action"] = ModuleSpec.create(
         DiffusionActionHead,
@@ -58,6 +59,7 @@ def get_config(config_string=None):
         use_map=False,
         pred_horizon=4,
         action_dim=action_dim,
+        n_diffusion_samples=32,
     )
 
     # We augment differently for the primary and wrist cameras
@@ -110,17 +112,19 @@ def get_config(config_string=None):
         ),
         dataset_kwargs=dict(
             oxe_kwargs=dict(
-                data_mix="bridge_rpt",
-                data_dir="/nfs/kun2/datasets/tfds",
+                data_mix="test",
+                data_dir="gs://rail-orca-central2/resize_256_256",
                 load_camera_views=("primary", "wrist"),
                 load_depth=False,
+                load_proprio=True,
+                force_recompute_dataset_statistics=False,
             ),
             traj_transform_kwargs=dict(
                 future_action_window_size=3,
-                max_action_dim=action_dim
+                max_action_dim=action_dim,
             ),
-            batch_size=4,
-            shuffle_buffer_size=1000,
+            batch_size=128,
+            shuffle_buffer_size=500000,
             balance_weights=True,
         ),
         text_processor=ModuleSpec.create(
@@ -140,7 +144,7 @@ def get_config(config_string=None):
                 hf_model="t5-base",
             ),
         ),
-        eval_datasets=["bridge_dataset"],
+        eval_datasets=["bridge_dataset", "berkeley_rpt_converted_externally_to_rlds", "gnm_dataset"],
     )
 
     return config

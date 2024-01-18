@@ -77,9 +77,9 @@ def get_config(
             ),
             prefetch_num_batches=0,
             start_step=placeholder(int),
-            log_interval=100,
+            log_interval=1,
             eval_interval=1,
-            viz_interval=1,
+            viz_interval=100000,
             save_interval=1,
             val_kwargs=dict(
                 val_shuffle_buffer_size=1000,
@@ -135,6 +135,7 @@ def get_dataset_config(window_size=1):
         ),
         "frame_transform_kwargs": dict(
             resize_size=(256, 256),
+            image_dropout_prob=0.0,
             image_augment_kwargs=dict(
                 random_resized_crop=dict(scale=[0.8, 1.0], ratio=[0.9, 1.1]),
                 random_brightness=[0.2],
