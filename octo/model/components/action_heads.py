@@ -236,6 +236,7 @@ class ContinuousActionHead(nn.Module, ActionHead):
         actions_chunked = chunk_actions(actions, self.pred_horizon)
         actions_chunked = actions_chunked[:, :window_size]
 
+        # combine the timestep-level pad mask with the action-dimension-level pad mask
         mask = (
             jnp.broadcast_to(action_pad_mask[:, None, None, :], actions_chunked.shape)
             * pad_mask[:, :, None, None]
@@ -374,6 +375,7 @@ class DiscreteActionHead(nn.Module, ActionHead):
         actions_chunked = chunk_actions(actions, self.pred_horizon)
         actions_chunked = actions_chunked[:, :window_size]
 
+        # combine the timestep-level pad mask with the action-dimension-level pad mask
         mask = (
             jnp.broadcast_to(action_pad_mask[:, None, None, :], actions_chunked.shape)
             * pad_mask[:, :, None, None]
@@ -565,15 +567,17 @@ class DiffusionActionHead(nn.Module):
             transformer_outputs, train=train, time=time, noisy_actions=noisy_actions
         )
 
+        # combine the timestep-level pad mask with the action-dimension-level pad mask
         mask = (
             jnp.broadcast_to(action_pad_mask[:, None, None, :], actions_chunked.shape)
             * pad_mask[:, :, None, None]
         )
+        # flatten the mask to match the flat actions
         mask = rearrange(mask, "b w p a -> b w (p a)")
+        # add a dimension to the mask for n_diffusion_samples
+        mask = mask[None]
 
-        loss, metrics = continuous_loss(
-            pred_eps, noise, mask[None], loss_type=self.loss_type
-        )
+        loss, metrics = continuous_loss(pred_eps, noise, mask, loss_type=self.loss_type)
         # Sum over action dimension instead of averaging
         loss = loss * self.action_dim
         metrics["loss"] = metrics["loss"] * self.action_dim
