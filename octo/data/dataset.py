@@ -377,6 +377,9 @@ def make_dataset_from_rlds(
 
         return traj
 
+    def is_nonzero_length(traj):
+        return tf.shape(traj["action"])[0] > 0
+
     builder = tfds.builder(name, data_dir=data_dir)
 
     # load or compute dataset statistics
@@ -384,9 +387,11 @@ def make_dataset_from_rlds(
         with tf.io.gfile.GFile(dataset_statistics, "r") as f:
             dataset_statistics = json.load(f)
     elif dataset_statistics is None:
-        full_dataset = dl.DLataset.from_rlds(
-            builder, split="all", shuffle=False
-        ).traj_map(restructure)
+        full_dataset = (
+            dl.DLataset.from_rlds(builder, split="all", shuffle=False)
+            .traj_map(restructure)
+            .filter(is_nonzero_length)
+        )
         # tries to load from cache, otherwise computes on the fly
         dataset_statistics = get_dataset_statistics(
             full_dataset,
@@ -424,7 +429,9 @@ def make_dataset_from_rlds(
         builder, split=split, shuffle=shuffle, num_parallel_reads=num_parallel_reads
     )
 
-    dataset = dataset.traj_map(restructure, num_parallel_calls)
+    dataset = dataset.traj_map(restructure, num_parallel_calls).filter(
+        is_nonzero_length
+    )
     dataset = dataset.traj_map(
         partial(
             normalize_action_and_proprio,
@@ -568,6 +575,8 @@ def make_interleaved_dataset(
 
     # this seems to reduce memory usage without affecting speed
     dataset = dataset.with_ram_budget(1)
+
+    dataset = dataset.ignore_errors(log_warning=True)
 
     # save for later
     dataset.dataset_statistics = all_dataset_statistics

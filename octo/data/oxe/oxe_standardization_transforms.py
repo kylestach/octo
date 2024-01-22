@@ -858,7 +858,42 @@ def cmu_stretch_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def gnm_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
+    def subsampled_traj():
+        # first compute per-dataset scaling factor from first action and first 2 positions
+        scaling_factor = tf.linalg.norm(trajectory["action"][0]) / tf.linalg.norm(
+            trajectory["observation"]["position"][1]
+            - trajectory["observation"]["position"][0]
+        )
+        # subsample trajectory by factor of 3
+        subsample_factor = 3
+        traj = tf.nest.map_structure(lambda x: x[::subsample_factor], trajectory)
+        # recompute actions from position and yaw
+        yaw = traj["observation"]["yaw"]
+        pos = traj["observation"]["position"]
+        rot_mat = tf.convert_to_tensor(
+            [
+                [tf.cos(yaw), -tf.sin(yaw)],
+                [tf.sin(yaw), tf.cos(yaw)],
+            ]
+        )
+        rot_mat = tf.transpose(rot_mat, [3, 2, 0, 1])[0]
+        delta = pos[1:] - pos[:-1]
+        action = tf.matmul(delta[:, None], rot_mat[:-1])[:, 0] * scaling_factor
+        # truncate last element for all other keys
+        traj = tf.nest.map_structure(lambda x: x[:-1], traj)
+        traj["action"] = action
+        return traj
+
+    def dummy_traj():
+        return tf.nest.map_structure(lambda x: x[:0], trajectory)
+
+    # we need to filter out trajectories of length 1 in order to compute the scaling factor
+    trajectory = tf.cond(
+        tf.shape(trajectory["action"])[0] > 1, subsampled_traj, dummy_traj
+    )
+
     trajectory["observation"]["proprio"] = trajectory["observation"]["state"]
+
     return trajectory
 
 
