@@ -262,12 +262,20 @@ class OctoModel:
         # create model def (an OctoModule)
         module = OctoModule.create(**config["model"])
         # infer params shape without actually doing any computation
-        params_shape = jax.eval_shape(
-            partial(module.init, train=False),
-            jax.random.PRNGKey(0),
+
+        # shim for old checkpoints
+        if "timestep_pad_mask" not in example_batch["observation"]:
+            example_batch["observation"]["timestep_pad_mask"] = example_batch[
+                "observation"
+            ]["pad_mask"]
+
+        init_args = (
             example_batch["observation"],
             example_batch["task"],
             example_batch["observation"]["timestep_pad_mask"],
+        )
+        params_shape = jax.eval_shape(
+            partial(module.init, train=False), jax.random.PRNGKey(0), *init_args
         )["params"]
         # restore params, checking to make sure the shape matches
         checkpointer = orbax.checkpoint.CheckpointManager(
