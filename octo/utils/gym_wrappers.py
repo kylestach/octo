@@ -9,7 +9,7 @@ import numpy as np
 import tensorflow as tf
 
 
-def stack_and_pad(history: list, num_obs: int):
+def stack_and_pad(history: deque, num_obs: int):
     """
     Converts a list of observation dictionaries (`history`) into a single observation dictionary
     by stacking the values. Adds a padding mask to the observation that denotes which timesteps
@@ -17,7 +17,7 @@ def stack_and_pad(history: list, num_obs: int):
     """
     horizon = len(history)
     full_obs = {k: np.stack([dic[k] for dic in history]) for k in history[0]}
-    pad_length = horizon - max(num_obs, horizon)
+    pad_length = horizon - min(num_obs, horizon)
     timestep_pad_mask = np.ones(horizon)
     timestep_pad_mask[:pad_length] = 0
     full_obs["timestep_pad_mask"] = timestep_pad_mask
