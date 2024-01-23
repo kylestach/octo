@@ -193,7 +193,7 @@ class OctoModel:
             train: whether to run in train mode
             ...see `action_heads.py` for the rest of the kwargs.
         Returns:
-            actions: (*sample_shape, batch_size, pred_horizon, action_dim)
+            actions: (*sample_shape, batch_size, action_horizon, action_dim)
         """
         if timestep_pad_mask is None:
             timestep_pad_mask = observations["timestep_pad_mask"]
@@ -459,9 +459,12 @@ class OctoModel:
         try:
             action_head = self.module.heads["action"]
             action_head_repr = str(action_head.__class__)
-            action_dim, pred_horizon = action_head.action_dim, action_head.pred_horizon
+            action_dim, action_horizon = (
+                action_head.action_dim,
+                action_head.action_horizon,
+            )
         except:
-            action_head_repr, action_dim, pred_horizon = "", None, None
+            action_head_repr, action_dim, action_horizon = "", None, None
 
         return SPEC_TEMPLATE.format(
             window_size=window_size,
@@ -469,7 +472,7 @@ class OctoModel:
             task_space=flax.core.pretty_repr(task_space),
             action_head_repr=action_head_repr,
             action_dim=action_dim,
-            pred_horizon=pred_horizon,
+            action_horizon=action_horizon,
         )
 
 
@@ -538,7 +541,7 @@ def _download_from_huggingface(huggingface_repo_id: str):
 
 
 SPEC_TEMPLATE = """
-This model is trained with a window size of {window_size}, predicting {action_dim} dimensional actions {pred_horizon} steps into the future.
+This model is trained with a window size of {window_size}, predicting {action_dim} dimensional actions {action_horizon} steps into the future.
 Observations and tasks conform to the following spec:
 
 Observations: {observation_space}

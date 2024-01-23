@@ -38,19 +38,6 @@ def to_padding(tensor: tf.Tensor) -> tf.Tensor:
         raise ValueError(f"Cannot generate padding for tensor of type {tensor.dtype}.")
 
 
-def make_neutral_actions(
-    action: tf.Tensor, absolute_action_mask: tf.Tensor
-) -> tf.Tensor:
-    """Returns "neutral" actions, meaning relative actions are zeroed and absolute actions are retained.
-    `absolute_action_mask` should be a 1D boolean mask that indicates which action dimensions are absolute.
-    """
-    return tf.where(
-        absolute_action_mask[(None,) * (action.ndim - 1)],
-        action,
-        tf.zeros_like(action),
-    )
-
-
 def pprint_data_mixture(
     dataset_kwargs_list: List[Dict[str, Any]], dataset_weights: List[int]
 ) -> None:

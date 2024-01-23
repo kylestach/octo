@@ -59,7 +59,7 @@ def get_config(config_string=None):
         use_map=False,
         pred_horizon=4,
         action_dim=action_dim,
-        n_diffusion_samples=4,
+        n_diffusion_samples=1,
     )
 
     # We augment differently for the primary and wrist cameras
@@ -109,6 +109,7 @@ def get_config(config_string=None):
         config,
         optimizer=dict(
             frozen_keys=("*hf_model*",),
+            # grad_accumulation_steps=1,
         ),
         dataset_kwargs=dict(
             oxe_kwargs=dict(
@@ -119,7 +120,7 @@ def get_config(config_string=None):
                 force_recompute_dataset_statistics=False,
             ),
             traj_transform_kwargs=dict(
-                future_action_window_size=3,
+                action_horizon=4,
                 max_action_dim=action_dim,
             ),
             batch_size=128,

@@ -31,32 +31,28 @@ def make_oxe_dataset_kwargs(
     dataset_kwargs = copy.deepcopy(OXE_DATASET_CONFIGS[name])
 
     if dataset_kwargs["action_encoding"] is ActionEncoding.EEF_POS:
-        # with EEF_POS actions, the last action dimension (the gripper) is absolute
-        dataset_kwargs["absolute_action_mask"] = [False] * 6 + [True]
+        # with EEF_POS actions, the last action dimension is gripper
+        dataset_kwargs["action_normalization_mask"] = [False] * 6 + [True]
     elif dataset_kwargs["action_encoding"] is ActionEncoding.JOINT_POS:
         # with JOINT_POS actions, last dimension is gripper
-        dataset_kwargs["absolute_action_mask"] = [False] * 7 + [True]
+        dataset_kwargs["action_normalization_mask"] = [False] * 7 + [True]
     elif dataset_kwargs["action_encoding"] is ActionEncoding.JOINT_POS_BIMANUAL:
         # with JOINT_POS_BIMANUAL actions, 7th and 14th dimension are gripper
-        dataset_kwargs["absolute_action_mask"] = (
+        dataset_kwargs["action_normalization_mask"] = (
             [False] * 6 + [True] + [False] * 6 + [True]
         )
     elif dataset_kwargs["action_encoding"] is ActionEncoding.NAV_2D:
         # with NAV_2D actions, all dimensions are deltas
-        dataset_kwargs["absolute_action_mask"] = [False] * 2
+        dataset_kwargs["action_normalization_mask"] = [False] * 2
     elif dataset_kwargs["action_encoding"] is ActionEncoding.JOINT_POS_BIMANUAL_NAV:
         # with JOINT_POS_BIMANUAL_NAV actions, 7th and 14th dimension are gripper
-        dataset_kwargs["absolute_action_mask"] = (
+        dataset_kwargs["action_normalization_mask"] = (
             [False] * 6 + [True] + [False] * 6 + [True] + [False] * 2
         )
     else:
         raise ValueError(
             f"Cannot load {name} with unsupported action encoding {dataset_kwargs['action_encoding']}."
         )
-    # we skip normalizing all absolute actions
-    dataset_kwargs["action_normalization_mask"] = [
-        not e for e in dataset_kwargs["absolute_action_mask"]
-    ]
 
     # adjust loaded camera views
     if missing_keys := (set(load_camera_views) - set(dataset_kwargs["image_obs_keys"])):

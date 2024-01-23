@@ -74,7 +74,7 @@ def main(_):
         images = [obs["image_primary"][0]]
         episode_return = 0.0
         while len(images) < 400:
-            # model returns actions of shape [batch, pred_horizon, action_dim] -- remove batch
+            # model returns actions of shape [batch, action_horizon, action_dim] -- remove batch
             actions = policy_fn(
                 jax.tree_map(lambda x: x[None], obs), task, rng=jax.random.PRNGKey(0)
             )

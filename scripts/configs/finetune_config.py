@@ -21,10 +21,8 @@ def get_config(config_string="full,multimodal"):
         "image_obs_keys": {"primary": "image_0", "wrist": None},
         "proprio_obs_key": "proprio",
         "language_key": "language_instruction",
-        # All actions are relative deltas, except for the last one (gripper) which is absolute
-        # Specifying this is only necessary if you want to predict > 1 step into the future
-        "absolute_action_mask": [False, False, False, False, False, False, True],
-        # We also want to avoid normalizing the gripper
+        "action_proprio_normalization_type": "normal",
+        # We want to avoid normalizing the gripper
         "action_normalization_mask": [True, True, True, True, True, True, False],
         # standardize_fn is dynamically loaded from a file
         # for example: "experiments/kevin/custom_standardization_transforms.py:aloha_dataset_transform"
@@ -112,8 +110,7 @@ def get_config(config_string="full,multimodal"):
 
     traj_transform_kwargs = dict(
         window_size=window_size,
-        future_action_window_size=3,
-        max_action_dim=7,
+        pred_horizon=3,
         goal_relabeling_strategy=goal_relabeling_strategy,
         task_augment_strategy="delete_task_conditioning",
         task_augment_kwargs=dict(

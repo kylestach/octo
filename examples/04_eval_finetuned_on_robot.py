@@ -46,8 +46,7 @@ flags.DEFINE_bool("blocking", False, "Use the blocking controller")
 flags.DEFINE_integer("im_size", None, "Image size", required=True)
 flags.DEFINE_string("video_save_path", None, "Path to save video")
 flags.DEFINE_integer("num_timesteps", 120, "num timesteps")
-flags.DEFINE_integer("horizon", 1, "Observation history length")
-flags.DEFINE_integer("pred_horizon", 1, "Length of action sequence from model")
+flags.DEFINE_integer("window_size", 1, "Observation history length")
 flags.DEFINE_integer("exec_horizon", 1, "Length of action sequence to execute")
 
 
@@ -103,7 +102,10 @@ def main(_):
     )
 
     # wrap the robot environment
-    env = HistoryWrapper(env, FLAGS.horizon)
+    env = UnnormalizeActionProprio(
+        env, model.dataset_statistics, normalization_type="normal"
+    )
+    env = HistoryWrapper(env, FLAGS.window_size)
     env = RHCWrapper(env, FLAGS.exec_horizon)
 
     # create policy functions
