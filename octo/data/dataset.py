@@ -13,7 +13,6 @@ from octo.data.utils import goal_relabeling, task_augmentation
 from octo.data.utils.data_utils import (
     allocate_threads,
     get_dataset_statistics,
-    NormalizationType,
     normalize_action_and_proprio,
     pprint_data_mixture,
     tree_map,
@@ -234,7 +233,6 @@ def make_dataset_from_rlds(
     depth_obs_keys: Mapping[str, Optional[str]] = {},
     proprio_obs_key: Optional[str] = None,
     language_key: Optional[str] = None,
-    action_proprio_normalization_type: NormalizationType = NormalizationType.NORMAL,
     dataset_statistics: Optional[Union[dict, str]] = None,
     force_recompute_dataset_statistics: bool = False,
     absolute_action_mask: Optional[Sequence[bool]] = None,
@@ -278,13 +276,9 @@ def make_dataset_from_rlds(
             `traj["observation"][proprio_obs_key]`.
         language_key (str, optional): If provided, the "task" dict will contain the key
             "language_instruction", extracted from `traj[language_key]`.
-        action_proprio_normalization_type (str, optional): The type of normalization to perform on the action,
-            proprio, or both. Can be "normal" (mean 0, std 1) or "bounds" (normalized to [-1, 1]).
         dataset_statistics: (dict|str, optional): dict (or path to JSON file) that contains dataset statistics
-            for normalization. If `action_proprio_normalization_type` is "normal", this should contain "mean" and
-            "std" keys. If `action_proprio_normalization_type` is "bounds", this should contain "min" and "max"
-            keys. May also provide "num_transitions" and "num_trajectories" keys for downstream usage (e.g., for
-            `make_interleaved_dataset`). If not provided, the statistics will be computed on the fly.
+            for normalization. May also provide "num_transitions" and "num_trajectories" keys for downstream usage
+            (e.g., for `make_interleaved_dataset`). If not provided, the statistics will be computed on the fly.
         force_recompute_dataset_statistics (bool, optional): If True and `dataset_statistics` is None, will
             recompute the dataset statistics regardless of whether they are already cached.
         absolute_action_mask (Sequence[bool], optional): By default, all action dimensions are assumed to be
@@ -436,7 +430,6 @@ def make_dataset_from_rlds(
         partial(
             normalize_action_and_proprio,
             metadata=dataset_statistics,
-            normalization_type=action_proprio_normalization_type,
         ),
         num_parallel_calls,
     )

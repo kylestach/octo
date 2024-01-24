@@ -5,7 +5,6 @@ from typing import Any, Dict, List, Sequence, Tuple, Union
 from octo.data.oxe.oxe_dataset_configs import ActionEncoding, OXE_DATASET_CONFIGS
 from octo.data.oxe.oxe_dataset_mixes import OXE_NAMED_MIXES
 from octo.data.oxe.oxe_standardization_transforms import OXE_STANDARDIZATION_TRANSFORMS
-from octo.data.utils.data_utils import NormalizationType
 from octo.utils.spec import ModuleSpec
 
 
@@ -16,7 +15,6 @@ def make_oxe_dataset_kwargs(
     load_depth: bool = False,
     load_proprio: bool = False,
     load_language: bool = True,
-    action_proprio_normalization_type: NormalizationType = NormalizationType.NORMAL,
     force_recompute_dataset_statistics: bool = False,
 ) -> Dict[str, Any]:
     """Generates dataset kwargs for a given dataset from Open X-Embodiment. The returned kwargs can be passed
@@ -29,7 +27,6 @@ def make_oxe_dataset_kwargs(
         load_depth: If True, loads corresponding depth channels for each RGB channel.
         load_proprio: If True, loads proprioceptive information.
         load_language: If True, loads language instructions.
-        action_proprio_normalization_type: Normalization type to use for proprioceptive actions.
     """
     dataset_kwargs = copy.deepcopy(OXE_DATASET_CONFIGS[name])
 
@@ -84,10 +81,6 @@ def make_oxe_dataset_kwargs(
     if load_language:
         dataset_kwargs["language_key"] = "language_instruction"
 
-    dataset_kwargs[
-        "action_proprio_normalization_type"
-    ] = action_proprio_normalization_type
-
     del dataset_kwargs["proprio_encoding"]
     del dataset_kwargs["action_encoding"]
 
@@ -108,7 +101,6 @@ def make_oxe_dataset_kwargs_and_weights(
     load_depth: bool = False,
     load_proprio: bool = False,
     load_language: bool = True,
-    action_proprio_normalization_type: NormalizationType = NormalizationType.NORMAL,
     force_recompute_dataset_statistics: bool = False,
 ) -> Tuple[Dict[str, Any], List[float]]:
     """
@@ -123,7 +115,6 @@ def make_oxe_dataset_kwargs_and_weights(
         load_depth: If True, loads corresponding depth channels for each RGB channel.
         load_proprio: If True, loads proprioceptive information.
         load_language: If True, loads language instructions.
-        action_proprio_normalization_type: Normalization type to use for proprioceptive actions.
     Returns:
         Tuple of (dataset_kwargs_list, sampling weights).
     """
@@ -150,7 +141,6 @@ def make_oxe_dataset_kwargs_and_weights(
                     load_depth,
                     load_proprio,
                     load_language,
-                    action_proprio_normalization_type,
                     force_recompute_dataset_statistics,
                 )
             )

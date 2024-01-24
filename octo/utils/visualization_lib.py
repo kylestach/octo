@@ -304,9 +304,7 @@ class RolloutVisualizer:
                 norm_stats,
                 is_leaf=lambda x: not isinstance(x, dict),
             )
-            self._env = UnnormalizeActionProprio(
-                self._env, norm_stats, normalization_type="normal"
-            )
+            self._env = UnnormalizeActionProprio(self._env, norm_stats)
 
     def run_rollouts(self, policy_fn, n_rollouts=10, n_vis_rollouts=3):
         def extract_images(obs):

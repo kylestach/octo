@@ -57,9 +57,7 @@ def main(_):
     env = RHCWrapper(env, exec_horizon=50)
 
     # wrap env to handle action/proprio normalization -- match normalization type to the one used during finetuning
-    env = UnnormalizeActionProprio(
-        env, model.dataset_statistics, normalization_type="normal"
-    )
+    env = UnnormalizeActionProprio(env, model.dataset_statistics)
 
     # jit model action prediction function for faster inference
     policy_fn = jax.jit(model.sample_actions)
