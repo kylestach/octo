@@ -22,7 +22,7 @@ import numpy as np
 from widowx_envs.widowx_env_service import WidowXClient, WidowXConfigs, WidowXStatus
 
 from octo.model.octo_model import OctoModel
-from octo.utils.gym_wrappers import HistoryWrapper, RHCWrapper, UnnormalizeActionProprio
+from octo.utils.gym_wrappers import HistoryWrapper, RHCWrapper
 
 np.set_printoptions(suppress=True)
 
@@ -103,12 +103,10 @@ def main(_):
     )
 
     # wrap the robot environment
-    env = UnnormalizeActionProprio(env, model.dataset_statistics)
     env = HistoryWrapper(env, FLAGS.horizon)
     env = RHCWrapper(env, FLAGS.exec_horizon)
 
     # create policy functions
-    @jax.jit
     def sample_actions(
         pretrained_model: OctoModel,
         observations,
@@ -121,6 +119,9 @@ def main(_):
             observations,
             tasks,
             rng=rng,
+            unnormalization_statistics=pretrained_model.dataset_statistics[
+                "bridge_dataset"
+            ]["action"],
         )
         # remove batch dim
         return actions[0]

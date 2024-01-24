@@ -51,7 +51,9 @@ def listdict2dictlist(LD):
 
 
 def add_octo_env_wrappers(
-    env: gym.Env, config: dict, dataset_statistics: dict, **kwargs
+    env: gym.Env,
+    config: dict,
+    **kwargs,
 ):
     """Adds env wrappers for action normalization, multi-action
     future prediction, image resizing, and history stacking.
@@ -67,10 +69,6 @@ def add_octo_env_wrappers(
         resize_size: None or tuple or list of tuples for ResizeImageWrapper
         horizon: int for HistoryWrapper
     """
-    logging.info(
-        "Unnormalizing proprio and actions w/ statistics: ", dataset_statistics
-    )
-    env = UnnormalizeActionProprio(env, dataset_statistics)
     exec_horizon = kwargs.get(
         "exec_horizon", config["model"]["heads"]["action"]["kwargs"]["pred_horizon"]
     )

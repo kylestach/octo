@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import logging
 from typing import Dict, Optional, Tuple
 
 import distrax
@@ -44,6 +45,7 @@ class ActionHead(ABC):
         rng: Optional[PRNGKey] = None,
         temperature: float = 1.0,
         train: bool = False,
+        embodiment_action_dim: Optional[int] = None,
     ) -> Array:
         """Predict the action for the last timestep in the window. Returns shape
         (*sample_shape, batch_size, pred_horizon, action_dim).
@@ -461,7 +463,7 @@ class DiffusionActionHead(nn.Module):
     hidden_dim: int = 256
     use_layer_norm: bool = True
     diffusion_steps: int = 20
-    n_diffusion_samples: int = 32
+    n_diffusion_samples: int = 4
 
     def setup(self):
         if self.use_map:
@@ -586,12 +588,17 @@ class DiffusionActionHead(nn.Module):
         transformer_outputs: Dict[str, TokenGroup],
         rng: PRNGKey,
         train: bool = True,
-        eval_action_dim: Optional[int] = None,
+        embodiment_action_dim: Optional[int] = None,
         *args,
         sample_shape: tuple = (),
         **kwargs,
     ) -> jax.Array:
         """Convenience methods for predicting actions for the final timestep in the window."""
+        if embodiment_action_dim is None:
+            logging.warning(
+                "embodiment_action_dim is highly recommended for diffusion action head"
+                " if any action dimensions were masked during training"
+            )
         batch_size, window_size = transformer_outputs[self.readout_key].tokens.shape[:2]
         module, variables = self.unbind()
 
@@ -605,8 +612,8 @@ class DiffusionActionHead(nn.Module):
             ),
             dtype=bool,
         )
-        if eval_action_dim is not None:
-            action_mask = action_mask.at[..., eval_action_dim:].set(False)
+        if embodiment_action_dim is not None:
+            action_mask = action_mask.at[..., embodiment_action_dim:].set(False)
         flat_action_mask = rearrange(action_mask, "... p a -> ... (p a)")
 
         def scan_fn(carry, time):
