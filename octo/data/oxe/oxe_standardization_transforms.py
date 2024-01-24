@@ -104,7 +104,7 @@ def kuka_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
 def taco_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
     trajectory["action"] = trajectory["action"]["rel_actions_world"]
 
-    # invert gripper action + clip, +1 = open, 0 = close
+    # clip gripper action, +1 = open, 0 = close
     trajectory["action"] = tf.concat(
         (
             trajectory["action"][:, :6],
