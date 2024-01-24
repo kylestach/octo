@@ -519,11 +519,11 @@ def make_interleaved_dataset(
 
     # go through datasets once to get sizes
     dataset_sizes = []
-    all_dataset_statistics = []
+    all_dataset_statistics = {}
     for dataset_kwargs in dataset_kwargs_list:
         _, dataset_statistics = make_dataset_from_rlds(**dataset_kwargs, train=train)
         dataset_sizes.append(dataset_statistics["num_transitions"])
-        all_dataset_statistics.append(dataset_statistics)
+        all_dataset_statistics[dataset_kwargs["name"]] = dataset_statistics
 
     # balance and normalize weights
     if balance_weights:
@@ -540,9 +540,8 @@ def make_interleaved_dataset(
 
     # construct datasets
     datasets = []
-    for dataset_kwargs, dataset_statistics, threads, reads in zip(
+    for dataset_kwargs, threads, reads in zip(
         dataset_kwargs_list,
-        all_dataset_statistics,
         threads_per_dataset,
         reads_per_dataset,
     ):
@@ -551,7 +550,7 @@ def make_interleaved_dataset(
             train=train,
             num_parallel_calls=threads,
             num_parallel_reads=reads,
-            dataset_statistics=dataset_statistics,
+            dataset_statistics=all_dataset_statistics[dataset_kwargs["name"]],
         )
         dataset = apply_trajectory_transforms(
             dataset.repeat(),
