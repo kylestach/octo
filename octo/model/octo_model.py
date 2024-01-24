@@ -162,7 +162,9 @@ class OctoModel:
             method="octo_transformer",
         )
 
-    @partial(jax.jit, static_argnames=("train", "sample_shape", "argmax"))
+    @partial(
+        jax.jit, static_argnames=("train", "sample_shape", "argmax", "eval_action_dim")
+    )
     def sample_actions(
         self,
         observations: Data,
@@ -173,6 +175,7 @@ class OctoModel:
         sample_shape: Tuple[int, ...] = (),
         rng: Optional[PRNGKey] = None,
         temperature: float = 1.0,
+        eval_action_dim: Optional[int] = None,
     ):
         """Samples actions from the model. See `action_heads.py` for more info.
 
@@ -201,6 +204,7 @@ class OctoModel:
             sample_shape=sample_shape,
             rng=rng,
             temperature=temperature,
+            eval_action_dim=eval_action_dim,
         )
 
     @classmethod

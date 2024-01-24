@@ -480,9 +480,7 @@ class DiffusionActionHead(nn.Module):
         # create beta schedule
         self.betas = jnp.array(cosine_beta_schedule(self.diffusion_steps))
         self.alphas = 1 - self.betas
-        self.alpha_hats = jnp.array(
-            [jnp.prod(self.alphas[: i + 1]) for i in range(self.diffusion_steps)]
-        )
+        self.alpha_hats = jnp.cumprod(self.alphas)
 
     def __call__(
         self,
@@ -558,10 +556,9 @@ class DiffusionActionHead(nn.Module):
             noise_key, (self.n_diffusion_samples,) + actions_flat.shape
         )
 
-        alpha_hat = self.alpha_hats[time]
-        alpha_1 = jnp.sqrt(alpha_hat)
-        alpha_2 = jnp.sqrt(1 - alpha_hat)
-        noisy_actions = alpha_1 * actions_flat[None] + alpha_2 * noise
+        scale = jnp.sqrt(self.alpha_hats[time])
+        std = jnp.sqrt(1 - self.alpha_hats[time])
+        noisy_actions = scale * actions_flat[None] + std * noise
 
         pred_eps = self(
             transformer_outputs, train=train, time=time, noisy_actions=noisy_actions
@@ -589,12 +586,28 @@ class DiffusionActionHead(nn.Module):
         transformer_outputs: Dict[str, TokenGroup],
         rng: PRNGKey,
         train: bool = True,
+        eval_action_dim: Optional[int] = None,
         *args,
         sample_shape: tuple = (),
         **kwargs,
     ) -> jax.Array:
         """Convenience methods for predicting actions for the final timestep in the window."""
+        batch_size, window_size = transformer_outputs[self.readout_key].tokens.shape[:2]
         module, variables = self.unbind()
+
+        action_mask = jnp.ones(
+            (
+                *sample_shape,
+                batch_size,
+                window_size,
+                self.pred_horizon,
+                self.action_dim,
+            ),
+            dtype=bool,
+        )
+        if eval_action_dim is not None:
+            action_mask = action_mask.at[..., eval_action_dim:].set(False)
+        flat_action_mask = rearrange(action_mask, "... p a -> ... (p a)")
 
         def scan_fn(carry, time):
             current_x, rng = carry
@@ -614,11 +627,14 @@ class DiffusionActionHead(nn.Module):
 
             current_x = jnp.clip(current_x, -self.max_action, self.max_action)
 
+            # set non-eval actions to the noise that would have been seen during training
+            current_x = jnp.where(
+                flat_action_mask, current_x, jnp.sqrt(1 - self.alpha_hats[time]) * z
+            )
+
             return (current_x, rng), ()
 
         rng, key = jax.random.split(rng)
-        batch_size, window_size = transformer_outputs[self.readout_key].tokens.shape[:2]
-
         noise = jax.random.normal(
             key,
             (
