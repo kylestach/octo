@@ -15,7 +15,6 @@ import tqdm
 import wandb
 
 from octo.data.dataset import make_single_dataset
-from octo.data.utils.data_utils import NormalizationType
 from octo.model.components.action_heads import L1ActionHead
 from octo.model.components.tokenizers import LowdimObsTokenizer
 from octo.model.octo_model import OctoModel
@@ -72,7 +71,6 @@ def main(_):
             image_obs_keys={"primary": "top"},
             proprio_obs_key="state",
             language_key="language_instruction",
-            action_proprio_normalization_type=NormalizationType.NORMAL,
             absolute_action_mask=[True] * 14,
         ),
         traj_transform_kwargs=dict(

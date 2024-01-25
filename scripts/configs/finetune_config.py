@@ -21,7 +21,6 @@ def get_config(config_string="full,multimodal"):
         "image_obs_keys": {"primary": "image_0", "wrist": None},
         "proprio_obs_key": "proprio",
         "language_key": "language_instruction",
-        "action_proprio_normalization_type": "normal",
         # All actions are relative deltas, except for the last one (gripper) which is absolute
         # Specifying this is only necessary if you want to predict > 1 step into the future
         "absolute_action_mask": [False, False, False, False, False, False, True],

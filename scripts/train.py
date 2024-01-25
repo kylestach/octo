@@ -153,15 +153,6 @@ def main(_):
 
     train_data = make_interleaved_dataset(**FLAGS.config.dataset_kwargs, train=True)
 
-    # consolidate dataset statistics into one big dict
-    dataset_statistics = {
-        dataset_kwargs["name"]: statistics
-        for dataset_kwargs, statistics in zip(
-            FLAGS.config.dataset_kwargs["dataset_kwargs_list"],
-            train_data.dataset_statistics,
-        )
-    }
-
     train_data_iter = map(
         shard,
         map(
@@ -186,7 +177,7 @@ def main(_):
         text_processor,
         verbose=True,
         rng=init_rng,
-        dataset_statistics=dataset_statistics,
+        dataset_statistics=train_data.dataset_statistics,
     )
 
     # create optimizer

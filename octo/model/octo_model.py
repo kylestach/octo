@@ -31,8 +31,12 @@ class OctoModel:
         >>> tasks = model.create_tasks(texts=["go to the red room"])
         >>> # or tasks = model.create_tasks(goals={"image_primary": goal_images})
         >>> actions = model.sample_actions(observations, tasks, rng=jax.random.PRNGKey(0))
-        >>> # Note: these are normalized actions (processed to mean 0 and std 1). To get the raw actions,
-            # un-normalize them using model.dataset_statistics
+        >>> # Note: these are normalized actions (processed to mean 0 and std 1). To get correct actions
+        >>> # for a particular embodiment, you must additionally specify unnormalization statistics.
+        >>> # For example, to get actions for one of Octo's pretraining datasets:
+        >>> actions = model.sample_actions(observations, tasks, rng=jax.random.PRNGKey(0),
+        >>>     unnormalization_statistics=model.dataset_statistics["DATASET_NAME_HERE"]["action"]
+        >>> )
 
     Usage for finetuning:
 
@@ -162,11 +166,20 @@ class OctoModel:
             method="octo_transformer",
         )
 
-    @partial(jax.jit, static_argnames=("train", "sample_shape", "argmax"))
+    @partial(
+        jax.jit,
+        static_argnames=(
+            "train",
+            "sample_shape",
+            "argmax",
+            "unnormalization_statistics",
+        ),
+    )
     def sample_actions(
         self,
         observations: Data,
         tasks: Data,
+        unnormalization_statistics: Optional[Data] = None,
         timestep_pad_mask: Optional[ArrayLike] = None,
         train: bool = False,
         argmax: bool = False,
@@ -179,6 +192,8 @@ class OctoModel:
         Args:
             observations: dictionary of arrays of shape (batch_size, window_size, *)
             tasks: dict of tasks of shape (batch_size, *)
+            unnormalization_statistics: dict of statistics for unnormalizing actions (must contain "mean",
+                "std", and optionally "mask")
             timestep_pad_mask: (batch_size, window_size) Boolean mask that is False when the timestep corresponds to padding
             train: whether to run in train mode
             ...see `action_heads.py` for the rest of the kwargs.
@@ -194,14 +209,29 @@ class OctoModel:
         action_head: ActionHead = self.module.bind({"params": self.params}).heads[
             "action"
         ]
-        return action_head.predict_action(
+        action = action_head.predict_action(
             transformer_outputs,
             train=train,
             argmax=argmax,
             sample_shape=sample_shape,
             rng=rng,
             temperature=temperature,
+            embodiment_action_dim=len(unnormalization_statistics["mean"])
+            if unnormalization_statistics is not None
+            else None,
         )
+        if unnormalization_statistics is not None:
+            mask = unnormalization_statistics.get(
+                "mask", jnp.ones_like(unnormalization_statistics["mean"], dtype=bool)
+            )
+            action = action[..., : len(mask)]
+            action = jnp.where(
+                mask,
+                (action * unnormalization_statistics["std"])
+                + unnormalization_statistics["mean"],
+                action,
+            )
+        return action
 
     @classmethod
     def load_pretrained(
