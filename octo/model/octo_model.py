@@ -255,6 +255,12 @@ class OctoModel:
         ) as f:
             config = json.load(f)
 
+        # shim to support old configs
+        if "pred_horizon" in config["model"]["heads"]["action"]["kwargs"]:
+            config["model"]["heads"]["action"]["kwargs"]["action_horizon"] = config[
+                "model"
+            ]["heads"]["action"]["kwargs"].pop("pred_horizon")
+
         # load example batch
         with tf.io.gfile.GFile(
             tf.io.gfile.join(checkpoint_path, "example_batch.msgpack"), "rb"

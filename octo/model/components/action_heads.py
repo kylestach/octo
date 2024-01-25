@@ -196,7 +196,7 @@ class ContinuousActionHead(nn.Module, ActionHead):
         mean = self(transformer_outputs, train=train)
 
         # combine the timestep pad mask with the action pad mask
-        mask = timestep_pad_mask[:, :, None, None] * action_pad_mask
+        mask = timestep_pad_mask[:, :, None, None] & action_pad_mask
 
         loss, metrics = continuous_loss(mean, actions, mask, loss_type=self.loss_type)
         # Sum over action dimension instead of averaging
@@ -328,7 +328,7 @@ class DiscreteActionHead(nn.Module, ActionHead):
         action_logits = self(transformer_outputs, train=train)
 
         # combine the timestep pad mask with the action pad mask
-        mask = timestep_pad_mask[:, :, None, None] * action_pad_mask
+        mask = timestep_pad_mask[:, :, None, None] & action_pad_mask
 
         loss, metrics = discrete_loss(
             self.action_tokenizer, action_logits, actions, mask
@@ -510,7 +510,7 @@ class DiffusionActionHead(nn.Module):
         )
 
         # combine the timestep pad mask with the action pad mask
-        mask = timestep_pad_mask[:, :, None, None] * action_pad_mask
+        mask = timestep_pad_mask[:, :, None, None] & action_pad_mask
         # flatten the mask to match the flat actions
         mask = rearrange(mask, "b w h a -> b w (h a)")
         # add a dimension to the mask for n_diffusion_samples

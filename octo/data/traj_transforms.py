@@ -29,11 +29,10 @@ def chunk_act_obs(
     custom chunking schemes where an action may differ depending on which observation it is paired with.
     """
     traj_len = tf.shape(traj["action"])[0]
-    action_dim = traj["action"].shape[-1]
 
     # chunk observations into histories
-    history_indices = tf.range(traj_len)[:, None] - (
-        window_size - tf.range(window_size) - 1
+    history_indices = tf.range(traj_len)[:, None] + tf.range(
+        -window_size + 1, 1
     )  # [traj_len, window_size]
     # indicates which observations at the beginning of the trajectory are padding
     timestep_pad_mask = history_indices >= 0
@@ -59,6 +58,10 @@ def chunk_act_obs(
         )  # [traj_len, action_horizon, action_dim]
     else:
         # actions are pre-chunked, so we don't add a new axis
+        if traj["action"].shape[1] < action_horizon:
+            raise ValueError(
+                f"action_horizon ({action_horizon}) is greater than the pre-chunked action dimension ({traj['action'].shape[1]})"
+            )
         traj["action"] = traj["action"][:, :action_horizon]
 
     # then, add the history axis to actions
@@ -78,17 +81,17 @@ def chunk_act_obs(
         tf.range(action_horizon),
         indexing="ij",
     )
-    relative_goal_timestep = (
-        goal_timestep[:, None, None] + (window_size - w - 1) - t - h
+    relative_goal_timestep = goal_timestep[:, None, None] - (
+        t - (window_size + 1) + w + h
     )  # [traj_len, window_size, action_horizon]
-    traj["task_completed"] = relative_goal_timestep <= 0
+    traj["observation"]["task_completed"] = relative_goal_timestep <= 0
 
     # broadcast "action_pad_mask" to the new chunked shape, and mark actions past the goal timestep as padding
     traj["action_pad_mask"] = tf.logical_and(
         # [traj_len, 1, 1, action_dim]
         traj["action_pad_mask"][:, None, None, :],
         # [traj_len, window_size, action_horizon, 1]
-        tf.logical_not(traj["task_completed"])[:, :, :, None],
+        tf.logical_not(traj["observation"]["task_completed"])[:, :, :, None],
     )
 
     return traj
