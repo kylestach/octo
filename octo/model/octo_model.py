@@ -168,12 +168,7 @@ class OctoModel:
 
     @partial(
         jax.jit,
-        static_argnames=(
-            "train",
-            "sample_shape",
-            "argmax",
-            "unnormalization_statistics",
-        ),
+        static_argnames=("train", "sample_shape", "argmax"),
     )
     def sample_actions(
         self,
