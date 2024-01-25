@@ -167,7 +167,13 @@ class OctoModel:
         )
 
     @partial(
-        jax.jit, static_argnames=("train", "sample_shape", "argmax", "eval_action_dim")
+        jax.jit,
+        static_argnames=(
+            "train",
+            "sample_shape",
+            "argmax",
+            "unnormalization_statistics",
+        ),
     )
     def sample_actions(
         self,
@@ -216,10 +222,10 @@ class OctoModel:
         )
         if unnormalization_statistics is not None:
             mask = unnormalization_statistics.get(
-                "mask", np.ones_like(unnormalization_statistics["mean"], dtype=bool)
+                "mask", jnp.ones_like(unnormalization_statistics["mean"], dtype=bool)
             )
             action = action[..., : len(mask)]
-            action = np.where(
+            action = jnp.where(
                 mask,
                 (action * unnormalization_statistics["std"])
                 + unnormalization_statistics["mean"],
