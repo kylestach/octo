@@ -516,6 +516,9 @@ def make_interleaved_dataset(
     for dataset_kwargs in dataset_kwargs_list:
         _, dataset_statistics = make_dataset_from_rlds(**dataset_kwargs, train=train)
         dataset_sizes.append(dataset_statistics["num_transitions"])
+        assert (
+            dataset_kwargs["name"] not in all_dataset_statistics
+        ), f"Duplicate name {dataset_kwargs['name']}"
         all_dataset_statistics[dataset_kwargs["name"]] = dataset_statistics
 
     # balance and normalize weights
