@@ -113,6 +113,7 @@ def get_config(config_string="full,multimodal"):
     traj_transform_kwargs = dict(
         window_size=window_size,
         future_action_window_size=3,
+        max_action_dim=7,
         goal_relabeling_strategy=goal_relabeling_strategy,
         task_augment_strategy="delete_task_conditioning",
         task_augment_kwargs=dict(

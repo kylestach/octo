@@ -242,7 +242,7 @@ def main(_):
         model = model.replace(config=new_config)
 
         # Save finetuning config since it's not saved by SaveCallback, i.e. as part of model.save_pretrained()
-        with open(
+        with tf.io.gfile.GFile(
             tf.io.gfile.join(save_dir, "finetune_config.json"), "w"
         ) as config_file:
             config_file.write(FLAGS.config.to_json_best_effort())
@@ -273,8 +273,9 @@ def main(_):
             train=train,
         )
         action_loss, action_metrics = bound_module.heads["action"].loss(
-            transformer_embeddings,  # Action head knows to pull out the action readout_key
+            transformer_embeddings,  # action head knows to pull out the "action" readout_key
             batch["action"],
+            batch["action_pad_mask"],
             timestep_pad_mask=batch["observation"]["timestep_pad_mask"],
             train=train,
         )
@@ -286,12 +287,11 @@ def main(_):
         jax.jit,
         in_shardings=[replicated_sharding, dp_sharding],
     )
-    def train_step(state, batch):
+    def train_step(state: TrainState, batch):
         rng, dropout_rng = jax.random.split(state.rng)
         (loss, info), grads = jax.value_and_grad(loss_fn, has_aux=True)(
             state.model.params, batch, dropout_rng, train=True
         )
-        # Gradient Metrics (TODO: Does the finetuner need these?) ###
         grad_norm = optax.global_norm(grads)
         updates, _ = state.tx.update(grads, state.opt_state, state.model.params)
         update_norm = optax.global_norm(updates)
@@ -303,8 +303,6 @@ def main(_):
                 "learning_rate": lr_callable(state.step),
             }
         )
-        # End Debug Metrics #
-
         new_state = state.apply_gradients(grads=grads, rng=rng)
         return new_state, info
 
