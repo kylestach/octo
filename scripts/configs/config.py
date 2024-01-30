@@ -11,7 +11,7 @@ from octo.utils.spec import ModuleSpec
 
 def get_model_config(transformer_size):
     """
-    Transformer_size is one of ["dummy", "vanilla", "vit_s", "vit_b", "vit_l", "vit_h"]
+    Transformer_size is one of ["dummy", "vanilla", "vit_t" "vit_s", "vit_b", "vit_l", "vit_h"]
 
     This model stacks all the images from different cameras together, and passes it through
     a small convolutional stem before entering the transformer.
