@@ -20,24 +20,21 @@ def supply_rng(f, rng=jax.random.PRNGKey(0)):
     return wrapped
 
 
-@partial(jax.jit, static_argnames="argmax")
 def sample_actions(
     pretrained_model: OctoModel,
     observations,
     tasks,
+    unnormalization_statistics,
     rng,
     argmax=False,
     temperature=1.0,
 ):
     # add batch dim to observations
     observations = jax.tree_map(lambda x: x[None], observations)
-    logging.warning(
-        "observations: %s", flax.core.pretty_repr(jax.tree_map(jnp.shape, observations))
-    )
-    logging.warning("tasks: %s", flax.core.pretty_repr(jax.tree_map(jnp.shape, tasks)))
     actions = pretrained_model.sample_actions(
         observations,
         tasks,
+        unnormalization_statistics,
         rng=rng,
         argmax=argmax,
         temperature=temperature,

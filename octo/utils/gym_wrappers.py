@@ -200,6 +200,10 @@ class TemporalEnsembleWrapper(gym.Wrapper):
 
         return self.env.step(action)
 
+    def reset(self, **kwargs):
+        self.act_history = deque(maxlen=self.pred_horizon)
+        return self.env.reset(**kwargs)
+
 
 class ResizeImageWrapper(gym.ObservationWrapper):
     def __init__(
