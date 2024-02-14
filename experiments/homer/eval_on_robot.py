@@ -15,8 +15,9 @@ import numpy as np
 import tensorflow as tf
 from widowx_env import convert_obs, state_to_eep, wait_for_obs, WidowXGym
 from widowx_envs.widowx_env_service import WidowXClient, WidowXConfigs, WidowXStatus
+import pickle
 
-from octo.utils.eval_utils import (
+from eval_utils import (
     download_checkpoint_from_gcs,
     load_jaxrlm_checkpoint,
     sample_actions,
@@ -26,7 +27,6 @@ from octo.utils.gym_wrappers import (
     HistoryWrapper,
     RHCWrapper,
     TemporalEnsembleWrapper,
-    UnnormalizeActionProprio,
 )
 from octo.model.octo_model import OctoModel
 
@@ -59,6 +59,8 @@ flags.DEFINE_string(
 )
 flags.DEFINE_integer("im_size", None, "Image size", required=True)
 flags.DEFINE_string("video_save_path", None, "Path to save video")
+flags.DEFINE_string("trajectory_save_path", None, "Path to save video")
+
 flags.DEFINE_integer("num_timesteps", 120, "num timesteps")
 flags.DEFINE_integer("horizon", 1, "Observation history length")
 flags.DEFINE_integer("pred_horizon", 1, "Length of action sequence from model")
@@ -78,9 +80,10 @@ blocking control and we evaluate with blocking control.
 We also use a step duration of 0.4s to reduce the jerkiness of the policy.
 Be sure to change the step duration back to 0.2 if evaluating with non-blocking control.
 """
-STEP_DURATION = 0.4
+STEP_DURATION = 0.2
 STICKY_GRIPPER_NUM_STEPS = 1
-WORKSPACE_BOUNDS = [[0.1, -0.15, -0.01, -1.57, 0], [0.45, 0.25, 0.25, 1.57, 0]]
+# WORKSPACE_BOUNDS = [[0.1, -0.25, -0.05, -1.57, 0], [0.45, 0.25, 0.25, 1.57, 0]]
+WORKSPACE_BOUNDS = [[0.2, -0.13, 0.06, -1.57, 0], [0.33, 0.13, 0.25, 1.57, 0]] # sink
 CAMERA_TOPICS = [{"name": "/blue/image_raw"}]
 ENV_PARAMS = {
     "camera_topics": CAMERA_TOPICS,
@@ -102,7 +105,7 @@ def main(_):
 
     env_params = WidowXConfigs.DefaultEnvParams.copy()
     env_params.update(ENV_PARAMS)
-    env_params["state_state"] = list(start_state)
+    env_params["start_state"] = list(start_state)
     widowx_client = WidowXClient(host=FLAGS.ip, port=FLAGS.port)
     widowx_client.init(env_params, image_size=FLAGS.im_size)
     env = WidowXGym(
@@ -110,6 +113,15 @@ def main(_):
     )
     if not FLAGS.blocking:
         assert STEP_DURATION == 0.2, STEP_DURATION_MESSAGE
+
+    # while True:
+    #     x = float(input("x?"))
+    #     y = float(input("y?"))
+    #     z = float(input("z?"))
+    #     goal_eep = state_to_eep([x, y, z], 0)
+    #     move_status = None
+    #     while move_status != WidowXStatus.SUCCESS:
+    #         move_status = widowx_client.move(goal_eep, duration=1.5)
 
     # load models
     assert len(FLAGS.checkpoint_weights_path) == len(FLAGS.checkpoint_step)
@@ -128,34 +140,22 @@ def main(_):
         models[f"{run_name}-{step}"] = OctoModel.load_pretrained(
             weights_path, step=int(step)
         )
-
-    # load action metadata
-    # TODO clean this up
-    model = next(iter(models.values()))
-    if "finetune" in weights_path:
-        metadata = model.load_dataset_statistics(FLAGS.checkpoint_weights_path[0])
-    elif "from_scratch" in weights_path:
-        metadata = model.load_dataset_statistics(
-            FLAGS.checkpoint_weights_path[0], "widowx_cleaver:2.0.0"
-        )
-    else:
-        metadata = model.load_dataset_statistics(
-            FLAGS.checkpoint_weights_path[0], "bridge_dataset"
-        )
+    # models["hf-base"] = OctoModel.load_pretrained("hf://rail-berkeley/octo-base")
+    # models["hf-small"] = OctoModel.load_pretrained("hf://rail-berkeley/octo-small")
 
     # wrap the robot envionment
-    env = UnnormalizeActionProprio(env, metadata, normalization_type="normal")
     env = HistoryWrapper(env, FLAGS.horizon)
-    # env = TemporalEnsembleWrapper(env, FLAGS.pred_horizon)
-    env = RHCWrapper(env, FLAGS.exec_horizon)
+    env = TemporalEnsembleWrapper(env, FLAGS.pred_horizon)
+    # env = RHCWrapper(env, FLAGS.exec_horizon)
 
     # create policy functions
     policies = {}
-    for name, model in models.items():
+    for name, model in list(models.items()):
         policy_fn = supply_rng(
             partial(
                 sample_actions,
                 model,
+                unnormalization_statistics=model.dataset_statistics["bridge_dataset"]["action"],
                 argmax=FLAGS.deterministic,
                 temperature=FLAGS.temperature,
             ),
@@ -195,6 +195,8 @@ def main(_):
         model = models[policy_name]
         model: OctoModel  # type hinting
 
+        traj = []
+
         if not modality:
             modality = click.prompt(
                 "Language or goal image?", type=click.Choice(["l", "g"])
@@ -217,11 +219,11 @@ def main(_):
                 goal = jax.tree_map(lambda x: x[None], obs)
 
             task = model.create_tasks(goals=goal)
-            goal_image = goal["image_0"][0]
+            goal_image = goal["image_primary"][0]
             goal_instruction = ""
         elif modality == "l":
             print("Current instruction: ", goal_instruction)
-            if click.confirm("Take a new instruction?", default=True):
+            if click.confirm("Take a new instruction?", default=True) or goal_instruction == "":
                 text = input("Instruction?")
 
             task = model.create_tasks(texts=[text])
@@ -230,45 +232,61 @@ def main(_):
         else:
             raise NotImplementedError()
 
+        input("Press [Enter] to start.")
+
         # reset env
         obs, _ = env.reset()
         time.sleep(2.0)
-
-        input("Press [Enter] to start.")
 
         # do rollout
         last_tstep = time.time()
         images = []
         goals = []
         t = 0
-        while t < FLAGS.num_timesteps:
-            if time.time() > last_tstep + STEP_DURATION:
-                last_tstep = time.time()
 
-                # save images
-                images.append(obs["image_0"][-1])
-                goals.append(goal_image)
+        try:
+            while t < FLAGS.num_timesteps:
+                if time.time() > last_tstep + STEP_DURATION:
+                    last_tstep = time.time()
 
-                if FLAGS.show_image:
-                    bgr_img = cv2.cvtColor(obs["image_0"][-1], cv2.COLOR_RGB2BGR)
-                    cv2.imshow("img_view", bgr_img)
-                    cv2.waitKey(20)
+                    # save images
+                    images.append(obs["image_primary"][-1])
+                    goals.append(goal_image)
 
-                # get action
-                forward_pass_time = time.time()
-                action = np.array(policy_fn(obs, task), dtype=np.float64)
-                print("forward pass time: ", time.time() - forward_pass_time)
+                    if FLAGS.show_image:
+                        bgr_img = cv2.cvtColor(obs["image_primary"][-1], cv2.COLOR_RGB2BGR)
+                        cv2.imshow("img_view", bgr_img)
+                        cv2.waitKey(20)
 
-                # perform environment step
-                start_time = time.time()
-                obs, _, _, truncated, _ = env.step(action)
-                print("step time: ", time.time() - start_time)
+                    # get action
+                    forward_pass_time = time.time()
+                    action = np.array(policy_fn(obs, task), dtype=np.float64)[:, :7]
+                    print("forward pass time: ", time.time() - forward_pass_time)
+                    traj.append(
+                        dict(obs=obs, task=task, action=action, goal_instruction=goal_instruction, goal_image=goal_image)
+                    )
 
-                t += 1
+                    # perform environment step
+                    start_time = time.time()
+                    obs, _, _, truncated, _ = env.step(action)
+                    print("step time: ", time.time() - start_time)
 
-                if truncated:
-                    break
+                    t += 1
 
+                    if truncated:
+                        break
+        except KeyboardInterrupt:
+            obs, _ = env.reset()
+
+
+        curr_time = datetime.now()
+        if FLAGS.trajectory_save_path is not None:
+            save_path = os.path.join(FLAGS.trajectory_save_path, curr_time.strftime("%Y-%m-%d"), '{curr_time}_{policy_name}.pkl'.format(curr_time=curr_time.strftime("%Y-%m-%d_%H-%M-%S"), policy_name=policy_name))
+            os.makedirs(os.path.dirname(save_path), exist_ok=True)
+            with open(save_path, 'wb') as f:
+                pickle.dump(traj, f)
+            print(f"Saved trajectory to {save_path}")
+        traj = []
         # save video
         if FLAGS.video_save_path is not None:
             os.makedirs(FLAGS.video_save_path, exist_ok=True)
@@ -279,7 +297,6 @@ def main(_):
             )
             video = np.concatenate([np.stack(goals), np.stack(images)], axis=1)
             imageio.mimsave(save_path, video, fps=1.0 / STEP_DURATION * 3)
-
 
 if __name__ == "__main__":
     app.run(main)
