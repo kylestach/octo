@@ -27,7 +27,7 @@ def apply_trajectory_transforms(
     goal_relabeling_strategy: Optional[str] = None,
     goal_relabeling_kwargs: dict = {},
     window_size: int = 1,
-    future_action_window_size: int = 0,
+    action_horizon: int = 1,
     subsample_length: Optional[int] = None,
     skip_unlabeled: bool = False,
     max_action: Optional[float] = None,
@@ -52,9 +52,9 @@ def apply_trajectory_transforms(
         goal_relabeling_strategy (str, optional): The goal relabeling strategy to use, or None for
             no goal relabeling. See `goal_relabeling.py`.
         goal_relabeling_kwargs (dict, optional): Additional keyword arguments to pass to the goal relabeling function.
-        window_size (int, optional): The length of the snippets that trajectories are chunked into.
-        future_action_window_size (int, optional): The number of future actions beyond window_size to include
-            in the chunked actions.
+        window_size (int, optional): The window size to chunk both observations and actions into.
+        action_horizon (int, optional): The size of the action chunk (present and future actions) to include in
+            the chunked actions.
         subsample_length (int, optional): If provided, trajectories longer than this will be subsampled to
             this length (after goal relabeling and chunking).
         skip_unlabeled (bool, optional): Whether to skip trajectories with no language labels.
@@ -127,13 +127,12 @@ def apply_trajectory_transforms(
             num_parallel_calls,
         )
 
-    # chunks observations and actions, giving them a new axis at index 1 of size `window_size` and
-    # `window_size + future_action_window_size`, respectively
+    # chunks observations and actions
     dataset = dataset.traj_map(
         partial(
             traj_transforms.chunk_act_obs,
             window_size=window_size,
-            future_action_window_size=future_action_window_size,
+            action_horizon=action_horizon,
         ),
         num_parallel_calls,
     )
@@ -235,7 +234,6 @@ def make_dataset_from_rlds(
     language_key: Optional[str] = None,
     dataset_statistics: Optional[Union[dict, str]] = None,
     force_recompute_dataset_statistics: bool = False,
-    absolute_action_mask: Optional[Sequence[bool]] = None,
     action_normalization_mask: Optional[Sequence[bool]] = None,
     num_parallel_reads: int = tf.data.AUTOTUNE,
     num_parallel_calls: int = tf.data.AUTOTUNE,
@@ -281,12 +279,6 @@ def make_dataset_from_rlds(
             (e.g., for `make_interleaved_dataset`). If not provided, the statistics will be computed on the fly.
         force_recompute_dataset_statistics (bool, optional): If True and `dataset_statistics` is None, will
             recompute the dataset statistics regardless of whether they are already cached.
-        absolute_action_mask (Sequence[bool], optional): By default, all action dimensions are assumed to be
-            relative. This is important for when `future_action_window_size > 0`: actions that are taken
-            from beyond the end of the trajectory (or beyond the goal timestep when goal relabeling is used)
-            need to be made "neutral" to indicate that the task has been completed. For relative actions,
-            "neutral" means zero, but for absolute actions, "neutral" means repeating the last valid action.
-            This mask, if provided, indicates which action dimensions are absolute.
         action_normalization_mask (Sequence[bool], optional): If provided, indicates which action dimensions
             should be normalized. For example, you might not want to normalize the gripper action dimension if
             it's always exactly 0 or 1. By default, all action dimensions are normalized.
@@ -357,17 +349,6 @@ def make_dataset_from_rlds(
             "action": tf.cast(traj["action"], tf.float32),
             "dataset_name": tf.repeat(name, traj_len),
         }
-
-        if absolute_action_mask is not None:
-            if len(absolute_action_mask) != traj["action"].shape[-1]:
-                raise ValueError(
-                    f"Length of absolute_action_mask ({len(absolute_action_mask)}) "
-                    f"does not match action dimension ({traj['action'].shape[-1]})."
-                )
-            traj["absolute_action_mask"] = tf.tile(
-                tf.convert_to_tensor(absolute_action_mask, dtype=tf.bool)[None],
-                [traj_len, 1],
-            )
 
         return traj
 

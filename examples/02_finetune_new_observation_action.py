@@ -71,11 +71,10 @@ def main(_):
             image_obs_keys={"primary": "top"},
             proprio_obs_key="state",
             language_key="language_instruction",
-            absolute_action_mask=[True] * 14,
         ),
         traj_transform_kwargs=dict(
             window_size=1,
-            future_action_window_size=49,  # so we get 50 actions for our action chunk
+            action_horizon=50,
         ),
         frame_transform_kwargs=dict(
             resize_size={"primary": (256, 256)},
@@ -117,7 +116,7 @@ def main(_):
     # Fully override the old action head with a new one (for smaller changes, you can use update_module_config)
     config["model"]["heads"]["action"] = ModuleSpec.create(
         L1ActionHead,
-        pred_horizon=50,
+        action_horizon=50,
         action_dim=14,
         readout_key="readout_action",
     )
@@ -166,7 +165,8 @@ def main(_):
         action_loss, action_metrics = bound_module.heads["action"].loss(
             transformer_embeddings,  # Action head knows to pull out the action readout_key
             batch["action"],
-            timestep_pad_mask=batch["observation"]["timestep_pad_mask"],
+            batch["observation"]["timestep_pad_mask"],
+            batch["action_pad_mask"],
             train=train,
         )
         return action_loss, action_metrics

@@ -4,6 +4,9 @@ import os
 
 from ml_collections import ConfigDict
 
+from octo.data.oxe.oxe_standardization_transforms import bridge_dataset_transform
+from octo.utils.spec import ModuleSpec
+
 get_base_config = imp.load_source(
     "config", os.path.join(os.path.dirname(__file__), "../scripts/configs/config.py")
 ).get_config
@@ -51,6 +54,7 @@ def get_config():
                     "image_obs_keys": {"primary": "image_0"},
                     "proprio_obs_key": "proprio",
                     "language_key": "language_instruction",
+                    "standardize_fn": ModuleSpec.create(bridge_dataset_transform),
                 },
             ],
             "frame_transform_kwargs": {

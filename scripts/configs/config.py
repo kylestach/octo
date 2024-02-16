@@ -37,7 +37,7 @@ def get_model_config(transformer_size):
         heads=dict(
             action=ModuleSpec.create(
                 MSEActionHead,
-                pred_horizon=1,
+                action_horizon=1,
                 action_dim=7,
                 readout_key="obs",
             ),
@@ -128,7 +128,7 @@ def get_dataset_config(window_size=1):
         ),
         "traj_transform_kwargs": dict(
             window_size=window_size,
-            future_action_window_size=0,
+            action_horizon=1,
             goal_relabeling_strategy="uniform",
             subsample_length=100,
             **task_augmentation,

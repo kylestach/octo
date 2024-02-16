@@ -20,9 +20,9 @@ from octo.utils.typing import PRNGKey
 class ActionHead(ABC):
     """Action prediction modules that take in the transformer token outputs and predict actions.
 
-    Each action head here does chunked action prediction: i.e. at every timestep,
-    it tries to predict the next `pred_horizon` actions into the future from that timestep.
-    Setting `pred_horizon=1` corresponds to the typical action prediction setup.
+    Each action head here does chunked action prediction: i.e. at every timestep, it tries to predict the next
+    `action_horizon` actions into the future from that timestep.  Setting `action_horizon=1` corresponds to
+    the typical action prediction setup.
     """
 
     @abstractmethod
@@ -30,8 +30,8 @@ class ActionHead(ABC):
         self,
         transformer_outputs: Dict[str, TokenGroup],
         actions: ArrayLike,
-        action_pad_mask: ArrayLike,
         timestep_pad_mask: ArrayLike,
+        action_pad_mask: ArrayLike,
         train: bool = True,
     ) -> Tuple[Array, Dict[str, Array]]:
         raise NotImplementedError
@@ -48,7 +48,7 @@ class ActionHead(ABC):
         embodiment_action_dim: Optional[int] = None,
     ) -> Array:
         """Predict the action for the last timestep in the window. Returns shape
-        (*sample_shape, batch_size, pred_horizon, action_dim).
+        (*sample_shape, batch_size, action_horizon, action_dim).
         """
         raise NotImplementedError
 
@@ -56,45 +56,6 @@ class ActionHead(ABC):
 def masked_mean(x, mask):
     mask = jnp.broadcast_to(mask, x.shape)
     return jnp.mean(x * mask) / jnp.clip(jnp.mean(mask), a_min=1e-5, a_max=None)
-
-
-def chunk_actions(actions: ArrayLike, pred_horizon: int) -> Array:
-    """Chunk actions for predicting actions `pred_horizon` steps into the future.
-
-    The resulting actions have shape (batch, actions.shape[-2] - (pred_horizon - 1), pred_horizon, action_dim)
-
-    For example: chunk_actions([a_1, a_2, a_3, a_4, a_5], 3) ->
-        [
-            [a_1, a_2, a_3],
-            [a_2, a_3, a_4],
-            [a_3, a_4, a_5],
-        ]
-
-    """
-    assert (
-        actions.ndim == 3
-    ), f"Expected actions to have shape (batch, window_size, action_dim), but got shape {actions.shape}"
-    window_size = actions.shape[1]
-    assert (
-        window_size >= pred_horizon
-    ), f"pred_horizon {pred_horizon} too large for window size {window_size}"
-    chunk_window_size = window_size - (pred_horizon - 1)
-
-    curr_step = jnp.arange(chunk_window_size)
-    action_offset = jnp.arange(pred_horizon)
-    chunk_indices = curr_step[:, None] + action_offset[None, :]
-    return actions[:, chunk_indices]
-
-
-def _check_action_window_size(actions, window_size, pred_horizon):
-    assert (
-        actions.shape[1] >= window_size + pred_horizon - 1
-    ), f"""
-        To predict actions for window_size {window_size} and future prediction horizon {pred_horizon},
-        the ground-truth actions must have at least {window_size + pred_horizon - 1} timesteps, but got shape {actions.shape}.
-
-        Did you make sure to set "future_action_window_size" correctly in the data config?
-    """
 
 
 def continuous_loss(
@@ -175,7 +136,7 @@ class ContinuousActionHead(nn.Module, ActionHead):
 
     readout_key: str
     use_map: bool = False
-    pred_horizon: int = 1
+    action_horizon: int = 1
     action_dim: int = 7
     max_action: float = 5.0
     loss_type: str = "mse"
@@ -183,14 +144,14 @@ class ContinuousActionHead(nn.Module, ActionHead):
     def setup(self):
         if self.use_map:
             self.map_head = MAPHead()
-        self.mean_proj = nn.Dense(self.pred_horizon * self.action_dim)
+        self.mean_proj = nn.Dense(self.action_horizon * self.action_dim)
 
     def __call__(
         self, transformer_outputs: Dict[str, TokenGroup], train: bool = True
     ) -> jax.Array:
         """
         Returns:
-            mean: Predicted actions w/ shape (batch_size, window_size, pred_horizon, action_dim)
+            mean: Predicted actions w/ shape (batch_size, window_size, action_horizon, action_dim)
         """
         token_group = transformer_outputs[self.readout_key]
         assert token_group.tokens.ndim == 4, (
@@ -205,7 +166,7 @@ class ContinuousActionHead(nn.Module, ActionHead):
 
         mean = self.mean_proj(embeddings)
         mean = rearrange(
-            mean, "b w (p a) -> b w p a", p=self.pred_horizon, a=self.action_dim
+            mean, "b w (h a) -> b w h a", h=self.action_horizon, a=self.action_dim
         )
         mean = jnp.tanh(mean / self.max_action) * self.max_action
         return mean
@@ -214,8 +175,8 @@ class ContinuousActionHead(nn.Module, ActionHead):
         self,
         transformer_outputs: Dict[str, TokenGroup],
         actions: ArrayLike,
-        action_pad_mask: ArrayLike,
         timestep_pad_mask: ArrayLike,
+        action_pad_mask: ArrayLike,
         train: bool = True,
     ) -> Tuple[Array, Dict[str, Array]]:
         """Computes the loss for the action regression objective.
@@ -223,30 +184,21 @@ class ContinuousActionHead(nn.Module, ActionHead):
         Args:
             transformer_ouputs: must contain self.readout_key with shape (batch_size, window_size, num_tokens,
                 embedding_size)
-            actions: shape (batch_size, >= window_size + pred_horizon - 1, action_dim)
+            actions: shape (batch_size, window_size, action_horizon, action_dim)
             timestep_pad_mask: boolean array (batch, window_size) which is True if the timestep is not a padding timestep
+            action_pad_mask: boolean array (same shape as actions) which is True if the action dimension is not a padding dimension
 
         Returns:
             loss: float
             metrics: dict
         """
-        # (batch, window_size, pred_horizon, action_dim)
+        # (batch, window_size, action_horizon, action_dim)
         mean = self(transformer_outputs, train=train)
 
-        window_size = mean.shape[1]
-        _check_action_window_size(actions, window_size, self.pred_horizon)
-        actions_chunked = chunk_actions(actions, self.pred_horizon)
-        actions_chunked = actions_chunked[:, :window_size]
+        # combine the timestep pad mask with the action pad mask
+        mask = timestep_pad_mask[:, :, None, None] & action_pad_mask
 
-        # combine the timestep-level pad mask with the action-dimension-level pad mask
-        mask = (
-            jnp.broadcast_to(action_pad_mask[:, None, None, :], actions_chunked.shape)
-            * timestep_pad_mask[:, :, None, None]
-        )
-
-        loss, metrics = continuous_loss(
-            mean, actions_chunked, mask, loss_type=self.loss_type
-        )
+        loss, metrics = continuous_loss(mean, actions, mask, loss_type=self.loss_type)
         # Sum over action dimension instead of averaging
         loss = loss * self.action_dim
         metrics["loss"] = metrics["loss"] * self.action_dim
@@ -263,7 +215,6 @@ class ContinuousActionHead(nn.Module, ActionHead):
     ) -> jax.Array:
         """Convenience methods for predicting actions for the final timestep in the window."""
         # only get the last timestep in the window
-        # (batch, pred_horizon, action_dim)
         mean = self(transformer_outputs, train=train)[:, -1]
         return jnp.broadcast_to(mean, sample_shape + mean.shape)
 
@@ -276,9 +227,9 @@ class DiscreteActionHead(nn.Module, ActionHead):
     self.token_per determines how many tokens are used to represent each action.
         - If "" (an empty string): then a single token is responsible for producing the action logits
             for all dimensions at all future prediction horizons.
-        - If "pred_horizon", then we use `self.pred_horizon` tokens, each responsible for producing the action logits
+        - If "action_horizon", then we use `self.action_horizon` tokens, each responsible for producing the action logits
             for all dimensions at the corresponding future prediction horizon.
-        - If "action_dim_and_pred_horizon", then we use `self.pred_horizon * self.action_dim` tokens, where
+        - If "action_dim_and_action_horizon", then we use `self.action_horizon * self.action_dim` tokens, where
             each token is responsible for the logits for the specific dim and timestep.
 
     If multi-head attention pooling is used (use_map=True), then the correct number of tokens is automatically
@@ -287,23 +238,23 @@ class DiscreteActionHead(nn.Module, ActionHead):
 
     readout_key: str
     use_map: bool = False
-    token_per: str = "action_dim_and_pred_horizon"
-    pred_horizon: int = 1
+    token_per: str = "action_dim_and_action_horizon"
+    action_horizon: int = 1
     action_dim: int = 7
     vocab_size: int = 256
     normalization_type: str = "uniform"
 
     def setup(self):
-        total_output = self.pred_horizon * self.action_dim * self.vocab_size
+        total_output = self.action_horizon * self.action_dim * self.vocab_size
 
         if self.token_per == "":
             self.n_tokens = 1
             self.final_layer_size = total_output
-        elif self.token_per == "pred_horizon":
-            self.n_tokens = self.pred_horizon
-            self.final_layer_size = total_output // self.pred_horizon
-        elif self.token_per == "action_dim_and_pred_horizon":
-            self.n_tokens = self.pred_horizon * self.action_dim
+        elif self.token_per == "action_horizon":
+            self.n_tokens = self.action_horizon
+            self.final_layer_size = total_output // self.action_horizon
+        elif self.token_per == "action_dim_and_action_horizon":
+            self.n_tokens = self.action_horizon * self.action_dim
             self.final_layer_size = self.vocab_size
         else:
             raise ValueError(f"Invalid token_per: {self.token_per}")
@@ -322,7 +273,7 @@ class DiscreteActionHead(nn.Module, ActionHead):
     ) -> jax.Array:
         """
         Returns:
-            logits: array w/ shape (batch_size, window_size, pred_horizon, action_dim, vocab_size)
+            logits: array w/ shape (batch_size, window_size, action_horizon, action_dim, vocab_size)
         """
         token_group = transformer_outputs[self.readout_key]
         assert token_group.tokens.ndim == 4, (
@@ -342,7 +293,11 @@ class DiscreteActionHead(nn.Module, ActionHead):
 
         logits = self.vocab_proj(embeddings)
         logits = logits.reshape(
-            batch_size, window_size, self.pred_horizon, self.action_dim, self.vocab_size
+            batch_size,
+            window_size,
+            self.action_horizon,
+            self.action_dim,
+            self.vocab_size,
         )
         return logits
 
@@ -350,8 +305,8 @@ class DiscreteActionHead(nn.Module, ActionHead):
         self,
         transformer_outputs: Dict[str, TokenGroup],
         actions: ArrayLike,
-        action_pad_mask: ArrayLike,
         timestep_pad_mask: ArrayLike,
+        action_pad_mask: ArrayLike,
         train: bool = True,
     ):
         """Computes the loss for the discretized action objective.
@@ -359,35 +314,24 @@ class DiscreteActionHead(nn.Module, ActionHead):
         Args:
             transformer_ouputs: must contain self.readout_key with shape (batch_size, window_size, num_tokens,
                 embedding_size)
-            actions: shape (batch_size, >= window_size + pred_horizon - 1, action_dim)
+            actions: shape (batch_size, window_size, action_horizon, action_dim)
             timestep_pad_mask: boolean array (batch, window_size) which is True if the timestep is not a padding timestep
+            action_pad_mask: boolean array (same shape as actions) which is True if the action dimension is not a padding dimension
 
         Returns:
             loss: float
             metrics: dict
         """
         # get the logits for all the actions by taking the action tokens of each timestep,
-        # unfolding the pred_horizon dim, and projecting to the vocab size
-        # (batch, window_size, pred_horizon, action_dim, token_embedding_size)
+        # unfolding the action_horizon dim, and projecting to the vocab size
+        # (batch, window_size, action_horizon, action_dim, token_embedding_size)
         action_logits = self(transformer_outputs, train=train)
 
-        window_size = action_logits.shape[1]
-        _check_action_window_size(actions, window_size, self.pred_horizon)
-
-        actions_chunked = chunk_actions(actions, self.pred_horizon)
-        actions_chunked = actions_chunked[:, :window_size]
-
-        # combine the timestep-level pad mask with the action-dimension-level pad mask
-        mask = (
-            jnp.broadcast_to(action_pad_mask[:, None, None, :], actions_chunked.shape)
-            * timestep_pad_mask[:, :, None, None]
-        )
+        # combine the timestep pad mask with the action pad mask
+        mask = timestep_pad_mask[:, :, None, None] & action_pad_mask
 
         loss, metrics = discrete_loss(
-            self.action_tokenizer,
-            action_logits,
-            actions_chunked,
-            mask,
+            self.action_tokenizer, action_logits, actions, mask
         )
 
         # For MSE, sum over action dimension instead of averaging
@@ -435,14 +379,14 @@ class L1ActionHead(ContinuousActionHead):
 
 
 class TokenPerDimActionHead(DiscreteActionHead):
-    token_per: str = "action_dim_and_pred_horizon"
+    token_per: str = "action_dim_and_action_horizon"
 
 
 class DiffusionActionHead(nn.Module):
     """Predicts actions uses a diffusion process.
 
     Only a single pass through the transformer is done to obtain an action embedding at each timestep. The
-    action is then predicted using a diffusion process conditioned on this embedding. The diffusion model
+    actions are then predicted using a diffusion process conditioned on this embedding. The diffusion model
     architecture is an MLP with residual connections (see `octo.model.components.diffusion`).
 
     You may create an embedding by either mean-pooling across tokens (use_map=False) or using multi-head
@@ -452,7 +396,7 @@ class DiffusionActionHead(nn.Module):
 
     readout_key: str
     use_map: bool = False
-    pred_horizon: int = 1
+    action_horizon: int = 1
     action_dim: int = 7
     max_action: float = 5.0
     loss_type: str = "mse"
@@ -472,7 +416,7 @@ class DiffusionActionHead(nn.Module):
 
         # create the diffusion model (score network)
         self.diffusion_model = create_diffusion_model(
-            self.action_dim * self.pred_horizon,
+            self.action_dim * self.action_horizon,
             time_dim=self.time_dim,
             num_blocks=self.num_blocks,
             dropout_rate=self.dropout_rate,
@@ -512,7 +456,7 @@ class DiffusionActionHead(nn.Module):
         elif self.is_initializing():
             time = jnp.zeros((*embeddings.shape[:2], 1), dtype=jnp.float32)
             noisy_actions = jnp.zeros(
-                (*embeddings.shape[:2], self.action_dim * self.pred_horizon),
+                (*embeddings.shape[:2], self.action_dim * self.action_horizon),
                 dtype=jnp.float32,
             )
         pred_eps = self.diffusion_model(embeddings, noisy_actions, time, train=train)
@@ -522,8 +466,8 @@ class DiffusionActionHead(nn.Module):
         self,
         transformer_outputs: Dict[str, TokenGroup],
         actions: ArrayLike,
-        action_pad_mask: ArrayLike,
         timestep_pad_mask: ArrayLike,
+        action_pad_mask: ArrayLike,
         train: bool = True,
     ) -> Tuple[Array, Dict[str, Array]]:
         """Computes the loss for the diffusion objective.
@@ -531,19 +475,18 @@ class DiffusionActionHead(nn.Module):
         Args:
             transformer_ouputs: must contain self.readout_key with shape (batch_size, window_size, num_tokens,
                 embedding_size)
-            actions: shape (batch_size, >= window_size + pred_horizon - 1, action_dim)
+            actions: shape (batch_size, window_size, action_horizon, action_dim)
             timestep_pad_mask: boolean array (batch, window_size) which is True if the timestep is not a padding timestep
+            action_pad_mask: boolean array (same shape as actions) which is True if the action dimension is not a padding dimension
 
         Returns:
             loss: float
             metrics: dict
         """
         batch_size, window_size = timestep_pad_mask.shape
-        _check_action_window_size(actions, window_size, self.pred_horizon)
-        actions_chunked = chunk_actions(actions, self.pred_horizon)
-        actions_chunked = actions_chunked[:, :window_size]
-        # fold action_dim and pred_horizon into one dimension
-        actions_flat = rearrange(actions_chunked, "b w p a -> b w (p a)")
+
+        # fold action_dim and action_horizon into one dimension
+        actions_flat = rearrange(actions, "b w h a -> b w (h a)")
         actions_flat = jnp.clip(actions_flat, -self.max_action, self.max_action)
 
         # piggy-back on the dropout rng chain for diffusion rng
@@ -567,13 +510,10 @@ class DiffusionActionHead(nn.Module):
             transformer_outputs, train=train, time=time, noisy_actions=noisy_actions
         )
 
-        # combine the timestep-level pad mask with the action-dimension-level pad mask
-        mask = (
-            jnp.broadcast_to(action_pad_mask[:, None, None, :], actions_chunked.shape)
-            * timestep_pad_mask[:, :, None, None]
-        )
+        # combine the timestep pad mask with the action pad mask
+        mask = timestep_pad_mask[:, :, None, None] & action_pad_mask
         # flatten the mask to match the flat actions
-        mask = rearrange(mask, "b w p a -> b w (p a)")
+        mask = rearrange(mask, "b w h a -> b w (h a)")
         # add a dimension to the mask for n_diffusion_samples
         mask = mask[None]
 
@@ -649,7 +589,7 @@ class DiffusionActionHead(nn.Module):
                 *sample_shape,
                 batch_size,
                 window_size,
-                self.pred_horizon * self.action_dim,
+                self.action_horizon * self.action_dim,
             ),
         )
 
@@ -661,8 +601,8 @@ class DiffusionActionHead(nn.Module):
 
         actions = rearrange(
             actions_flat,
-            "... (p a) -> ... p a",
-            p=self.pred_horizon,
+            "... (h a) -> ... h a",
+            h=self.action_horizon,
             a=self.action_dim,
         )
         # only get the last timestep in the window
