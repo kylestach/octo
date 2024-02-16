@@ -21,7 +21,6 @@ def get_config(config_string="full,multimodal"):
         "image_obs_keys": {"primary": "image_0", "wrist": None},
         "proprio_obs_key": "proprio",
         "language_key": "language_instruction",
-        "action_proprio_normalization_type": "normal",
         # We want to avoid normalizing the gripper
         "action_normalization_mask": [True, True, True, True, True, True, False],
         # standardize_fn is dynamically loaded from a file
@@ -110,7 +109,7 @@ def get_config(config_string="full,multimodal"):
 
     traj_transform_kwargs = dict(
         window_size=window_size,
-        pred_horizon=3,
+        action_horizon=3,
         goal_relabeling_strategy=goal_relabeling_strategy,
         task_augment_strategy="delete_task_conditioning",
         task_augment_kwargs=dict(
