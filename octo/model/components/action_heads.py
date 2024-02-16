@@ -403,6 +403,7 @@ class DiscreteActionHead(nn.Module, ActionHead):
         sample_shape: tuple = (),
         rng: Optional[PRNGKey] = None,
         temperature: float = 1.0,
+        **unused_kwargs,
     ) -> jax.Array:
         """Convenience methods for predicting actions for the final timestep in the window."""
         # only get the last timestep in the window
