@@ -71,7 +71,6 @@ def main(_):
             image_obs_keys={"primary": "top"},
             proprio_obs_key="state",
             language_key="language_instruction",
-            action_proprio_normalization_type=NormalizationType.NORMAL,
         ),
         traj_transform_kwargs=dict(
             window_size=1,

@@ -102,9 +102,6 @@ def main(_):
     )
 
     # wrap the robot environment
-    env = UnnormalizeActionProprio(
-        env, model.dataset_statistics, normalization_type="normal"
-    )
     env = HistoryWrapper(env, FLAGS.window_size)
     env = RHCWrapper(env, FLAGS.exec_horizon)
 
