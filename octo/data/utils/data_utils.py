@@ -137,6 +137,8 @@ def get_dataset_statistics(
             "std": actions.std(0).tolist(),
             "max": actions.max(0).tolist(),
             "min": actions.min(0).tolist(),
+            "p99": np.quantile(actions, 0.99, 0).tolist(),
+            "p01": np.quantile(actions, 0.01, 0).tolist(),
         },
         "num_transitions": num_transitions,
         "num_trajectories": num_trajectories,
@@ -148,6 +150,8 @@ def get_dataset_statistics(
             "std": proprios.std(0).tolist(),
             "max": proprios.max(0).tolist(),
             "min": proprios.min(0).tolist(),
+            "p99": np.quantile(proprios, 0.99, 0).tolist(),
+            "p01": np.quantile(proprios, 0.01, 0).tolist(),
         }
 
     try:
@@ -181,11 +185,21 @@ def normalize_action_and_proprio(
         mask = metadata[key].get(
             "mask", tf.ones_like(metadata[key]["mean"], dtype=tf.bool)
         )
+        # normalize to [-1, 1] based on 1st and 99th percentile
         traj = dl.transforms.selective_tree_map(
             traj,
             match=lambda k, _: k == traj_key,
             map_fn=lambda x: tf.where(
-                mask, (x - metadata[key]["mean"]) / (metadata[key]["std"] + 1e-8), x
+                mask,
+                tf.clip_by_value(
+                    2
+                    * (x - metadata[key]["p01"])
+                    / (metadata[key]["p99"] - metadata[key]["p01"] + 1e-8)
+                    - 1,
+                    -1,
+                    1,
+                ),
+                x,
             ),
         )
     return traj

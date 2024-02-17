@@ -279,9 +279,9 @@ def make_dataset_from_rlds(
             (e.g., for `make_interleaved_dataset`). If not provided, the statistics will be computed on the fly.
         force_recompute_dataset_statistics (bool, optional): If True and `dataset_statistics` is None, will
             recompute the dataset statistics regardless of whether they are already cached.
-        action_normalization_mask (Sequence[bool], optional): If provided, indicates which action dimensions
-            should be normalized. For example, you might not want to normalize the gripper action dimension if
-            it's always exactly 0 or 1. By default, all action dimensions are normalized.
+        action_normalization_mask (Sequence[bool], optional): If provided, only normalizes action dimensions
+            where the corresponding mask is True. For example, you might not want to normalize the gripper
+            action dimension if it's always exactly 0 or 1. By default, all action dimensions are normalized.
         num_parallel_reads (int): number of parallel read workers. Default to AUTOTUNE.
         num_parallel_calls (int): number of parallel calls for traj_map operations. Default to AUTOTUNE.
     Returns:
