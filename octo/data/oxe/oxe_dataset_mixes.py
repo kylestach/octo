@@ -118,7 +118,7 @@ OXE_FLEX_ACT_SOUP = [
 
 OXE_EXPANDED_SOUP = [
     ("fractal20220817_data", 0.54087122203),
-    ("kuka", 0.8341046294),
+    ("kuka", 0.4),
     ("bridge_dataset", 1.0),
     ("taco_play", 2.0),
     ("taco_extra", 2.0),
