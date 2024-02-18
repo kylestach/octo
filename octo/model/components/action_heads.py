@@ -548,7 +548,7 @@ class DiffusionActionHead(nn.Module):
                 *sample_shape,
                 batch_size,
                 window_size,
-                self.pred_horizon,
+                self.action_horizon,
                 self.action_dim,
             ),
             dtype=bool,

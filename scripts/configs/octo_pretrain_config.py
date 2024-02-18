@@ -57,7 +57,7 @@ def get_config(config_string=None):
         DiffusionActionHead,
         readout_key="readout_action",
         use_map=False,
-        pred_horizon=4,
+        action_horizon=4,
         action_dim=action_dim,
         n_diffusion_samples=1,
     )
