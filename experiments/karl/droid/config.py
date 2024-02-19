@@ -145,9 +145,12 @@ def get_config(config_string="vit_s,no_filter,base_act,no_state,8"):
     base_config["dataset_kwargs"]["frame_transform_kwargs"]["image_dropout_prob"] = 0.5
 
     if act_frame == "base_act":
-        standardize_fn = "experiments.karl.droid.standardization_transforms:droid_dataset_transform"
+        standardize_fn = "experiments.karl.droid.standardization_transforms:droid_baseact_transform"
     elif act_frame == "wrist_act":
-        standardize_fn = "experiments.karl.droid.standardization_transforms:droid_dataset_wristact_transform"
+        standardize_fn = "experiments.karl.droid.standardization_transforms:droid_wristact_transform"
+        base_config["dataset_kwargs"]["frame_transform_kwargs"]["image_dropout_keep_key"] = "image_wrist"
+    elif act_frame == "wrist_act_cumulative":
+        standardize_fn = "experiments.karl.droid.standardization_transforms:droid_cumulative_wristact_transform"
         base_config["dataset_kwargs"]["frame_transform_kwargs"]["image_dropout_keep_key"] = "image_wrist"
     else:
         raise ValueError(f"Action frame {act_frame} not supported.")
