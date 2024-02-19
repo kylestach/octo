@@ -315,8 +315,6 @@ def make_dataset_from_rlds(
         - dataset_name                  # name of the dataset
     """
     REQUIRED_KEYS = {"observation", "action"}
-    if language_key is not None:
-        REQUIRED_KEYS.add(language_key)
 
     def restructure(traj):
         # apply a standardization function, if provided

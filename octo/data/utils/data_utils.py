@@ -42,6 +42,8 @@ def to_padding(tensor: tf.Tensor) -> tf.Tensor:
 def sample_match_keys_uniform(d: dict, key_template: str):
     """Samples uniformly from all keys fnmatching the template."""
     match_keys = [key for key in d.keys() if fnmatch(key, key_template)]
+    if not match_keys:
+        raise ValueError(f"No matching key found for {key_template}. Keys: {d.keys()}")
     logging.info(f"Sampling uniformly across keys: {match_keys}")
     if len(match_keys) > 1:
         stacked = tf.stack([d[key] for key in match_keys])

@@ -1,5 +1,7 @@
 import copy
 from copy import deepcopy
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 from scripts.configs.config import get_config as get_base_config
 from ml_collections import ConfigDict
@@ -67,7 +69,7 @@ def get_config(config_string="vit_s,no_filter,base_act,no_state,8"):
     #         finetune_encoder=False,
     #     ),
     # }
-    base_config["model"]["readouts"] = {"action": int(chunk_length)}
+    base_config["model"]["readouts"] = {"action": 1}
     base_config["model"]["heads"] = dict(
         action=ModuleSpec.create(
             DiffusionActionHead,
@@ -150,19 +152,20 @@ def get_config(config_string="vit_s,no_filter,base_act,no_state,8"):
 
     del base_config["dataset_kwargs"]["oxe_kwargs"]
     base_dataset_kwargs = dict(
-        absolute_action_mask=[False] * 9 + [True],
+        #absolute_action_mask=[False] * 9 + [True],
         # action_normalization_mask=[True] * 9 + [False],
         image_obs_keys=dict(
             wrist="wrist_image_left",
             primary="exterior_image_1_left",
             # secondary="exterior_image_2_left",
         ),
-        state_obs_keys=["cartesian_position", "gripper_position"],
-        language_key="language_instruction.*",
+        proprio_obs_key="proprio",
+        language_key="language_instruction*",
         standardize_fn=ModuleSpec.create(
             standardize_fn
         ),
         data_dir="gs://rail-orca-central2",
+        ignore_errors=True,
     )
 
     if filter == "no_filter":
@@ -226,8 +229,7 @@ def get_config(config_string="vit_s,no_filter,base_act,no_state,8"):
             dataset_kwargs_list=[
                 dict(
                     name="r2_d2",
-                    filter_fcns=filter_fcns,
-                    shuffle=False,
+                    filter_functions=filter_fcns,
                     **base_dataset_kwargs
                 ),
             ],
@@ -236,7 +238,7 @@ def get_config(config_string="vit_s,no_filter,base_act,no_state,8"):
             shuffle_buffer_size=200000,
             balance_weights=True,
             traj_transform_kwargs=dict(
-                future_action_window_size=int(chunk_length) - 1,
+                action_horizon=int(chunk_length),
                 goal_relabeling_strategy="uniform",
                 goal_relabeling_kwargs=dict(
                     max_goal_distance=50,
