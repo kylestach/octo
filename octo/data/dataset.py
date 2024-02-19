@@ -165,6 +165,7 @@ def apply_frame_transforms(
     resize_size: Union[Tuple[int, int], Mapping[str, Tuple[int, int]]] = {},
     depth_resize_size: Union[Tuple[int, int], Mapping[str, Tuple[int, int]]] = {},
     image_dropout_prob: float = 0.0,
+    image_dropout_keep_key: Optional[str] = None,
     num_parallel_calls: int = tf.data.AUTOTUNE,
 ) -> dl.DLataset:
     """Applies common transforms that happen at a frame level. These transforms are usually more
@@ -186,6 +187,8 @@ def apply_frame_transforms(
             images.
         image_dropout_prob (float): Probability of dropping out images, applied to each image key
             independently. At least one image will always be present.
+        image_dropout_keep_key (str, optional): Optionally provide a key to always keep during image dropout
+            for example for image observations that are essential for action prediction.
         num_parallel_calls (int): number of parallel calls for frame_map operations. Default to AUTOTUNE.
     """
 
@@ -219,6 +222,7 @@ def apply_frame_transforms(
                 obs_transforms.image_dropout,
                 seed=seed,
                 dropout_prob=image_dropout_prob,
+                always_keep_key=image_dropout_keep_key,
             )
             aug_fn = partial(
                 obs_transforms.augment, seed=seed, augment_kwargs=image_augment_kwargs

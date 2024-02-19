@@ -141,19 +141,19 @@ def get_config(config_string="vit_s,no_filter,base_act,no_state,8"):
         "primary": exo_augment_kwargs,
         # "secondary": exo_augment_kwargs,
     }
+    # randomly drop out exterior camera, always keep wrist image for wrist act
     base_config["dataset_kwargs"]["frame_transform_kwargs"]["image_dropout_prob"] = 0.5
 
     if act_frame == "base_act":
         standardize_fn = "experiments.karl.droid.standardization_transforms:droid_dataset_transform"
     elif act_frame == "wrist_act":
         standardize_fn = "experiments.karl.droid.standardization_transforms:droid_dataset_wristact_transform"
+        base_config["dataset_kwargs"]["frame_transform_kwargs"]["image_dropout_keep_key"] = "image_wrist"
     else:
         raise ValueError(f"Action frame {act_frame} not supported.")
 
     del base_config["dataset_kwargs"]["oxe_kwargs"]
     base_dataset_kwargs = dict(
-        #absolute_action_mask=[False] * 9 + [True],
-        # action_normalization_mask=[True] * 9 + [False],
         image_obs_keys=dict(
             wrist="wrist_image_left",
             primary="exterior_image_1_left",
