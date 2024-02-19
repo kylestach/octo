@@ -83,6 +83,14 @@ def droid_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
             trajectory["observation"]["exterior_image_1_left"]
         )
     )
+
+    trajectory["proprio"] = tf.concat(
+        (
+            trajectory["observation"]["cartesian_position"],
+            trajectory["observation"]["gripper_position"],
+        ),
+        axis=-1,
+    )
     return trajectory
 
 
@@ -112,5 +120,13 @@ def droid_dataset_wristact_transform(trajectory: Dict[str, Any]) -> Dict[str, An
             trajectory["observation"]["exterior_image_2_left"],
             trajectory["observation"]["exterior_image_1_left"]
         )
+    )
+
+    trajectory["proprio"] = tf.concat(
+        (
+            trajectory["observation"]["cartesian_position"],
+            trajectory["observation"]["gripper_position"],
+        ),
+        axis=-1,
     )
     return trajectory
