@@ -48,7 +48,7 @@ def image_dropout(
     """Independently drops out image keys, each with probability `dropout_prob`, but always keeps at least one
     image present.
     """
-    image_keys = {key for key in obs if key.startswith("image_")}
+    image_keys = [key for key in obs if key.startswith("image_")]
     if not image_keys:
         return obs
     pad_mask = tf.stack([obs["pad_mask_dict"][key] for key in image_keys])

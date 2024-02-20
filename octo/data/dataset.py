@@ -382,18 +382,19 @@ def make_dataset_from_rlds(
         with tf.io.gfile.GFile(dataset_statistics, "r") as f:
             dataset_statistics = json.load(f)
     elif dataset_statistics is None:
-        full_dataset = (
-            dl.DLataset.from_rlds(builder, split="all", shuffle=False)
-            .traj_map(restructure)
-            .filter(is_nonzero_length)
-        )
-        if ignore_errors:
-            full_dataset = full_dataset.ignore_errors()
+        full_dataset = dl.DLataset.from_rlds(builder, split="all", shuffle=False)
         if filter_functions:
             for filter_fcn_spec in filter_functions:
                 full_dataset = full_dataset.filter(
                     ModuleSpec.instantiate(filter_fcn_spec)
                 )
+        if ignore_errors:
+            full_dataset = full_dataset.ignore_errors()
+        full_dataset = (
+            full_dataset
+            .traj_map(restructure)
+            .filter(is_nonzero_length)
+        )
         # tries to load from cache, otherwise computes on the fly
         dataset_statistics = get_dataset_statistics(
             full_dataset,
@@ -436,15 +437,15 @@ def make_dataset_from_rlds(
         builder, split=split, shuffle=shuffle, num_parallel_reads=num_parallel_reads
     )
 
-    dataset = dataset.traj_map(restructure, num_parallel_calls).filter(
-        is_nonzero_length
-    )
-    if ignore_errors:
-        dataset = dataset.ignore_errors()
-
     if filter_functions:
         for filter_fcn_spec in filter_functions:
             dataset = dataset.filter(ModuleSpec.instantiate(filter_fcn_spec))
+    if ignore_errors:
+        dataset = dataset.ignore_errors()
+
+    dataset = dataset.traj_map(restructure, num_parallel_calls).filter(
+        is_nonzero_length
+    )
 
     if not skip_norm:
         dataset = dataset.traj_map(

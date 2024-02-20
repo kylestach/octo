@@ -145,12 +145,19 @@ def get_config(config_string="vit_s,no_filter,base_act,no_state,8"):
     base_config["dataset_kwargs"]["frame_transform_kwargs"]["image_dropout_prob"] = 0.5
 
     if act_frame == "base_act":
-        standardize_fn = "experiments.karl.droid.standardization_transforms:droid_baseact_transform"
+        standardize_fn = ModuleSpec.create(
+            "experiments.karl.droid.standardization_transforms:droid_baseact_transform"
+        )
     elif act_frame == "wrist_act":
-        standardize_fn = "experiments.karl.droid.standardization_transforms:droid_wristact_transform"
+        standardize_fn = ModuleSpec.create(
+            "experiments.karl.droid.standardization_transforms:droid_wristact_transform"
+        )
         base_config["dataset_kwargs"]["frame_transform_kwargs"]["image_dropout_keep_key"] = "image_wrist"
     elif act_frame == "wrist_act_cumulative":
-        standardize_fn = "experiments.karl.droid.standardization_transforms:droid_cumulative_wristact_transform"
+        standardize_fn = ModuleSpec.create(
+            "experiments.karl.droid.standardization_transforms:droid_cumulative_wristact_transform",
+            action_horizon=int(chunk_length),
+        )
         base_config["dataset_kwargs"]["frame_transform_kwargs"]["image_dropout_keep_key"] = "image_wrist"
     else:
         raise ValueError(f"Action frame {act_frame} not supported.")
@@ -164,9 +171,7 @@ def get_config(config_string="vit_s,no_filter,base_act,no_state,8"):
         ),
         proprio_obs_key="proprio",
         language_key="language_instruction*",
-        standardize_fn=ModuleSpec.create(
-            standardize_fn
-        ),
+        standardize_fn=standardize_fn,
         data_dir="gs://rail-orca-central2",
         ignore_errors=True,
     )
@@ -176,37 +181,37 @@ def get_config(config_string="vit_s,no_filter,base_act,no_state,8"):
     elif filter == "success":
         filter_fcns = [
             ModuleSpec.create(
-                "experiments.karl.r2_d2.filter_functions:filter_success"
+                "experiments.karl.droid.droid_filter_functions:filter_success"
             ),
         ]
     elif filter == "t50":
         filter_fcns = [
             ModuleSpec.create(
-                "experiments.karl.r2_d2.filter_functions:filter_task_50"
+                "experiments.karl.droid.droid_filter_functions:filter_task_50"
             ),
         ]
     elif filter == "t100":
         filter_fcns = [
             ModuleSpec.create(
-                "experiments.karl.r2_d2.filter_functions:filter_task_100"
+                "experiments.karl.droid.droid_filter_functions:filter_task_100"
             ),
         ]
     elif filter == "t200":
         filter_fcns = [
             ModuleSpec.create(
-                "experiments.karl.r2_d2.filter_functions:filter_task_200"
+                "experiments.karl.droid.droid_filter_functions:filter_task_200"
             ),
         ]
     elif filter == "skill8":
         filter_fcns = [
             ModuleSpec.create(
-                "experiments.karl.r2_d2.filter_functions:filter_skill_8"
+                "experiments.karl.droid.droid_filter_functions:filter_skill_8"
             ),
         ]
     elif filter == "view10k":
         filter_fcns = [
             ModuleSpec.create(
-                "experiments.karl.r2_d2.filter_functions:filter_viewpoint_10k"
+                "experiments.karl.droid.droid_filter_functions:filter_viewpoint_10k"
             ),
         ]
     else:

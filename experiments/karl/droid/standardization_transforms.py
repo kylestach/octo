@@ -53,8 +53,8 @@ def change_state_act_frame(pos_acs, frame):
     R_0 = euler_to_rmat(frame[...,3:6])
     R_0_inv = invert_rmat(R_0)
 
-    delta_xyz = (pos_acs[...,:3] - xyz_0)
-    xyz = (R_0_inv @ delta_xyz)
+    delta_xyz = (pos_acs[...,:3] - xyz_0)[..., None]
+    xyz = (R_0_inv @ delta_xyz)[..., 0]
     R = R_0_inv @ euler_to_rmat(pos_acs[...,3:6])
     R6 = mat_to_rot6d(R)
     return tf.concat([xyz, R6], axis=-1)
