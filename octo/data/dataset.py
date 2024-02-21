@@ -37,7 +37,7 @@ def apply_trajectory_transforms(
     task_augment_kwargs: dict = {},
     max_action_dim: Optional[int] = None,
     max_proprio_dim: Optional[int] = None,
-    post_chunk_transforms: Optional[Sequence[ModuleSpec]] = None,
+    post_chunk_transforms: Sequence[ModuleSpec] = (),
     num_parallel_calls: int = tf.data.AUTOTUNE,
 ) -> dl.DLataset:
     """Applies common transforms that happen at a trajectory level. Such transforms are usually some sort of
@@ -72,7 +72,7 @@ def apply_trajectory_transforms(
             padded to this dimension.
         max_proprio_dim (int, optional): If provided, datasets with a proprio dimension less than this will be
             padded to this dimension.
-        post_chunk_transforms (Sequence[ModuleSpec], optional): ModuleSpecs of trajectory transforms applied after
+        post_chunk_transforms (Sequence[ModuleSpec]): ModuleSpecs of trajectory transforms applied after
             chunking.
         num_parallel_calls (int, optional): number of parallel calls for map operations. Default to AUTOTUNE.
     """
@@ -147,12 +147,11 @@ def apply_trajectory_transforms(
             num_parallel_calls,
         )
 
-    if post_chunk_transforms is not None:
-        for transform_spec in post_chunk_transforms:
-            dataset = dataset.traj_map(
-                ModuleSpec.instantiate(transform_spec),
-                num_parallel_calls,
-            )
+    for transform_spec in post_chunk_transforms:
+        dataset = dataset.traj_map(
+            ModuleSpec.instantiate(transform_spec),
+            num_parallel_calls,
+        )
 
     return dataset
 
@@ -250,7 +249,7 @@ def make_dataset_from_rlds(
     dataset_statistics: Optional[Union[dict, str]] = None,
     force_recompute_dataset_statistics: bool = False,
     action_normalization_mask: Optional[Sequence[bool]] = None,
-    filter_functions: Optional[Sequence[ModuleSpec]] = None,
+    filter_functions: Sequence[ModuleSpec] = (),
     skip_norm: bool = False,
     ignore_errors: bool = False,
     num_parallel_reads: int = tf.data.AUTOTUNE,
@@ -291,16 +290,17 @@ def make_dataset_from_rlds(
         proprio_obs_key (str, optional): If provided, the "obs" dict will contain the key "proprio", extracted from
             `traj["observation"][proprio_obs_key]`.
         language_key (str, optional): If provided, the "task" dict will contain the key
-            "language_instruction", extracted from `traj[language_key]`.
+            "language_instruction", extracted from `traj[language_key]`. If language_key fnmatches multiple
+            keys, we sample one uniformly.
         dataset_statistics: (dict|str, optional): dict (or path to JSON file) that contains dataset statistics
             for normalization. May also provide "num_transitions" and "num_trajectories" keys for downstream usage
             (e.g., for `make_interleaved_dataset`). If not provided, the statistics will be computed on the fly.
         force_recompute_dataset_statistics (bool, optional): If True and `dataset_statistics` is None, will
             recompute the dataset statistics regardless of whether they are already cached.
-        action_normalization_mask (Sequence[bool], optional): If provided, indicates which action dimensions
-            should be normalized. For example, you might not want to normalize the gripper action dimension if
-            it's always exactly 0 or 1. By default, all action dimensions are normalized.
-        filter_functions (Sequence[ModuleSpec], optional): ModuleSpecs for filtering functions applied to the
+        action_normalization_mask (Sequence[bool], optional): If provided, only normalizes action dimensions
+            where the corresponding mask is True. For example, you might not want to normalize the gripper
+            action dimension if it's always exactly 0 or 1. By default, all action dimensions are normalized.
+        filter_functions (Sequence[ModuleSpec]): ModuleSpecs for filtering functions applied to the
             raw dataset.
         skip_norm (bool): If true, skips normalization of actions and proprio. Default: False.
         ignore_errors (bool): If true, skips erroneous dataset elements via dataset.ignore_errors(). Default: False.
@@ -353,7 +353,7 @@ def make_dataset_from_rlds(
         # add timestep info
         new_obs["timestep"] = tf.range(traj_len)
 
-        # extracts `language_key` into the "task" dict, sample uniformly if multiple matches to regex
+        # extracts `language_key` into the "task" dict, or samples uniformly if `language_key` fnmatches multiple keys
         task = {}
         if language_key is not None:
             task["language_instruction"] = sample_match_keys_uniform(traj, language_key)
@@ -383,18 +383,11 @@ def make_dataset_from_rlds(
             dataset_statistics = json.load(f)
     elif dataset_statistics is None:
         full_dataset = dl.DLataset.from_rlds(builder, split="all", shuffle=False)
-        if filter_functions:
-            for filter_fcn_spec in filter_functions:
-                full_dataset = full_dataset.filter(
-                    ModuleSpec.instantiate(filter_fcn_spec)
-                )
+        for filter_fcn_spec in filter_functions:
+            full_dataset = full_dataset.filter(ModuleSpec.instantiate(filter_fcn_spec))
         if ignore_errors:
             full_dataset = full_dataset.ignore_errors()
-        full_dataset = (
-            full_dataset
-            .traj_map(restructure)
-            .filter(is_nonzero_length)
-        )
+        full_dataset = full_dataset.traj_map(restructure).filter(is_nonzero_length)
         # tries to load from cache, otherwise computes on the fly
         dataset_statistics = get_dataset_statistics(
             full_dataset,
@@ -436,10 +429,8 @@ def make_dataset_from_rlds(
     dataset = dl.DLataset.from_rlds(
         builder, split=split, shuffle=shuffle, num_parallel_reads=num_parallel_reads
     )
-
-    if filter_functions:
-        for filter_fcn_spec in filter_functions:
-            dataset = dataset.filter(ModuleSpec.instantiate(filter_fcn_spec))
+    for filter_fcn_spec in filter_functions:
+        dataset = dataset.filter(ModuleSpec.instantiate(filter_fcn_spec))
     if ignore_errors:
         dataset = dataset.ignore_errors()
 

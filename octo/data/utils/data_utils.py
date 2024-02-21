@@ -47,10 +47,10 @@ def sample_match_keys_uniform(d: dict, key_template: str):
     logging.info(f"Sampling uniformly across keys: {match_keys}")
     if len(match_keys) > 1:
         stacked = tf.stack([d[key] for key in match_keys])
-        idx = tf.random.uniform((1,), 0, len(stacked) - 1, dtype=tf.int32)
-        return tf.gather(stacked, idx, axis=0)[0]
+        idx = tf.random.uniform((), 0, len(stacked) - 1, dtype=tf.int32)
+        return stacked[idx]
     else:
-        return d[match_keys]
+        return d[match_keys[0]]
 
 
 def pprint_data_mixture(
