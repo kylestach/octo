@@ -112,8 +112,10 @@ def get_config(
 
 def get_dataset_config(window_size=1):
     task_augmentation = dict(
-        task_augment_strategy="delete_task_conditioning",
+        task_augment_strategy="delete_and_rephrase",
         task_augment_kwargs=dict(
+            pickle_file_path="gs://rail-orca-central2/resize_256_256/paraphrases_oxe.pkl",
+            rephrase_prob=0.5,
             keep_image_prob=0.5,
         ),
     )
