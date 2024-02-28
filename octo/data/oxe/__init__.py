@@ -32,22 +32,22 @@ def make_oxe_dataset_kwargs(
 
     if dataset_kwargs["action_encoding"] is ActionEncoding.EEF_POS:
         # with EEF_POS actions, the last action dimension is gripper
-        dataset_kwargs["action_normalization_mask"] = [False] * 6 + [True]
+        dataset_kwargs["action_normalization_mask"] = [True] * 6 + [False]
     elif dataset_kwargs["action_encoding"] is ActionEncoding.JOINT_POS:
         # with JOINT_POS actions, last dimension is gripper
-        dataset_kwargs["action_normalization_mask"] = [False] * 7 + [True]
+        dataset_kwargs["action_normalization_mask"] = [True] * 7 + [False]
     elif dataset_kwargs["action_encoding"] is ActionEncoding.JOINT_POS_BIMANUAL:
         # with JOINT_POS_BIMANUAL actions, 7th and 14th dimension are gripper
         dataset_kwargs["action_normalization_mask"] = (
-            [False] * 6 + [True] + [False] * 6 + [True]
+            [True] * 6 + [False] + [True] * 6 + [False]
         )
     elif dataset_kwargs["action_encoding"] is ActionEncoding.NAV_2D:
         # with NAV_2D actions, all dimensions are deltas
-        dataset_kwargs["action_normalization_mask"] = [False] * 2
+        dataset_kwargs["action_normalization_mask"] = [True] * 2
     elif dataset_kwargs["action_encoding"] is ActionEncoding.JOINT_POS_BIMANUAL_NAV:
         # with JOINT_POS_BIMANUAL_NAV actions, 7th and 14th dimension are gripper
         dataset_kwargs["action_normalization_mask"] = (
-            [False] * 6 + [True] + [False] * 6 + [True] + [False] * 2
+            [True] * 6 + [False] + [True] * 6 + [False] + [True] * 2
         )
     else:
         raise ValueError(
