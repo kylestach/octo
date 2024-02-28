@@ -100,10 +100,10 @@ def get_config(config_string=None):
         "primary": (256, 256),  # workspace camera is at 256x256
         "wrist": (128, 128),  # wrist camera is at 128x128
     }
-    config["dataset_kwargs"]["frame_transform_kwargs"]["image_augment_kwargs"] = [
-        primary_augment_kwargs,
-        wrist_augment_kwargs,
-    ]
+    config["dataset_kwargs"]["frame_transform_kwargs"]["image_augment_kwargs"] = {
+        "primary": primary_augment_kwargs,
+        "wrist": wrist_augment_kwargs,
+    }
 
     config = update_config(
         config,
