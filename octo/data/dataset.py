@@ -15,6 +15,7 @@ from octo.data.utils.data_utils import (
     get_dataset_statistics,
     normalize_action_and_proprio,
     pprint_data_mixture,
+    sample_match_keys_uniform,
     tree_map,
 )
 from octo.utils.spec import ModuleSpec
@@ -36,6 +37,7 @@ def apply_trajectory_transforms(
     task_augment_kwargs: dict = {},
     max_action_dim: Optional[int] = None,
     max_proprio_dim: Optional[int] = None,
+    post_chunk_transforms: Sequence[ModuleSpec] = (),
     num_parallel_calls: int = tf.data.AUTOTUNE,
 ) -> dl.DLataset:
     """Applies common transforms that happen at a trajectory level. Such transforms are usually some sort of
@@ -70,6 +72,8 @@ def apply_trajectory_transforms(
             padded to this dimension.
         max_proprio_dim (int, optional): If provided, datasets with a proprio dimension less than this will be
             padded to this dimension.
+        post_chunk_transforms (Sequence[ModuleSpec]): ModuleSpecs of trajectory transforms applied after
+            chunking.
         num_parallel_calls (int, optional): number of parallel calls for map operations. Default to AUTOTUNE.
     """
     if skip_unlabeled:
@@ -143,6 +147,12 @@ def apply_trajectory_transforms(
             num_parallel_calls,
         )
 
+    for transform_spec in post_chunk_transforms:
+        dataset = dataset.traj_map(
+            ModuleSpec.instantiate(transform_spec),
+            num_parallel_calls,
+        )
+
     return dataset
 
 
@@ -154,6 +164,7 @@ def apply_frame_transforms(
     resize_size: Union[Tuple[int, int], Mapping[str, Tuple[int, int]]] = {},
     depth_resize_size: Union[Tuple[int, int], Mapping[str, Tuple[int, int]]] = {},
     image_dropout_prob: float = 0.0,
+    image_dropout_keep_key: Optional[str] = None,
     num_parallel_calls: int = tf.data.AUTOTUNE,
 ) -> dl.DLataset:
     """Applies common transforms that happen at a frame level. These transforms are usually more
@@ -175,6 +186,8 @@ def apply_frame_transforms(
             images.
         image_dropout_prob (float): Probability of dropping out images, applied to each image key
             independently. At least one image will always be present.
+        image_dropout_keep_key (str, optional): Optionally provide a key to always keep during image dropout
+            for example for image observations that are essential for action prediction.
         num_parallel_calls (int): number of parallel calls for frame_map operations. Default to AUTOTUNE.
     """
 
@@ -208,6 +221,7 @@ def apply_frame_transforms(
                 obs_transforms.image_dropout,
                 seed=seed,
                 dropout_prob=image_dropout_prob,
+                always_keep_key=image_dropout_keep_key,
             )
             aug_fn = partial(
                 obs_transforms.augment, seed=seed, augment_kwargs=image_augment_kwargs
@@ -235,6 +249,9 @@ def make_dataset_from_rlds(
     dataset_statistics: Optional[Union[dict, str]] = None,
     force_recompute_dataset_statistics: bool = False,
     action_normalization_mask: Optional[Sequence[bool]] = None,
+    filter_functions: Sequence[ModuleSpec] = (),
+    skip_norm: bool = False,
+    ignore_errors: bool = False,
     num_parallel_reads: int = tf.data.AUTOTUNE,
     num_parallel_calls: int = tf.data.AUTOTUNE,
 ) -> Tuple[dl.DLataset, dict]:
@@ -273,15 +290,20 @@ def make_dataset_from_rlds(
         proprio_obs_key (str, optional): If provided, the "obs" dict will contain the key "proprio", extracted from
             `traj["observation"][proprio_obs_key]`.
         language_key (str, optional): If provided, the "task" dict will contain the key
-            "language_instruction", extracted from `traj[language_key]`.
+            "language_instruction", extracted from `traj[language_key]`. If language_key fnmatches multiple
+            keys, we sample one uniformly.
         dataset_statistics: (dict|str, optional): dict (or path to JSON file) that contains dataset statistics
             for normalization. May also provide "num_transitions" and "num_trajectories" keys for downstream usage
             (e.g., for `make_interleaved_dataset`). If not provided, the statistics will be computed on the fly.
         force_recompute_dataset_statistics (bool, optional): If True and `dataset_statistics` is None, will
             recompute the dataset statistics regardless of whether they are already cached.
-        action_normalization_mask (Sequence[bool], optional): If provided, indicates which action dimensions
-            should be normalized. For example, you might not want to normalize the gripper action dimension if
-            it's always exactly 0 or 1. By default, all action dimensions are normalized.
+        action_normalization_mask (Sequence[bool], optional): If provided, only normalizes action dimensions
+            where the corresponding mask is True. For example, you might not want to normalize the gripper
+            action dimension if it's always exactly 0 or 1. By default, all action dimensions are normalized.
+        filter_functions (Sequence[ModuleSpec]): ModuleSpecs for filtering functions applied to the
+            raw dataset.
+        skip_norm (bool): If true, skips normalization of actions and proprio. Default: False.
+        ignore_errors (bool): If true, skips erroneous dataset elements via dataset.ignore_errors(). Default: False.
         num_parallel_reads (int): number of parallel read workers. Default to AUTOTUNE.
         num_parallel_calls (int): number of parallel calls for traj_map operations. Default to AUTOTUNE.
     Returns:
@@ -297,8 +319,6 @@ def make_dataset_from_rlds(
         - dataset_name                  # name of the dataset
     """
     REQUIRED_KEYS = {"observation", "action"}
-    if language_key is not None:
-        REQUIRED_KEYS.add(language_key)
 
     def restructure(traj):
         # apply a standardization function, if provided
@@ -333,15 +353,15 @@ def make_dataset_from_rlds(
         # add timestep info
         new_obs["timestep"] = tf.range(traj_len)
 
-        # extracts `language_key` into the "task" dict
+        # extracts `language_key` into the "task" dict, or samples uniformly if `language_key` fnmatches multiple keys
         task = {}
         if language_key is not None:
-            if traj[language_key].dtype != tf.string:
+            task["language_instruction"] = sample_match_keys_uniform(traj, language_key)
+            if task["language_instruction"].dtype != tf.string:
                 raise ValueError(
-                    f"Language key {language_key} has dtype {traj[language_key].dtype}, "
+                    f"Language key {language_key} has dtype {task['language_instruction'].dtype}, "
                     "but it must be tf.string."
                 )
-            task["language_instruction"] = traj.pop(language_key)
 
         traj = {
             "observation": new_obs,
@@ -362,11 +382,12 @@ def make_dataset_from_rlds(
         with tf.io.gfile.GFile(dataset_statistics, "r") as f:
             dataset_statistics = json.load(f)
     elif dataset_statistics is None:
-        full_dataset = (
-            dl.DLataset.from_rlds(builder, split="all", shuffle=False)
-            .traj_map(restructure)
-            .filter(is_nonzero_length)
-        )
+        full_dataset = dl.DLataset.from_rlds(builder, split="all", shuffle=False)
+        for filter_fcn_spec in filter_functions:
+            full_dataset = full_dataset.filter(ModuleSpec.instantiate(filter_fcn_spec))
+        if ignore_errors:
+            full_dataset = full_dataset.ignore_errors()
+        full_dataset = full_dataset.traj_map(restructure).filter(is_nonzero_length)
         # tries to load from cache, otherwise computes on the fly
         dataset_statistics = get_dataset_statistics(
             full_dataset,
@@ -375,6 +396,11 @@ def make_dataset_from_rlds(
                 str(proprio_obs_key),
                 ModuleSpec.to_string(standardize_fn)
                 if standardize_fn is not None
+                else "",
+                ".".join(
+                    [ModuleSpec.to_string(filter_fn) for filter_fn in filter_functions]
+                )
+                if filter_functions is not None
                 else "",
             ),
             save_dir=builder.data_dir,
@@ -403,17 +429,27 @@ def make_dataset_from_rlds(
     dataset = dl.DLataset.from_rlds(
         builder, split=split, shuffle=shuffle, num_parallel_reads=num_parallel_reads
     )
+    for filter_fcn_spec in filter_functions:
+        dataset = dataset.filter(ModuleSpec.instantiate(filter_fcn_spec))
+    if ignore_errors:
+        dataset = dataset.ignore_errors()
 
     dataset = dataset.traj_map(restructure, num_parallel_calls).filter(
         is_nonzero_length
     )
-    dataset = dataset.traj_map(
-        partial(
-            normalize_action_and_proprio,
-            metadata=dataset_statistics,
-        ),
-        num_parallel_calls,
-    )
+
+    if not skip_norm:
+        dataset = dataset.traj_map(
+            partial(
+                normalize_action_and_proprio,
+                metadata=dataset_statistics,
+            ),
+            num_parallel_calls,
+        )
+    else:
+        logging.warning(
+            "Dataset normalization turned off -- set skip_norm=False to apply normalization."
+        )
 
     return dataset, dataset_statistics
 

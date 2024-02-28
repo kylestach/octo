@@ -89,7 +89,9 @@ def chunk_act_obs(
     # broadcast "action_pad_mask" to the new chunked shape, and mark actions past the goal timestep as padding
     traj["action_pad_mask"] = tf.logical_and(
         # [traj_len, 1, 1, action_dim]
-        traj["action_pad_mask"][:, None, None, :],
+        traj["action_pad_mask"][:, None, None, :]
+        if len(traj["action_pad_mask"].shape) == 2
+        else traj["action_pad_mask"][:, None, :],
         # [traj_len, window_size, action_horizon, 1]
         tf.logical_not(traj["observation"]["task_completed"])[:, :, :, None],
     )
@@ -103,6 +105,18 @@ def subsample(traj: dict, subsample_length: int) -> dict:
     if traj_len > subsample_length:
         indices = tf.random.shuffle(tf.range(traj_len))[:subsample_length]
         traj = tf.nest.map_structure(lambda x: tf.gather(x, indices), traj)
+    return traj
+
+
+def zero_out_future_proprio(traj: dict) -> dict:
+    """Removes all proprio inputs after first one to prevent causal confusion."""
+    traj["observation"]["proprio"] = tf.concat(
+        (
+            traj["observation"]["proprio"][:, :1],
+            tf.zeros_like(traj["observation"]["proprio"][:, 1:]),
+        ),
+        axis=1,
+    )
     return traj
 
 
@@ -140,7 +154,13 @@ def pad_actions_and_proprio(
                 f"action_dim ({action_dim}) is greater than max_action_dim ({max_action_dim})"
             )
         for key in {"action", "action_pad_mask"}:
-            traj[key] = tf.pad(traj[key], [[0, 0], [0, max_action_dim - action_dim]])
+            traj[key] = tf.pad(
+                traj[key],
+                [
+                    *[[0, 0] * len(traj[key].shape) - 1],
+                    [0, max_action_dim - action_dim],
+                ],
+            )
 
     if max_proprio_dim is not None and "proprio" in traj["observation"]:
         proprio_dim = traj["observation"]["proprio"].shape[-1]
