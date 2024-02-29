@@ -397,11 +397,7 @@ def make_dataset_from_rlds(
                 ModuleSpec.to_string(standardize_fn)
                 if standardize_fn is not None
                 else "",
-                ".".join(
-                    [ModuleSpec.to_string(filter_fn) for filter_fn in filter_functions]
-                )
-                if filter_functions is not None
-                else "",
+                *map(ModuleSpec.to_string, filter_functions),
             ),
             save_dir=builder.data_dir,
             force_recompute=force_recompute_dataset_statistics,
