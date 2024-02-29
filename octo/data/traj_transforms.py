@@ -157,7 +157,7 @@ def pad_actions_and_proprio(
             traj[key] = tf.pad(
                 traj[key],
                 [
-                    *[[0, 0] * len(traj[key].shape) - 1],
+                    *[[0, 0] * (len(traj[key].shape) - 1)],
                     [0, max_action_dim - action_dim],
                 ],
             )
