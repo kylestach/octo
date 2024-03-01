@@ -180,12 +180,11 @@ def normalize_action_and_proprio(
     }
     if "proprio" in traj["observation"]:
         keys_to_normalize["proprio"] = "observation/proprio"
-    # normalize to mean 0, std 1
+    # normalize to [-1, 1] based on 1st and 99th percentile
     for key, traj_key in keys_to_normalize.items():
         mask = metadata[key].get(
             "mask", tf.ones_like(metadata[key]["mean"], dtype=tf.bool)
         )
-        # normalize to [-1, 1] based on 1st and 99th percentile
         traj = dl.transforms.selective_tree_map(
             traj,
             match=lambda k, _: k == traj_key,
