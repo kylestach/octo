@@ -10,8 +10,8 @@ import octo, os, sys
 sys.path.append(os.path.join(os.path.dirname(octo.__file__), "../"))
 
 
-def get_config(config_string="4,rel_act"):
-    pred_horizon, act_type = config_string.split(',')
+def get_config(config_string="4,0,rel_act"):
+    pred_horizon, grad_accum, act_type = config_string.split(',')
 
     # hard-code some constants to match the original configs
     task = 'multimodal'
@@ -65,13 +65,22 @@ def get_config(config_string="4,rel_act"):
     else:
         raise ValueError("Invalid mode")
 
-    max_steps = FieldReference(500000)
+    max_steps = 500000
+    grad_accum = int(grad_accum)
+    if grad_accum:
+        batch_size = int(256 // grad_accum)
+        max_steps = int(max_steps * grad_accum)
+    else:
+        grad_accum = None
+        batch_size = 256
+
+    max_steps = FieldReference(max_steps)
     window_size = FieldReference(default=1)
 
     config = dict(
         pretrained_path=placeholder(str),
         pretrained_step=placeholder(int),
-        batch_size=256,
+        batch_size=batch_size,
         shuffle_buffer_size=10000,
         num_steps=max_steps,
         log_interval=100,
@@ -98,7 +107,7 @@ def get_config(config_string="4,rel_act"):
             weight_decay=0.01,
             clip_gradient=1.0,
             frozen_keys=frozen_keys,
-            grad_accumulation_steps=None,  # if you are using grad accumulation, you need to adjust max_steps accordingly
+            grad_accumulation_steps=grad_accum,  # if you are using grad accumulation, you need to adjust max_steps accordingly
         ),
         val_kwargs=dict(
             val_shuffle_buffer_size=1000,
