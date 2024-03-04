@@ -11,7 +11,7 @@ from octo.utils.spec import ModuleSpec
 
 def get_model_config(transformer_size):
     """
-    Transformer_size is one of ["dummy", "vanilla", "vit_s", "vit_b", "vit_l", "vit_h"]
+    Transformer_size is one of ["dummy", "vanilla", "vit_t" "vit_s", "vit_b", "vit_l", "vit_h"]
 
     This model stacks all the images from different cameras together, and passes it through
     a small convolutional stem before entering the transformer.
@@ -37,7 +37,7 @@ def get_model_config(transformer_size):
         heads=dict(
             action=ModuleSpec.create(
                 MSEActionHead,
-                pred_horizon=1,
+                action_horizon=1,
                 action_dim=7,
                 readout_key="obs",
             ),
@@ -77,10 +77,10 @@ def get_config(
             ),
             prefetch_num_batches=0,
             start_step=placeholder(int),
-            log_interval=1,
-            eval_interval=1,
-            viz_interval=100000,
-            save_interval=1,
+            log_interval=100,
+            eval_interval=5000,
+            viz_interval=20000,
+            save_interval=10000,
             val_kwargs=dict(
                 val_shuffle_buffer_size=1000,
                 num_val_batches=16,
@@ -112,8 +112,10 @@ def get_config(
 
 def get_dataset_config(window_size=1):
     task_augmentation = dict(
-        task_augment_strategy="delete_task_conditioning",
+        task_augment_strategy="delete_and_rephrase",
         task_augment_kwargs=dict(
+            pickle_file_path="gs://rail-orca-central2/resize_256_256/paraphrases_oxe.pkl",
+            rephrase_prob=0.5,
             keep_image_prob=0.5,
         ),
     )
@@ -128,7 +130,7 @@ def get_dataset_config(window_size=1):
         ),
         "traj_transform_kwargs": dict(
             window_size=window_size,
-            future_action_window_size=0,
+            action_horizon=1,
             goal_relabeling_strategy="uniform",
             subsample_length=100,
             **task_augmentation,
