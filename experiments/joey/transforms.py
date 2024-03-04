@@ -26,12 +26,12 @@ def iliad_franka_dataset_transform_rel(trajectory: Dict[str, Any]) -> Dict[str, 
         ),
         axis=1,
     )
-    gripper_action = trajectory["action"][:, -1:]
+    gripper_action = trajectory["action"][:, -1:] # ranges -1 to 1
+    gripper_action = 0.5 * (trajectory["action"][:, -1:] + 1) # Range 0 to 1
     gripper_action = invert_gripper_actions(gripper_action)
     trajectory["action"] = tf.concat(
         (trajectory["action"][:, :-1], gripper_action), axis=-1
     )
-
     return trajectory
 
 def iliad_franka_dataset_transform_abs(trajectory: Dict[str, Any]) -> Dict[str, Any]:
