@@ -860,9 +860,12 @@ def cmu_stretch_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
 def gnm_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
     traj_len = tf.shape(trajectory["action"])[0]
     action_horizon = 4
-    scaling_factor = tf.linalg.norm(trajectory["action"][0]) / tf.linalg.norm(
-        trajectory["observation"]["position"][1]
-        - trajectory["observation"]["position"][0]
+    scaling_factor = tf.linalg.norm(trajectory["action"][0]) / tf.maximum(
+        tf.linalg.norm(
+            trajectory["observation"]["position"][1]
+            - trajectory["observation"]["position"][0]
+        ),
+        1e-8,
     )
 
     # compute rot matrix
