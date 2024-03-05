@@ -14,7 +14,7 @@ def get_config(config_string="4,0,rel_act"):
     pred_horizon, grad_accum, act_type = config_string.split(',')
 
     # hard-code some constants to match the original configs
-    task = 'multimodal'
+    task = 'language_conditioned'
     mode = 'full'
 
     assert task in ["image_conditioned", "language_conditioned", "multimodal"]
@@ -81,7 +81,7 @@ def get_config(config_string="4,0,rel_act"):
         pretrained_path=placeholder(str),
         pretrained_step=placeholder(int),
         batch_size=batch_size,
-        shuffle_buffer_size=10000,
+        shuffle_buffer_size=50000,
         num_steps=max_steps,
         log_interval=100,
         eval_interval=1e9,  # disable eval due to bugs
