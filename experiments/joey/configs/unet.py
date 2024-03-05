@@ -11,7 +11,7 @@ def get_config(config_string="4,rel,wrist"):
     pred_horizon, act_type, cams = config_string.split(',')
 
     # hard-code some constants to match the original configs
-    task = 'multimodal'
+    task = 'language_conditioned'
     mode = 'full'
 
     assert task in ["image_conditioned", "language_conditioned", "multimodal"]
@@ -29,14 +29,14 @@ def get_config(config_string="4,rel,wrist"):
         n_act_dims = 10
         standardize_fn = "experiments.joey.transforms:iliad_franka_dataset_transform_abs"
     elif act_type == "rel":
-        n_act_dims = 7
+        n_act_dims = 10
         standardize_fn = "experiments.joey.transforms:iliad_franka_dataset_transform_rel"
     else:
         raise ValueError("Incorrect act_type in config string.")
 
     if cams == "wrist":
         image_obs_keys = {"primary": "agent_image", "wrist": "wrist_image"}
-    else:    
+    else:
         image_obs_keys = {"primary": "agent_image", "wrist": None}
 
     FINETUNING_KWARGS = {
@@ -90,19 +90,22 @@ def get_config(config_string="4,rel,wrist"):
         modality=task,
         finetuning_mode=mode,
         window_size=window_size,
-        optimizer=dict(
+        optimizer=dict( # copied from diffusion policy
             learning_rate=dict(
                 name="cosine",
                 init_value=0.0,
-                peak_value=3e-4,
-                warmup_steps=2000,
+                peak_value=1e-4,
+                warmup_steps=500,
                 decay_steps=max_steps,
                 end_value=0.0,
             ),
-            weight_decay=0.01,
+            weight_decay=1e-6,
+            b1=0.95,
+            b2=0.999,
+            eps=1e-8,
             clip_gradient=1.0,
             frozen_keys=frozen_keys,
-            grad_accumulation_steps=None,  # if you are using grad accumulation, you need to adjust max_steps accordingly
+            grad_accumulation_steps=grad_accum,  # if you are using grad accumulation, you need to adjust max_steps accordingly
         ),
         val_kwargs=dict(
             val_shuffle_buffer_size=1000,
@@ -120,7 +123,7 @@ def get_config(config_string="4,rel,wrist"):
         goal_relabeling_strategy = "uniform"
         keep_image_prob = 1.0
     elif task == "language_conditioned":
-        goal_relabeling_strategy = "no_image_conditioning"
+        goal_relabeling_strategy = "uniform"
         keep_image_prob = 0.0
     elif task == "multimodal":
         goal_relabeling_strategy = "uniform"
