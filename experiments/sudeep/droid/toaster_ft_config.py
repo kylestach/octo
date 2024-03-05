@@ -128,7 +128,7 @@ def get_config(config_string="4,0,rel_act"):
         goal_relabeling_strategy = "uniform"
         keep_image_prob = 1.0
     elif task == "language_conditioned":
-        goal_relabeling_strategy = "no_image_conditioning"
+        goal_relabeling_strategy = "uniform"
         keep_image_prob = 0.0
     elif task == "multimodal":
         goal_relabeling_strategy = "uniform"
