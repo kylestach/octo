@@ -7,7 +7,7 @@ from octo.model.components.action_heads import UNetActionHead
 import octo, os, sys
 sys.path.append(os.path.join(os.path.dirname(octo.__file__), "../"))
 
-def get_config(config_string="4,rel,wrist"):
+def get_config(config_string="4,rel_r6,wrist"):
     pred_horizon, act_type, cams = config_string.split(',')
 
     # hard-code some constants to match the original configs
@@ -17,7 +17,7 @@ def get_config(config_string="4,rel,wrist"):
     assert task in ["image_conditioned", "language_conditioned", "multimodal"]
     assert mode in ["full", "head_only", "head_mlp_only"]
     assert cams in ["wrist", "agent"]
-    assert act_type in ["rel", "abs"]
+    assert act_type in ["rel", "abs", "rel_r6"]
 
     # Fill this in for your own dataset!
 
@@ -28,8 +28,11 @@ def get_config(config_string="4,rel,wrist"):
     if act_type == "abs":
         n_act_dims = 10
         standardize_fn = "experiments.joey.transforms:iliad_franka_dataset_transform_abs"
-    elif act_type == "rel":
+    elif act_type == "rel_r6":
         n_act_dims = 10
+        standardize_fn = "experiments.joey.transforms:iliad_franka_dataset_transform_rel_r6"
+    elif act_type == "rel":
+        n_act_dims = 7
         standardize_fn = "experiments.joey.transforms:iliad_franka_dataset_transform_rel"
     else:
         raise ValueError("Incorrect act_type in config string.")
@@ -76,11 +79,11 @@ def get_config(config_string="4,rel,wrist"):
         pretrained_path=placeholder(str),
         pretrained_step=placeholder(int),
         batch_size=256,
-        shuffle_buffer_size=10000,
+        shuffle_buffer_size=40000,
         num_steps=max_steps,
         log_interval=100,
         eval_interval=1e9,  # disable eval due to bugs
-        save_interval=20000,
+        save_interval=50000,
         save_dir=placeholder(str),
         seed=42,
         wandb=dict(
@@ -105,7 +108,6 @@ def get_config(config_string="4,rel,wrist"):
             eps=1e-8,
             clip_gradient=1.0,
             frozen_keys=frozen_keys,
-            grad_accumulation_steps=grad_accum,  # if you are using grad accumulation, you need to adjust max_steps accordingly
         ),
         val_kwargs=dict(
             val_shuffle_buffer_size=1000,

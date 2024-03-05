@@ -106,7 +106,7 @@ def get_config(
                 entity=placeholder(str),
             ),
             wandb_resume_id=placeholder(str),
-            eval_datasets=("r2_d2_toaster3_cmu_rgb"),
+            eval_datasets=("franka_coffee_pod_3"),
         )
     )
 
@@ -117,7 +117,7 @@ def get_dataset_config(modality="text", window_size=1, pred_horizon=4, act_type=
         standardize_fn = "experiments.joey.transforms:iliad_franka_dataset_transform_abs"
     elif act_type == "rel_act":
         n_act_dims = 10
-        standardize_fn = "experiments.joey.transforms:iliad_franka_dataset_transform_rel"
+        standardize_fn = "experiments.joey.transforms:iliad_franka_dataset_transform_rel_r6"
     else:
         raise ValueError
 
@@ -158,7 +158,6 @@ def get_dataset_config(modality="text", window_size=1, pred_horizon=4, act_type=
                         standardize_fn=ModuleSpec.create(standardize_fn),
                         language_key= "language_instruction",
                         force_recompute_dataset_statistics=True,
-
             )],
             sample_weights=[1.0],
             traj_transform_kwargs=dict(
