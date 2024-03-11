@@ -197,6 +197,7 @@ def get_config(config_string="4,0,rel_act"):
     action_head = ModuleSpec.create(
         UNetActionHead,
         action_dim=n_act_dims,
+        action_horizon=pred_horizon,
         readout_key="readout_action",
         n_diffusion_samples=1,
         use_map=False,
