@@ -75,7 +75,7 @@ def get_config(config_string="vit_b"):
     config['dataset_kwargs'] = get_dataset_config(modality, window_size, pred_horizon, act_type)
     config['eval_datasets'] = ("r2_d2_toaster3_cmu_rgb",)
     config["eval_interval"] = 50000000
-    config["viz_internal"] = 50000000
+    config["viz_interval"] = 50000000
     config["savei_interval"]= 100000
 
     return config
