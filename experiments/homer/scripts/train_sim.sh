@@ -8,13 +8,10 @@ TPU3="export TPU_VISIBLE_DEVICES=3 TPU_CHIPS_PER_HOST_BOUNDS=1,1,1 TPU_HOST_BOUN
 TPU01="export TPU_VISIBLE_DEVICES=0,1 TPU_CHIPS_PER_HOST_BOUNDS=1,2,1 TPU_HOST_BOUNDS=1,1,1 TPU_MESH_CONTROLLER_ADDRESS=localhost:8476 TPU_MESH_CONTROLLER_PORT=8476"
 TPU23="export TPU_VISIBLE_DEVICES=2,3 TPU_CHIPS_PER_HOST_BOUNDS=1,2,1 TPU_HOST_BOUNDS=1,1,1 TPU_MESH_CONTROLLER_ADDRESS=localhost:8478 TPU_MESH_CONTROLLER_PORT=8478"
 
-export MUJOCO_GL=egl
-export CUDA_VISIBLE_DEVICES=1
-
 NAME="test"
 
-CMD="python experiments/homer/train_sim.py \
-    --config experiments/homer/configs/config.py:sim \
+CMD="python scripts/train.py \
+    --config experiments/homer/sim/octo_pretrain_config_sim.py:vit_s \
     --name $NAME"
 
 $CMD --debug

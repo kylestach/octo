@@ -11,7 +11,7 @@ TPU23="export TPU_VISIBLE_DEVICES=2,3 TPU_CHIPS_PER_HOST_BOUNDS=1,2,1 TPU_HOST_B
 NAME="test"
 
 CMD="python scripts/train.py \
-    --config experiments/homer/configs/octo_pretrain_config.py:vit_s \
+    --config scripts/configs/octo_pretrain_config.py:vit_s \
     --name $NAME"
 
 $CMD --debug

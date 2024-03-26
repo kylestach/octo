@@ -4,8 +4,7 @@ import matplotlib
 
 matplotlib.use("Agg")
 from dataclasses import dataclass
-import json
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional
 
 import dlimp as dl
 import flax
@@ -21,12 +20,7 @@ import tensorflow as tf
 import tqdm
 import wandb
 
-from octo.utils.gym_wrappers import (
-    HistoryWrapper,
-    RHCWrapper,
-    TemporalEnsembleWrapper,
-    UnnormalizeActionProprio,
-)
+from octo.utils.gym_wrappers import HistoryWrapper, RHCWrapper, TemporalEnsembleWrapper
 
 BASE_METRIC_KEYS = {
     "mse": ("mse", tuple()),  # What is the MSE
@@ -269,48 +263,43 @@ class RolloutVisualizer:
     Args:
         env_name (str): Gym.make environment creation string
         history_length (int): Number of history steps policy gets conditioned on (window_size).
-        action_chunk (int): Number of future steps.
+        exec_horizon (int): Number of executed action steps.
+        use_temp_ensembling (bool): Whether to use temporal ensembling or receding horizon control.
         max_episode_length (int): Max number of steps per rollout episode.
         vis_fps (int): FPS of logged rollout video
         video_subsample_rate (int): Subsampling rate for video logging (to reduce video size for high-frequency control)
-        norm_statistics (Union[str, dict], optional): Stats for de-normalizing policy actions & proprio.
-        use_temporal_averaging (bool): If true, uses temporal averaging of action chunks during rollout.
     """
 
+    name: str
     env_name: str
     history_length: int
-    action_chunk: int
+    exec_horizon: int
     max_episode_length: int
+    env_kwargs: Dict[str, Any]
+    use_temp_ensembling: bool = True
     vis_fps: int = 10
     video_subsample_rate: int = 1
-    norm_statistics: Optional[Union[str, Dict[str, Any]]] = None
-    text_processor: object = None
-    use_temp_averaging: bool = False
+    unnormalization_statistics: Optional[dict] = None
 
     def __post_init__(self):
-        self._env = gym.make(self.env_name)
-        self._env = HistoryWrapper(self._env, self.history_length)
-        if self.use_temp_averaging:
-            self._env = RHCWrapper(self._env, 1)
-            self._env = TemporalEnsembleWrapper(self._env, self.action_chunk)
-        else:
-            self._env = RHCWrapper(self._env, self.action_chunk)
-        if self.norm_statistics:
-            if isinstance(self.norm_statistics, str):
-                with tf.io.gfile.GFile(self.norm_statistics, "r") as f:
-                    norm_stats = json.load(f)
-            norm_stats = jax.tree_map(
-                lambda x: np.array(x),
-                norm_stats,
-                is_leaf=lambda x: not isinstance(x, dict),
+        if self.unnormalization_statistics is not None:
+            self._env = gym.make(
+                self.env_name,
+                unnormalization_statistics=self.unnormalization_statistics,
+                **self.env_kwargs,
             )
-            self._env = UnnormalizeActionProprio(self._env, norm_stats)
+        else:
+            self._env = gym.make(self.env_name, **self.env_kwargs)
+        self._env = HistoryWrapper(
+            self._env,
+            self.history_length,
+        )
+        if self.use_temp_ensembling:
+            self._env = TemporalEnsembleWrapper(self._env, self.exec_horizon)
+        else:
+            self._env = RHCWrapper(self._env, self.exec_horizon)
 
-    def run_rollouts(self, policy_fn, n_rollouts=10, n_vis_rollouts=3):
-        def extract_images(obs):
-            # obs has [window_size, ...] shape, only use first time step
-            return jnp.concatenate([obs[k][0] for k in obs if "image_" in k], axis=-2)
-
+    def run_rollouts(self, policy_fn, state, mode, n_rollouts=10, n_vis_rollouts=3):
         def listdict2dictlist(LD):
             return {k: [dic[k] for dic in LD] for k in LD[0]}
 
@@ -320,28 +309,30 @@ class RolloutVisualizer:
         }
         for rollout_idx in tqdm.tqdm(range(n_rollouts)):
             obs, info = self._env.reset()
-            task = self._env.get_task()
-            if jax.tree_util.tree_leaves(task)[0].shape[0] != 1:
-                task = jax.tree_map(lambda x: x[None], task)
-            if "language_instruction" in task:
-                if self.text_processor:
-                    task["language_instruction"] = self.text_processor.encode(
-                        [s.decode("utf-8") for s in task["language_instruction"]]
-                    )
-                else:
-                    task.pop("language_instruction")
-            images = [extract_images(obs)]
+            if mode == "text_conditioned":
+                task = state.model.create_tasks(texts=[self._env.get_instruction()])
+            elif mode == "image_conditioned":
+                task = state.model.create_tasks(goals=self._env.get_goal())
+            else:
+                raise ValueError(f"Rollout eval mode {mode} not supported")
+            images = [obs["image_primary"][-1]]
             episode_return = 0.0
             metrics = []
             while len(images) < self.max_episode_length:
                 # policy outputs are shape [batch, n_samples, pred_horizon, act_dim]
                 # we remove batch dimension & use first sampled action, ignoring other samples
-                actions = policy_fn(jax.tree_map(lambda x: x[None], obs), task)[0, 0]
+                actions = policy_fn(jax.tree_map(lambda x: x[None], obs), task)
+                actions = actions[0, 0]
                 obs, reward, done, trunc, info = self._env.step(actions)
-                images.extend([extract_images(o) for o in info["observations"]])
+                if "observations" in info:
+                    images.extend(
+                        [o["image_primary"][-1] for o in info["observations"]]
+                    )
+                else:
+                    images.append(obs["image_primary"][-1])
                 episode_return += reward
                 if "metrics" in info:
-                    metrics.extend(info["metrics"])
+                    metrics.append(info["metrics"])
                 if done or trunc:
                     break
 
@@ -369,6 +360,11 @@ class RolloutVisualizer:
                 assert (
                     images[0].shape[-1] == 3
                 ), f"Expect [height, width, channels] format, got {images[0].shape}"
+                if mode == "image_conditioned":
+                    images = [
+                        np.concatenate([task["image_primary"][0], frame], axis=0)
+                        for frame in images
+                    ]
                 rollout_info[f"rollout_{rollout_idx}_vid"] = wandb.Video(
                     np.array(images).transpose(0, 3, 1, 2)[
                         :: self.video_subsample_rate
@@ -379,10 +375,13 @@ class RolloutVisualizer:
         rollout_info["episode_returns"] = wandb.Histogram(
             rollout_info["episode_returns"]
         )
-        metrics = listdict2dictlist(rollout_info.pop("episode_metrics"))
-        for metric in metrics:
-            rollout_info[metric] = wandb.Histogram(metrics[metric])
-            rollout_info[f"avg_{metric}"] = np.mean(metrics[metric])
+        if rollout_info["episode_metrics"]:
+            metrics = listdict2dictlist(rollout_info.pop("episode_metrics"))
+            for metric in metrics:
+                rollout_info[metric] = wandb.Histogram(metrics[metric])
+                rollout_info[f"avg_{metric}"] = np.mean(metrics[metric])
+        else:
+            rollout_info.pop("episode_metrics")
         return rollout_info
 
 
