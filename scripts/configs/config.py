@@ -26,7 +26,6 @@ def get_model_config(transformer_size):
         observation_tokenizers=dict(
             image=ModuleSpec.create(
                 ImageTokenizer,
-                num_tokens=256,
                 obs_stack_keys=["image_.*"],
                 task_stack_keys=["image_.*"],
                 task_film_keys=["language_instruction"],
@@ -53,12 +52,11 @@ def get_config(
     transformer_size="vit_s",
 ):
     print("Creating config with: ", locals())
-    num_steps = FieldReference(default=int(2e6))
     window_size = FieldReference(default=1)
     return ConfigDict(
         dict(
             seed=42,
-            num_steps=num_steps,
+            num_steps=2e6,
             save_dir=placeholder(str),
             model=get_model_config(transformer_size),
             window_size=window_size,
@@ -100,22 +98,15 @@ def get_config(
                 entity=placeholder(str),
             ),
             wandb_resume_id=placeholder(str),
-            eval_datasets=(
-                "bridge_dataset",
-                "taco_play",
-                "berkeley_cable_routing",
-                "berkeley_autolab_ur5",
-            ),
+            eval_datasets=(),
         )
     )
 
 
 def get_dataset_config(window_size=1):
     task_augmentation = dict(
-        task_augment_strategy="delete_and_rephrase",
+        task_augment_strategy="delete_task_conditioning",
         task_augment_kwargs=dict(
-            pickle_file_path="gs://rail-orca-central2/resize_256_256/paraphrases_oxe.pkl",
-            rephrase_prob=0.5,
             keep_image_prob=0.5,
         ),
     )
