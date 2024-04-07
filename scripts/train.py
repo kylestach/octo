@@ -60,6 +60,7 @@ def main(_):
     jax_utils.initialize_compilation_cache()
 
     assert FLAGS.config.dataset_kwargs.batch_size % jax.device_count() == 0
+    assert FLAGS.config.dataset_kwargs.batch_size % jax.process_count() == 0
 
     # create a 1D mesh with a single axis named "batch"
     mesh = Mesh(jax.devices(), axis_names="batch")
@@ -107,7 +108,8 @@ def main(_):
                 wandb_id,
             )
             logging.info("Saving to %s", save_dir)
-            wandb.config.update(dict(save_dir=save_dir), allow_val_change=True)
+            if jax.process_index() == 0:
+                wandb.config.update(dict(save_dir=save_dir), allow_val_change=True)
         else:
             save_dir = None
             logging.info("save_dir not passed in, not saving checkpoints")
@@ -151,6 +153,7 @@ def main(_):
         )
         del FLAGS.config.dataset_kwargs["oxe_kwargs"]
 
+    FLAGS.config.dataset_kwargs.batch_size //= jax.process_count()
     train_data = make_interleaved_dataset(**FLAGS.config.dataset_kwargs, train=True)
 
     train_data_iter = map(
@@ -209,9 +212,6 @@ def main(_):
     else:
         start_step = FLAGS.config.start_step or 0
     train_state = train_state.replace(step=start_step)
-
-    # replicate train state across devices
-    train_state = jax_utils.replicate(train_state)
 
     def loss_fn(params, batch, rng, train=True):
         bound_module = model.module.bind({"params": params}, rngs={"dropout": rng})
