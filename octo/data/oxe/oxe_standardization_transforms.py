@@ -860,13 +860,13 @@ def cmu_stretch_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
 def gnm_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
     traj_len = tf.shape(trajectory["action"])[0]
     action_horizon = 4
-    scaling_factor = tf.linalg.norm(trajectory["action"][0]) / tf.maximum(
-        tf.linalg.norm(
-            trajectory["observation"]["position"][1]
-            - trajectory["observation"]["position"][0]
-        ),
-        1e-8,
-    )
+    # scaling_factor = tf.linalg.norm(trajectory["action"][0]) / tf.maximum(
+    #     tf.linalg.norm(
+    #         trajectory["observation"]["position"][1]
+    #         - trajectory["observation"]["position"][0]
+    #     ),
+    #     1e-8,
+    # )
 
     # compute rot matrix
     yaw = trajectory["observation"]["yaw"]
@@ -885,7 +885,7 @@ def gnm_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
     end_indices = tf.minimum(end_indices, traj_len - 1)
     end = tf.gather(pos, end_indices)
     delta = end - start
-    action = tf.matmul(delta[:, :, None], rot_mat[:, None])[:, :, 0] * scaling_factor
+    action = tf.matmul(delta[:, :, None], rot_mat[:, None])[:, :, 0]  # * scaling_factor
     trajectory["action"] = action
 
     trajectory["observation"]["proprio"] = trajectory["observation"]["state"]
@@ -1015,4 +1015,11 @@ OXE_STANDARDIZATION_TRANSFORMS = {
     "dobbe": dobbe_dataset_transform,
     "roboset": roboset_dataset_transform,
     "rh20t": rh20t_dataset_transform,
+    "cory_hall_dataset": gnm_dataset_transform,
+    "go_stanford_dataset": gnm_dataset_transform,
+    "recon_dataset": gnm_dataset_transform,
+    "sacson_dataset": gnm_dataset_transform,
+    "scand_dataset": gnm_dataset_transform,
+    "seattle_dataset": gnm_dataset_transform,
+    "tartan_drive_dataset": gnm_dataset_transform,
 }
