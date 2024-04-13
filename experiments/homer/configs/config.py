@@ -59,7 +59,7 @@ def get_config(
         dict(
             seed=42,
             num_steps=num_steps,
-            save_dir=placeholder(str),
+            save_dir='/nfs/nfs1/users/riadoshi/octo_ckpts/',
             model=get_model_config(transformer_size),
             window_size=window_size,
             dataset_kwargs=get_dataset_config(window_size),
