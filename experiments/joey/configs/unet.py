@@ -2,7 +2,7 @@ from ml_collections import ConfigDict
 from ml_collections.config_dict import FieldReference, placeholder
 
 from octo.utils.spec import ModuleSpec
-from octo.model.components.action_heads import UNetActionHead
+from octo.model.components.action_heads import DDPMActionHead
 
 import octo, os, sys
 sys.path.append(os.path.join(os.path.dirname(octo.__file__), "../"))
@@ -192,15 +192,14 @@ def get_config(config_string="4,rel_r6,wrist"):
     config["frame_transform_kwargs"] = frame_transform_kwargs
 
     action_head = ModuleSpec.create(
-        UNetActionHead,
+        DDPMActionHead,
         action_dim=n_act_dims,
+        action_horizon=pred_horizon,
         readout_key="readout_action",
-        n_diffusion_samples=1,
         use_map=False,
         flatten_tokens=False,
         max_action=1,
-        diffusion_steps=100,
-        down_dims=[128, 256, 512]
+        timesteps=100,
     )
     config["update_config"] = dict(
         model=dict(
