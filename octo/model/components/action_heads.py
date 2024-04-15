@@ -14,6 +14,7 @@ from octo.model.components.base import TokenGroup
 from octo.model.components.diffusion import cosine_beta_schedule, create_diffusion_model
 from octo.model.components.tokenizers import BinTokenizer
 from octo.model.components.transformer import MAPHead
+from octo.model.components.unet2 import ConditionalUnet1D
 from octo.model.components.unet import create_unet_model
 from octo.utils.typing import PRNGKey
 
@@ -835,3 +836,260 @@ class UNetActionHead(nn.Module):
         )
         # only get the last timestep in the window
         return actions[..., -1, :, :]
+
+
+def _squaredcos_cap_v2(timesteps, s=0.008):
+    t = jnp.linspace(0, timesteps, timesteps + 1) / timesteps
+    alphas_cumprod = jnp.cos((t + s) / (1 + s) * jnp.pi * 0.5) ** 2
+    alphas_cumprod = alphas_cumprod / alphas_cumprod[0]
+    betas = 1 - (alphas_cumprod[1:] / alphas_cumprod[:-1])
+    return jnp.clip(betas, 0, 0.999)
+
+
+class DDPMActionHead(nn.Module):
+    """
+    Diffusion action head. Based on the DDPM implementation from Octo and Bridge.
+    """
+
+    readout_key: str
+    action_dim: int
+    action_horizon: int
+
+    use_map: bool = (False,)
+    flatten_tokens: bool = (False,)
+    timesteps: int = 100
+    max_action: float = 1.0
+    clip_sample: Optional[float] = None
+    variance_type: str = "fixed_large"
+
+    def setup(self):
+        self.action_proj = nn.Dense(self.action_dim)
+        betas = _squaredcos_cap_v2(self.timesteps).astype(jnp.float32)
+        self.alphas = 1.0 - betas  # So betas = 1 - alphas
+        self.alphas_cumprod = jnp.cumprod(self.alphas, axis=0)
+
+        self.model = ConditionalUnet1D(
+            down_features=(256, 512, 1024),
+            mid_layers=2,
+            time_features=128,
+            kernel_size=5,
+        )
+
+    def __call__(
+        self,
+        transformer_outputs: Dict[str, TokenGroup],
+        time: Optional[ArrayLike] = None,
+        noisy_actions: Optional[ArrayLike] = None,
+        train: bool = True,
+    ) -> jax.Array:
+        """Performs a single forward pass through the diffusion model."""
+        token_group = transformer_outputs[self.readout_key]
+        assert token_group.tokens.ndim == 4, (
+            f"Expected token_group.tokens to have shape (batch_size, window_size, num_tokens, embedding_size), "
+            f"but got shape {token_group.tokens.shape}"
+        )
+
+        if self.use_map:  # Multi-head attention pooling
+            assert not self.flatten_tokens, "Cannot use MAP token and flattening!"
+            embeddings = self.map_head(token_group, train=train)[:, :, 0]
+        elif self.flatten_tokens:  # concatenate tokens in final dim
+            embeddings = token_group.tokens.reshape((*token_group.tokens.shape[:2], -1))
+        else:  # mean pooling
+            embeddings = token_group.tokens.mean(axis=-2)
+        # Now, embeddings is (batch_size, window_size, embedding_size)
+
+        # time and noisy_actions are None during initialization, so we replace them with a dummy array
+        if (time is None or noisy_actions is None) and not self.is_initializing():
+            raise ValueError(
+                "Must provide time and noisy_actions when calling diffusion action head"
+            )
+        elif self.is_initializing():
+            time = jnp.zeros((*embeddings.shape[:2], 1), dtype=jnp.float32)
+            noisy_actions = jnp.zeros(
+                (*embeddings.shape[:2], self.action_horizon, self.action_dim),
+                dtype=jnp.float32,
+            )  # (b, w, p, a)
+        pred_eps = self.model(embeddings, action=noisy_actions, time=time, train=train)
+        pred_eps = self.action_proj(pred_eps)
+        return pred_eps
+
+    def loss(
+        self,
+        transformer_outputs: Dict[str, TokenGroup],
+        actions: ArrayLike,
+        action_pad_mask: ArrayLike,
+        timestep_pad_mask: ArrayLike,
+        train: bool = True,
+    ) -> Tuple[Array, Dict[str, Array]]:
+        """Computes the loss for the diffusion objective.
+
+        Args:
+            transformer_ouputs: must contain self.readout_key with shape (batch_size, window_size, num_tokens,
+                embedding_size)
+            actions: shape (batch_size, >= window_size + action_horizon - 1, action_dim)
+            timestep_pad_mask: boolean array (batch, window_size) which is True if the timestep is not a padding timestep
+
+        Returns:
+            loss: float
+            metrics: dict
+        """
+        batch_size, window_size = timestep_pad_mask.shape[:2]
+
+        actions = jnp.clip(actions, -self.max_action, self.max_action)
+
+        # piggy-back on the dropout rng chain for diffusion rng
+        rng = self.make_rng("dropout")
+        time_key, noise_key = jax.random.split(rng)
+        time = jax.random.randint(
+            time_key,
+            (batch_size, window_size, 1),
+            0,
+            self.timesteps,
+        )
+        noise = jax.random.normal(noise_key, actions.shape)
+
+        # Add noise to the action according to the schedule
+        sqrt_alpha_prod = jnp.sqrt(self.alphas_cumprod[time[:, None]])  # (B, 1, 1)
+        sqrt_one_minus_alpha_prod = jnp.sqrt(
+            1 - self.alphas_cumprod[time[:, None]]
+        )  # (B, 1, 1)
+        noisy_actions = sqrt_alpha_prod * actions + sqrt_one_minus_alpha_prod * noise
+
+        pred_eps = self(
+            transformer_outputs, train=train, time=time, noisy_actions=noisy_actions
+        )
+
+        # combine the timestep-level pad mask with the action-dimension-level pad mask
+        mask = (
+            jnp.broadcast_to(action_pad_mask[:, None, None, :], actions.shape)
+            * timestep_pad_mask
+        )
+
+        loss, metrics = continuous_loss(pred_eps, noise, mask, loss_type="mse")
+        # Sum over action dimension instead of averaging
+        loss = loss * self.action_dim
+        metrics["loss"] = metrics["loss"] * self.action_dim
+        metrics["mse"] = metrics["mse"] * self.action_dim
+        return loss, metrics
+
+    # def loss(
+    #     self,
+    #     transformer_outputs: Dict[str, TokenGroup],
+    #     actions: ArrayLike,
+    #     action_pad_mask: ArrayLike,
+    #     timestep_pad_mask: ArrayLike,
+    #     train: bool = True,
+    # ) -> Tuple[Array, Dict[str, Array]]:
+    #     # handle rng creation
+    #     time_key, noise_key = jax.random.split(self.make_rng("dropout"))
+    #     time = jax.random.randint(time_key, shape=(action.shape[0], 1), minval=0, maxval=self.timesteps)  # (B, 1)
+    #     noise = jax.random.normal(noise_key, action.shape)  # (B, T, D)
+
+    #     # Add noise to the action according to the schedule
+    #     sqrt_alpha_prod = jnp.sqrt(self.alphas_cumprod[time[:, None]])  # (B, 1, 1)
+    #     sqrt_one_minus_alpha_prod = jnp.sqrt(1 - self.alphas_cumprod[time[:, None]])  # (B, 1, 1)
+    #     noisy_action = sqrt_alpha_prod * action + sqrt_one_minus_alpha_prod * noise
+
+    #     pred = self(obs, time=time, action=noisy_action, train=train)
+
+    #     return jnp.square(pred - noise).sum(axis=-1)  # (B, T, D) --> (B, T)
+
+    def predict_action(
+        self,
+        transformer_outputs: Dict[str, TokenGroup],
+        rng: PRNGKey,
+        train: bool = True,
+        embodiment_action_dim: Optional[int] = None,
+        *args,
+        **kwargs,
+    ) -> jax.Array:
+        """
+        Code inspired by diffusers:
+        https://github.com/huggingface/diffusers/blob/main/src/diffusers/schedulers/scheduling_ddpm_flax.py
+        """
+        batch_size, window_size = transformer_outputs[self.readout_key].tokens.shape[:2]
+        module, variables = self.unbind()
+
+        # TODO: is this logic actually important during octo evals?
+        # action_mask = jnp.ones(
+        #     (
+        #         batch_size,
+        #         window_size,
+        #         self.action_horizon,
+        #         self.action_dim,
+        #     ),
+        #     dtype=bool,
+        # )
+        # if embodiment_action_dim is not None:
+        #     action_mask = action_mask.at[..., embodiment_action_dim:].set(False)
+        # flat_action_mask = rearrange(action_mask, "... p a -> ... (p a)")
+
+        def loop_body(i, args):
+            sample, rng = args
+            time = self.timesteps - 1 - i
+            # Note that here time is (B, 1, 1) where as in loss in is (B, 1)
+            time = jnp.broadcast_to(time, (sample.shape[0], 1, 1))
+            alpha = self.alphas[time]
+            alpha_prod_t = self.alphas_cumprod[time]
+            alpha_prod_t_prev = jnp.where(
+                time > 0,
+                self.alphas_cumprod[time - 1],
+                jnp.array(1.0, dtype=jnp.float32),
+            )
+
+            # Run the model. Reduce time to (B, 1) for the model.
+            eps = module.apply(
+                variables,
+                transformer_outputs,
+                time=time[:, 0],
+                noisy_actions=sample,
+                train=train,
+            )
+
+            # Predict x_0, clip if desired.
+            orig = (sample - jnp.sqrt(1 - alpha_prod_t) * eps) / jnp.sqrt(alpha_prod_t)
+            if self.clip_sample is not None:
+                orig = jnp.clip(orig, -self.clip_sample, self.clip_sample)
+
+            # Compute x_{t-1} using x_0
+            orig_coeff = jnp.sqrt(alpha_prod_t_prev) * (1 - alpha) / (1 - alpha_prod_t)
+            current_coeff = (
+                jnp.sqrt(alpha) * (1 - alpha_prod_t_prev) / (1 - alpha_prod_t)
+            )
+
+            prev = orig_coeff * orig + current_coeff * sample
+
+            # Add noise according to the schedule
+            variance = (1 - alpha_prod_t_prev) / (1 - alpha_prod_t) * (1 - alpha)
+            if self.variance_type == "fixed_large":
+                variance = 1 - alpha
+            elif self.variance_type == "fixed_small":
+                variance = jnp.clip(variance, a_min=1e-20)
+            else:
+                raise ValueError("Invalid schedule provided")
+
+            rng, key = jax.random.split(rng)
+            variance = jnp.where(
+                time > 0, variance, jnp.zeros(eps.shape, dtype=jnp.float32)
+            )
+            prev = prev + jnp.sqrt(variance) * jax.random.normal(
+                key, shape=sample.shape, dtype=jnp.float32
+            )
+            return (prev, rng)
+
+        rng, key = jax.random.split(rng)
+        noisy_action = jax.random.normal(
+            key,
+            (
+                batch_size,
+                window_size,
+                self.action_horizon,
+                self.action_dim,
+            ),
+        )
+
+        noisy_action, _ = jax.lax.fori_loop(
+            0, self.timesteps, loop_body, (noisy_action, rng)
+        )
+
+        return noisy_action
