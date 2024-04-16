@@ -53,8 +53,6 @@ config_flags.DEFINE_config_file(
     lock_config=False,
 )
 
-NUM_ACTIONS_FOR_VIS = 8
-
 
 def main(_):
     jax_utils.initialize_compilation_cache()

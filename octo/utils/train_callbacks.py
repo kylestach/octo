@@ -332,7 +332,6 @@ class RolloutVisualizationCallback(Callback):
     text_processor: TextProcessor
     trajs_for_rollouts: int
     unnormalization_statistics: dict
-    env_unnormalizes: bool = (False,)
     modes_to_evaluate: str = ("text_conditioned", "image_conditioned")
 
     def __post_init__(self):
@@ -345,7 +344,6 @@ class RolloutVisualizationCallback(Callback):
 
         self.rollout_visualizers = [
             RolloutVisualizer(
-                unnormalization_statistics=self.unnormalization_statistics,
                 **kwargs,
             )
             for kwargs in self.visualizer_kwargs_list
@@ -358,9 +356,7 @@ class RolloutVisualizationCallback(Callback):
                 partial(
                     get_policy_sampled_actions,
                     train_state,
-                    unnormalization_statistics=self.unnormalization_statistics
-                    if not self.env_unnormalizes
-                    else None,
+                    unnormalization_statistics=self.unnormalization_statistics,
                     zero_text=self.zero_text,
                     samples_per_state=1,
                     policy_mode=mode,

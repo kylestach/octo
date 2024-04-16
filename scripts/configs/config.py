@@ -1,3 +1,5 @@
+from typing import Union
+
 from ml_collections import ConfigDict
 from ml_collections.config_dict import FieldReference, placeholder
 
@@ -114,7 +116,7 @@ def get_dataset_config(window_size=1):
     return {
         # oxe_kwargs will generate dataset_kwargs_list and sampling weights
         "oxe_kwargs": dict(
-            data_mix=placeholder(str),
+            data_mix=placeholder(Union[str, list]),
             data_dir=placeholder(str),
             load_camera_views=("primary", "wrist"),
             load_depth=False,

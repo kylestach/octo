@@ -4,7 +4,7 @@ import matplotlib
 
 matplotlib.use("Agg")
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 import dlimp as dl
 import flax
@@ -264,8 +264,9 @@ class RolloutVisualizer:
         env_name (str): Gym.make environment creation string
         history_length (int): Number of history steps policy gets conditioned on (window_size).
         exec_horizon (int): Number of executed action steps.
-        use_temp_ensembling (bool): Whether to use temporal ensembling or receding horizon control.
         max_episode_length (int): Max number of steps per rollout episode.
+        env_kwargs (dict): Additional kwargs to pass to gym.make
+        use_temp_ensembling (bool): Whether to use temporal ensembling or receding horizon control.
         vis_fps (int): FPS of logged rollout video
         video_subsample_rate (int): Subsampling rate for video logging (to reduce video size for high-frequency control)
     """
@@ -279,17 +280,9 @@ class RolloutVisualizer:
     use_temp_ensembling: bool = True
     vis_fps: int = 10
     video_subsample_rate: int = 1
-    unnormalization_statistics: Optional[dict] = None
 
     def __post_init__(self):
-        if self.unnormalization_statistics is not None:
-            self._env = gym.make(
-                self.env_name,
-                unnormalization_statistics=self.unnormalization_statistics,
-                **self.env_kwargs,
-            )
-        else:
-            self._env = gym.make(self.env_name, **self.env_kwargs)
+        self._env = gym.make(self.env_name, **self.env_kwargs)
         self._env = HistoryWrapper(
             self._env,
             self.history_length,
