@@ -72,7 +72,7 @@ def get_config(config_string=None):
     del config["dataset_kwargs"]["traj_transform_kwargs"]["task_augment_kwargs"]
 
     config["dataset_kwargs"]["frame_transform_kwargs"]["resize_size"] = {
-        "primary": (256, 256),  # workspace camera is at 256x256
+        "primary": (128, 128),  # workspace camera is at 128x128
     }
     config["dataset_kwargs"]["frame_transform_kwargs"]["image_augment_kwargs"] = {
         "primary": primary_augment_kwargs,
