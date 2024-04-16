@@ -149,10 +149,10 @@ def get_policy_sampled_actions(
     state: TrainState,
     observations,
     tasks,
-    unnormalization_statistics,
     zero_text,
     samples_per_state,
     rng,
+    unnormalization_statistics=None,
     policy_mode=None,
 ):
     if policy_mode == "text_conditioned":
@@ -298,12 +298,14 @@ class VisualizationCallback(Callback):
         wandb_metrics = {}
         modal_policy_fns = {
             mode: batched_apply(
-                partial(
-                    get_policy_sampled_actions,
-                    train_state,
-                    zero_text=self.zero_text,
-                    samples_per_state=self.samples_per_state,
-                    policy_mode=mode,
+                supply_rng(
+                    partial(
+                        get_policy_sampled_actions,
+                        train_state,
+                        zero_text=self.zero_text,
+                        samples_per_state=self.samples_per_state,
+                        policy_mode=mode,
+                    )
                 ),
                 self.eval_batch_size,
             )

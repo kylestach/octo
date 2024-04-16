@@ -54,12 +54,12 @@ BASE_METRIC_KEYS = {
     # Gripper prediction accuracy
     # "gripping_accuracy_full": ("gripper_correct", tuple()),
     # What is the relative height (in m) that we try to grip at, compared to the data?
-    "grip_height": ("height_to_grip", ("is_first_grip",)),
+    # "grip_height": ("height_to_grip", ("is_first_grip",)),
     # "early_gripped": ("early_gripped", ("is_first_grip",)),
     # What percentage of grips do we attempt early (early = higher than the height gripped at in the data)
-    "early_gripped_height_aware": ("early_gripped_height_aware", ("is_first_grip",)),
+    # "early_gripped_height_aware": ("early_gripped_height_aware", ("is_first_grip",)),
     # What timestep do we attempt to grip at (relative to the first timestep we should at)
-    "grip_timestep_early": ("timestep_to_grip", ("is_first_grip",)),
+    # "grip_timestep_early": ("timestep_to_grip", ("is_first_grip",)),
 }
 
 
@@ -99,8 +99,12 @@ def run_policy_on_trajectory(policy_fn, traj, *, text_processor=None):
         "n": np.array(len_traj),
         "pred_actions_chunk": actions,
         "pred_actions": actions[:, :, 0],  # only use first predicted action
-        "actions": traj["action"][:, horizon - 1, :],
-        "proprio": traj["observation"]["proprio"][:, horizon - 1],
+        "actions": traj["action"][:, horizon - 1, 0],  # only use first action
+        **(
+            {"proprio": traj["observation"]["proprio"][:, horizon - 1]}
+            if "proprio" in traj["observation"]
+            else {}
+        ),
     }
 
 
@@ -194,8 +198,9 @@ class Visualizer:
             info = add_unnormalized_info(info, self.action_proprio_stats)
             info = add_manipulation_metrics(info)
 
-            plotly_fig = plot_trajectory_actions(**info)
-            visualizations[f"traj_{n}"] = plotly_fig
+            if "unnorm_proprio" in info:
+                plotly_fig = plot_trajectory_actions(**info)
+                visualizations[f"traj_{n}"] = plotly_fig
 
             # plot qualitative action trajectory per dimension w/ and w/o action chunk
             visualizations[f"traj_{n}_mpl"] = plot_trajectory_overview_mpl(
@@ -401,8 +406,14 @@ def add_unnormalized_info(
             "unnorm_actions": unnormalize(
                 info["actions"], **normalization_stats["action"]
             ),
-            "unnorm_proprio": unnormalize(
-                info["proprio"], **normalization_stats["proprio"]
+            **(
+                {
+                    "unnorm_proprio": unnormalize(
+                        info["proprio"], **normalization_stats["proprio"]
+                    )
+                }
+                if "proprio" in info
+                else {}
             ),
         }
     )
@@ -432,7 +443,7 @@ def add_manipulation_metrics(info):
             **_mse_info(**kwargs),
             **_xyz_info(**kwargs),
             **_condition_info(**kwargs),
-            **_gripping_early_metrics(**kwargs),
+            **(_gripping_early_metrics(**kwargs) if "proprio" in kwargs else {}),
         }
 
     new_metrics = jax.vmap(per_sample_info, in_axes=(1, None), out_axes=1)(
@@ -533,7 +544,6 @@ def plot_trajectory_overview_mpl(
     traj,
     act,
     unnorm_actions,
-    unnorm_proprio,
     **info,
 ):
     n_act_dims = traj["action"].shape[-1]
