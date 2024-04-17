@@ -383,12 +383,11 @@ class RolloutVisualizer:
         return rollout_info
 
 
-def unnormalize(arr, mean, std, **kwargs):
-    return arr * np.array(std) + np.array(mean)
-
-
-def normalize(arr, mean, std, **kwargs):
-    return (arr - np.array(mean)) / np.array(std)
+def unnormalize(arr, mean, std, mask, **kwargs):
+    adim = mean.shape[0]
+    trunc_arr = arr[..., :adim]
+    unnorm_arr = np.where(mask, trunc_arr * np.array(std) + np.array(mean), trunc_arr)
+    return np.concatenate([unnorm_arr, arr[..., adim:]], axis=-1)
 
 
 def add_unnormalized_info(
