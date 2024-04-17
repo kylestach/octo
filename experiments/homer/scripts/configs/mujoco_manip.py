@@ -122,7 +122,7 @@ def get_config(config_string=None):
                     **base_rollout_vis_kwargs,
                     name="default",
                     env_kwargs=dict(
-                        goals_path="/mnt2/homer/datasets/mujoco_rlds/mujoco_manip/eval_goals.npy",
+                        goals_path="gs://rail-tpus-homer-v4/mujoco_rlds/mujoco_manip/eval_goals.npy",
                     ),
                 ),
             ],
