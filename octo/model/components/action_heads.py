@@ -1041,7 +1041,7 @@ class DDPMActionHead(nn.Module):
             eps = module.apply(
                 variables,
                 transformer_outputs,
-                time=time[:, 0],
+                time=time,
                 noisy_actions=sample,
                 train=train,
             )
