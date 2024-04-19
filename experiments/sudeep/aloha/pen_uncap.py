@@ -10,7 +10,7 @@ import octo, os, sys
 sys.path.append(os.path.join(os.path.dirname(octo.__file__), "../"))
 
 
-def get_config(config_string="100,0,abs_act"):
+def get_config(config_string="64,0,abs_act"):
     pred_horizon, grad_accum, act_type = config_string.split(',')
 
     # hard-code some constants to match the original configs
@@ -147,20 +147,6 @@ def get_config(config_string="100,0,abs_act"):
         # If the default data loading speed is too slow, try these:
         # num_parallel_calls=16,  # for less CPU-intensive ops
     )
-    workspace_augment_kwargs = dict(
-        random_resized_crop=dict(scale=[0.8, 1.0], ratio=[0.9, 1.1]),
-        random_brightness=[0.1],
-        random_contrast=[0.9, 1.1],
-        random_saturation=[0.9, 1.1],
-        random_hue=[0.05],
-        augment_order=[
-            "random_resized_crop",
-            "random_brightness",
-            "random_contrast",
-            "random_saturation",
-            "random_hue",
-        ],
-    )
     wrist_augment_kwargs = dict(
         random_brightness=[0.1],
         random_contrast=[0.9, 1.1],
@@ -179,7 +165,7 @@ def get_config(config_string="100,0,abs_act"):
             "wrist": (128, 128),  # wrist camera is at 128x128
         },
         image_augment_kwargs={
-            "primary": workspace_augment_kwargs,
+            "primary": wrist_augment_kwargs,
             "wrist": wrist_augment_kwargs,
         },
     )
