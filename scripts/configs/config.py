@@ -45,6 +45,7 @@ def get_model_config(transformer_size):
         token_embedding_size=token_embedding_size,
         transformer_kwargs=transformer_kwargs,
         max_horizon=10,
+        use_correct_attention=True,
     )
 
 
