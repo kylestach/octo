@@ -96,11 +96,14 @@ def get_config(config_string=None):
                 load_camera_views=("primary",),
                 load_depth=False,
                 force_recompute_dataset_statistics=False,
-                filter_functions=[ModuleSpec.create(len_greater_than_one)]
+                filter_functions=[ModuleSpec.create(len_greater_than_one)],
             ),
             traj_transform_kwargs=dict(
                 action_horizon=4,
                 max_action_dim=action_dim,
+                goal_relabeling_kwargs=dict(
+                    max_goal_distance=15,
+                )
             ),
             batch_size=512,
             shuffle_buffer_size=500000,

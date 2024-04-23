@@ -8,6 +8,9 @@ get_base_config = imp.load_source(
     "config", os.path.join(os.path.dirname(__file__), "config.py")
 ).get_config
 
+# WORKING CONFIG
+
+
 from octo.model.components.action_heads import DiffusionActionHead
 from octo.model.components.tokenizers import ImageTokenizer
 from octo.model.components.vit_encoders import SmallStem16
@@ -30,7 +33,7 @@ def get_config(config_string=None):
 
     action_dim = 2
 
-    config["window_size"] = 2
+    config["window_size"] = 5
     config["num_steps"] = 300000
     config["model"]["observation_tokenizers"] = {
         "primary": ModuleSpec.create(
@@ -46,7 +49,7 @@ def get_config(config_string=None):
         DiffusionActionHead,
         readout_key="readout_action",
         use_map=False,
-        action_horizon=4,
+        action_horizon=4, # changed from 4 to 1 after removing transform
         action_dim=action_dim,
         n_diffusion_samples=1,
     )
@@ -91,21 +94,22 @@ def get_config(config_string=None):
         config,
         dataset_kwargs=dict(
             oxe_kwargs=dict(
-                data_mix=[('sacson_dataset', 1.0)],
+                data_mix="gnm_only_mix",
                 data_dir="gs://gnm_rlds_separate",
                 load_camera_views=("primary",),
                 load_depth=False,
-                force_recompute_dataset_statistics=False,
-                filter_functions=[ModuleSpec.create(len_greater_than_one)]
+                force_recompute_dataset_statistics=True, # recompute dataset stats now that we're removing transform
+                filter_functions=[ModuleSpec.create(len_greater_than_one)],
+                # skip_norm=True,
             ),
             traj_transform_kwargs=dict(
-                action_horizon=4,
+                action_horizon=4, # change action horizon to 1 when removing transform
                 max_action_dim=action_dim,
                 goal_relabeling_kwargs=dict(
                     max_goal_distance=15,
                 )
             ),
-            batch_size=512,
+            batch_size=256,
             shuffle_buffer_size=500000,
             balance_weights=True,
         ),

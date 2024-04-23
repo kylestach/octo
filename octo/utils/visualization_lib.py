@@ -211,12 +211,26 @@ class Visualizer:
             info = add_unnormalized_info(info, self.action_proprio_stats)
 
             info["obses"] = traj["observation"]["image_primary"]
+
+            # save down the trajectory here
+            traj_to_save = {
+                "obs": traj["observation"]["image_primary"],
+                "action": info["unnorm_actions"],
+                "pred_action": info["unnorm_pred_actions"],
+                "goal": traj["task"]["image_primary"],
+            }
+            rand_id = np.random.randint(1000, 10000)
+            np.save(
+                f"/nfs/nfs1/users/riadoshi/orca/notebooks/files/val_trajs/traj_{rand_id}.npy",
+                traj_to_save,
+            )
+
             plotly_fig = plot_sampled_trajs(**info)
             visualizations[f"traj_{n}_samples"] = plotly_fig
 
             # uncomment to plot observations & predicted vs ground truth actions (one sample)
-            plotly_fig = plot_traj_actions_obses(**info)
-            visualizations[f"obsact_traj_{n}"] = plotly_fig
+            # plotly_fig = plot_traj_actions_obses(**info)
+            # visualizations[f"obsact_traj_{n}"] = plotly_fig
 
             # uncomment to plot variance in trajectory actions
             # visualizations[f"traj_{n}_samples"] = plot_policy_samples(
@@ -490,17 +504,39 @@ def plot_sampled_trajs(
     """Creates a 3D plotly figure of the trajectory and predicted actions."""
     pred_actions, actions = unnorm_pred_actions, unnorm_actions
     gt_actions = actions[:, 0, :]
+    traj_len = actions.shape[0]
+    num_samples = pred_actions.shape[1]
 
     # pred actions has shape (traj_len, num_samples, action_dim)
     # actions has shape (traj_len, action_dim)
 
     fig = go.Figure()
 
+    x_acs, y_acs = np.cumsum(gt_actions[:, 0]), np.cumsum(gt_actions[:, 1])
+
+    # limit to four samples to avoid cluttering
+    colors = ["red", "black", "green", "orange"]
+    for i in range(min(num_samples, 4)):
+        x_pred = np.cumsum(pred_actions[:, i, 0])
+        y_pred = np.cumsum(pred_actions[:, i, 1])
+
+        # plot first ten actions of predicted trajectory (to unclutter viz)
+        fig.add_trace(
+            go.Scatter(
+                x=x_pred,
+                y=y_pred,
+                mode="lines+markers",
+                marker=dict(size=2, color=colors[i]),
+                line=dict(color=colors[i], width=2),
+                name="Predicted Trajectory",
+            )
+        )
+
     # ground truth
     fig.add_trace(
         go.Scatter(
-            x=gt_actions[:, 0],
-            y=gt_actions[:, 1],
+            x=x_acs,
+            y=y_acs,
             mode="lines+markers",
             marker=dict(size=4, color="blue"),
             line=dict(color="blue", width=2),
@@ -508,26 +544,22 @@ def plot_sampled_trajs(
         )
     )
 
-    # sampled trajs -- just take the first four samples (to unclutter viz)
-    for i in range(min(4, pred_actions.shape[1])):
-        sampled_traj = pred_actions[:, i, :]
-        traj_len = sampled_traj.shape[0]
-
-        # plot first ten actions of predicted trajectory (to unclutter viz)
-        fig.add_trace(
-            go.Scatter(
-                x=sampled_traj[: min(traj_len, 10), 0],
-                y=sampled_traj[:, 1],
-                mode="lines+markers",
-                marker=dict(size=2, color="black"),
-                line=dict(color="red", width=2),
-            )
-        )
-
     fig.update_layout(
         title="Sampled Trajectories vs Ground Truth",
         scene=dict(xaxis_title="X", yaxis_title="Y"),
         showlegend=True,
+    )
+
+    # Set the axes to equal aspect ratio
+    fig.update_layout(
+        xaxis=dict(
+            scaleanchor="y",
+            scaleratio=1,
+        ),
+        yaxis=dict(
+            scaleanchor="x",
+            scaleratio=1,
+        ),
     )
 
     # Show the plot
