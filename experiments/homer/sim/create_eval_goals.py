@@ -7,10 +7,9 @@ the success condition.
 
 import jax
 import numpy as np
-import tensorflow as tf
 from absl import app, flags, logging
-
-from utils import load_tf_dataset
+import glob
+import os
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string("data_path", None, "Location of dataset", required=True)
@@ -19,33 +18,22 @@ flags.DEFINE_string("accept_trajectory_key", None, "Success key", required=True)
 
 
 def main(_):
-    dataset = load_tf_dataset(FLAGS.data_path)
-    data = []
-    for traj in iter(dataset):
-        if traj["infos"][FLAGS.accept_trajectory_key][-1]:
-            data.append(traj)
+    paths = glob.glob(os.path.join(FLAGS.data_path, "val/*.npy"))
+    all_traj = [np.load(path, allow_pickle=True) for path in paths]
+    all_traj = np.concatenate(all_traj, axis=0)
+    success_traj = [traj for traj in all_traj if traj[-1]["observation"][f"info/{FLAGS.accept_trajectory_key}"]]
+    success_traj = np.stack(success_traj)
 
-    logging.info(f"Number of successful trajectories: {len(data)}")
-    data = np.random.choice(data, size=FLAGS.num_goals, replace=False)
+    logging.info(f"Number of successful trajectories: {len(success_traj)}")
+    indices = np.random.choice(range(len(success_traj)), size=FLAGS.num_goals, replace=False)
+    eval_traj = success_traj[indices]
 
-    # turn list of dicts into dict of lists, selecting first element of each trajectory
-    data_first = jax.tree_map(lambda *xs: np.array(xs)[:, 0], *data)
+    eval_initial = jax.tree_map(lambda *xs: np.array(xs), *eval_traj[:, 0])
+    eval_goal = jax.tree_map(lambda *xs: np.array(xs), *eval_traj[:, -1])
 
-    # turn list of dicts into dict of lists, selecting last element of each trajectory
-    data = jax.tree_map(lambda *xs: np.array(xs)[:, -1], *data)
+    eval_goal["observation"]["info/initial_positions"] = eval_initial["observation"]["info/object_positions"]
 
-    data["infos"]["initial_positions"] = data_first["infos"]["object_positions"]
-
-    # decode strings
-    data["infos"]["object_names"] = [
-        [s.decode("UTF-8") for s in names] for names in data["infos"]["object_names"]
-    ]
-
-    with tf.io.gfile.GFile(
-        tf.io.gfile.join(FLAGS.data_path, "eval_goals.npy"), "wb"
-    ) as f:
-        np.save(f, data)
-
+    np.save(os.path.join(FLAGS.data_path, "eval_goals.npy"), eval_goal)
 
 if __name__ == "__main__":
     app.run(main)
