@@ -84,6 +84,7 @@ class OctoTransformer(nn.Module):
     token_embedding_size: int
     max_horizon: int
     repeat_task_tokens: bool
+    use_correct_attention: bool = False
 
     @nn.compact
     def __call__(
@@ -273,7 +274,9 @@ class OctoTransformer(nn.Module):
             self.transformer_kwargs.get("add_position_embedding", False) is False
         ), "Already added positional embeddings to the tokens"
 
-        prefix_outputs, timestep_outputs = BlockTransformer(self.transformer_kwargs)(
+        prefix_outputs, timestep_outputs = BlockTransformer(
+            self.transformer_kwargs, use_correct_attention=self.use_correct_attention
+        )(
             all_prefix_groups,
             all_timestep_groups,
             train=train,

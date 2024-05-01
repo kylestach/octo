@@ -17,9 +17,6 @@ def delete_and_rephrase(
     return traj
 
 
-rephrasers = {}
-
-
 class Rephraser:
     def create_static_hash_table(self, dictionary):
         """Takes a python dictionary with string keys and values and creates a tf static hash table"""
@@ -49,9 +46,7 @@ def rephrase_instruction(
        rephrase_prob: The probability of augmenting the language instruction. The probability of keeping the language
            instruction is 1 - rephrase_prob.
     """
-    if pickle_file_path not in rephrasers:
-        rephrasers[pickle_file_path] = Rephraser(pickle_file_path)
-    rephraser = rephrasers[pickle_file_path]
+    rephraser = Rephraser(pickle_file_path)
 
     if "language_instruction" not in traj["task"]:
         return traj

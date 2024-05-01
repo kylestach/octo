@@ -2,7 +2,7 @@ from copy import deepcopy
 import imp
 import os
 
-from ml_collections import ConfigDict
+from ml_collections import ConfigDict, FieldReference
 
 get_base_config = imp.load_source(
     "config", os.path.join(os.path.dirname(__file__), "config.py")
@@ -26,10 +26,8 @@ def update_config(config, **kwargs):
 def get_config(config_string=None):
     config = get_base_config(config_string)
 
-    action_dim = 8
+    action_dim = FieldReference(7)
 
-    config["window_size"] = 2
-    config["num_steps"] = 300000
     config["model"]["observation_tokenizers"] = {
         "primary": ModuleSpec.create(
             ImageTokenizer,
@@ -108,9 +106,10 @@ def get_config(config_string=None):
 
     config = update_config(
         config,
+        num_steps=300000,
+        window_size=2,
         optimizer=dict(
             frozen_keys=("*hf_model*",),
-            # grad_accumulation_steps=1,
         ),
         dataset_kwargs=dict(
             oxe_kwargs=dict(
