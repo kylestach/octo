@@ -58,6 +58,7 @@ def get_config(config_string=None):
         action_horizon=4,
         action_dim=action_dim,
         n_diffusion_samples=1,
+        dropout_rate=0.0,
     )
 
     # We augment differently for the primary and wrist cameras
@@ -121,6 +122,14 @@ def get_config(config_string=None):
             traj_transform_kwargs=dict(
                 action_horizon=4,
                 max_action_dim=action_dim,
+                task_augment_strategy="delete_and_rephrase",
+                task_augment_kwargs=dict(
+                    pickle_file_path="gs://rail-datasets-europe-west4/oxe/resize_256_256/paraphrases_oxe.pkl",
+                    rephrase_prob=0.5,
+                ),
+            ),
+            frame_transform_kwargs=dict(
+                image_dropout_prob=0.5,
             ),
             batch_size=128,
             shuffle_buffer_size=500000,
