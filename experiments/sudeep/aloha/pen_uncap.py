@@ -2,7 +2,7 @@ from ml_collections import ConfigDict
 from ml_collections.config_dict import FieldReference, placeholder
 
 from octo.utils.spec import ModuleSpec
-from octo.model.components.action_heads import DDPMActionHead
+from octo.model.components.action_heads import UNetDDPMActionHead
 
 
 # add octo folder to PYTHONPATH for importing standardization function
@@ -178,7 +178,7 @@ def get_config(config_string="64,0,abs_act"):
     config["frame_transform_kwargs"] = frame_transform_kwargs
 
     action_head = ModuleSpec.create(
-        DDPMActionHead,
+        UNetDDPMActionHead,
         action_dim=n_act_dims,
         action_horizon=pred_horizon,
         readout_key="readout_action",

@@ -1,4 +1,3 @@
-import logging
 from typing import Tuple
 
 import flax.linen as nn
@@ -11,6 +10,14 @@ default_init = nn.initializers.xavier_uniform
 @jax.jit
 def mish(x):
     return x * jnp.tanh(jax.nn.softplus(x))
+
+
+def unet_squaredcos_cap_v2(timesteps, s=0.008):
+    t = jnp.linspace(0, timesteps, timesteps + 1) / timesteps
+    alphas_cumprod = jnp.cos((t + s) / (1 + s) * jnp.pi * 0.5) ** 2
+    alphas_cumprod = alphas_cumprod / alphas_cumprod[0]
+    betas = 1 - (alphas_cumprod[1:] / alphas_cumprod[:-1])
+    return jnp.clip(betas, 0, 0.999)
 
 
 class SinusoidalPosEmb(nn.Module):
@@ -96,7 +103,6 @@ class ConditionalResidualBlock1D(nn.Module):
 
 
 class ConditionalUnet1D(nn.Module):
-    out_dim: int
     down_features: Tuple[int] = (256, 512, 1024)
     mid_layers: int = 2
     kernel_size: int = 3
@@ -104,87 +110,64 @@ class ConditionalUnet1D(nn.Module):
     time_features: int = 256
 
     @nn.compact
-    def __call__(self, obs_enc, actions, time, train: bool = False):
+    def __call__(self, obs, action, time, train: bool = False):
         # Embed the timestep
         time = SinusoidalPosEmb(self.time_features)(time)
         time = nn.Dense(4 * self.time_features, kernel_init=default_init())(time)
         time = mish(time)
-        time = nn.Dense(self.time_features, kernel_init=default_init())(time)
-
-        if obs_enc.shape[:-1] != time.shape[:-1]:
-            new_shape = time.shape[:-1] + (obs_enc.shape[-1],)
-            logging.debug(
-                "Broadcasting obs_enc from %s to %s", obs_enc.shape, new_shape
-            )
-            obs_enc = jnp.broadcast_to(obs_enc, new_shape)
-
-        cond = jnp.concatenate((obs_enc, time), axis=-1)
+        time = nn.Dense(self.time_features, kernel_init=default_init())(time)  # (B, D)
+        # Define conditioning as time and observation
+        cond = jnp.concatenate((obs, time), axis=-1)
 
         # Project Down
         hidden_reps = []
         for i, features in enumerate(self.down_features):
             # We always project to the dimension on the first residual connection.
-            actions = ConditionalResidualBlock1D(
+            action = ConditionalResidualBlock1D(
                 features,
                 kernel_size=self.kernel_size,
                 n_groups=self.n_groups,
                 residual_proj=True,
-            )(actions, cond)
-            actions = ConditionalResidualBlock1D(
+            )(action, cond)
+            action = ConditionalResidualBlock1D(
                 features, kernel_size=self.kernel_size, n_groups=self.n_groups
-            )(actions, cond)
+            )(action, cond)
             if i != 0:
-                hidden_reps.append(actions)
+                hidden_reps.append(action)
             if i != len(self.down_features) - 1:
                 # If we aren't the last step, downsample
-                actions = Downsample1d(features)(actions)
+                action = Downsample1d(features)(action)
 
         # Mid Layers
         for _ in range(self.mid_layers):
-            actions = ConditionalResidualBlock1D(
+            action = ConditionalResidualBlock1D(
                 self.down_features[-1],
                 kernel_size=self.kernel_size,
                 n_groups=self.n_groups,
-            )(actions, cond)
+            )(action, cond)
 
         # Project Up
-        for i, (features, hidden_rep) in enumerate(
-            reversed(list(zip(self.down_features[:-1], hidden_reps)))
+        for features, hidden_rep in reversed(
+            list(zip(self.down_features[:-1], hidden_reps, strict=False))
         ):
-            actions = jnp.concatenate(
-                (actions, hidden_rep), axis=-1
+            action = jnp.concatenate(
+                (action, hidden_rep), axis=-1
             )  # concat on feature dim
             # Always project since we are adding in the hidden rep
-            actions = ConditionalResidualBlock1D(
+            action = ConditionalResidualBlock1D(
                 features,
                 kernel_size=self.kernel_size,
                 n_groups=self.n_groups,
                 residual_proj=True,
-            )(actions, cond)
-            actions = ConditionalResidualBlock1D(
+            )(action, cond)
+            action = ConditionalResidualBlock1D(
                 features, kernel_size=self.kernel_size, n_groups=self.n_groups
-            )(actions, cond)
+            )(action, cond)
             # Upsample
-            actions = Upsample1d(features)(actions)
+            action = Upsample1d(features)(action)
 
         # Should be the same as the input shape
-        actions = Conv1dBlock(
+        action = Conv1dBlock(
             self.down_features[0], kernel_size=self.kernel_size, n_groups=self.n_groups
-        )(actions)
-        actions = nn.Conv(self.out_dim, kernel_size=(1,), strides=1, padding=0)(actions)
-
-        return actions
-
-
-def create_unet_model(
-    out_dim: int,
-    time_dim: int,
-    down_dims: Tuple[int],
-    mid_layers: int,
-):
-    return ConditionalUnet1D(
-        out_dim=out_dim,
-        down_features=down_dims,
-        time_features=time_dim,
-        mid_layers=mid_layers,
-    )
+        )(action)
+        return action

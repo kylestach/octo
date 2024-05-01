@@ -14,8 +14,7 @@ from octo.model.components.base import TokenGroup
 from octo.model.components.diffusion import cosine_beta_schedule, create_diffusion_model
 from octo.model.components.tokenizers import BinTokenizer
 from octo.model.components.transformer import MAPHead
-from octo.model.components.unet2 import ConditionalUnet1D
-from octo.model.components.unet import create_unet_model
+from octo.model.components.unet import ConditionalUnet1D, unet_squaredcos_cap_v2
 from octo.utils.typing import PRNGKey
 
 
@@ -611,242 +610,7 @@ class DiffusionActionHead(nn.Module):
         return actions[..., -1, :, :]
 
 
-class UNetActionHead(nn.Module):
-    """Predicts actions uses a diffusion process.
-
-    Only a single pass through the transformer is done to obtain an action embedding at each timestep. The
-    action is then predicted using a diffusion process conditioned on this embedding.
-
-    You may create an embedding by either mean-pooling across tokens (use_map=False) or using multi-head
-    attention pooling (use_map=True). It is recommended to use MAP when decoding from the observation token
-    stream.
-    """
-
-    readout_key: str
-    use_map: bool = False
-    flatten_tokens: bool = False
-    action_horizon: int = 16
-    action_dim: int = 7
-    loss_type: str = "mse"
-
-    time_dim: int = 256
-    down_dims: Tuple[int] = (256, 512, 1024)
-    mid_layers: int = 2
-    max_action: float = 1.0
-
-    # diffusion-specific config with sane defaults
-    diffusion_steps: int = 100
-    eval_steps: int = 16  # TODO: add DDIM during test time
-    n_diffusion_samples: int = 1
-
-    def setup(self):
-        if self.use_map:
-            self.map_head = MAPHead()
-
-        # create the diffusion model (score network)
-        self.diffusion_model = create_unet_model(
-            self.action_dim,
-            time_dim=self.time_dim,
-            down_dims=self.down_dims,
-            mid_layers=self.mid_layers,
-        )
-
-        # create beta schedule
-        self.betas = jnp.array(cosine_beta_schedule(self.diffusion_steps))
-        self.alphas = 1 - self.betas
-        self.alpha_hats = jnp.cumprod(self.alphas)
-
-    def __call__(
-        self,
-        transformer_outputs: Dict[str, TokenGroup],
-        time: Optional[ArrayLike] = None,
-        noisy_actions: Optional[ArrayLike] = None,
-        train: bool = True,
-    ) -> jax.Array:
-        """Performs a single forward pass through the diffusion model."""
-        token_group = transformer_outputs[self.readout_key]
-        assert token_group.tokens.ndim == 4, (
-            f"Expected token_group.tokens to have shape (batch_size, window_size, num_tokens, embedding_size), "
-            f"but got shape {token_group.tokens.shape}"
-        )
-
-        if self.use_map:  # Multi-head attention pooling
-            assert not self.flatten_tokens, "Cannot use MAP token and flattening!"
-            embeddings = self.map_head(token_group, train=train)[:, :, 0]
-        elif self.flatten_tokens:  # concatenate tokens in final dim
-            embeddings = token_group.tokens.reshape((*token_group.tokens.shape[:2], -1))
-        else:  # mean pooling
-            embeddings = token_group.tokens.mean(axis=-2)
-        # Now, embeddings is (batch_size, window_size, embedding_size)
-
-        # time and noisy_actions are None during initialization, so we replace them with a dummy array
-        if (time is None or noisy_actions is None) and not self.is_initializing():
-            raise ValueError(
-                "Must provide time and noisy_actions when calling diffusion action head"
-            )
-        elif self.is_initializing():
-            time = jnp.zeros((*embeddings.shape[:2], 1), dtype=jnp.float32)
-            noisy_actions = jnp.zeros(
-                (*embeddings.shape[:2], self.action_horizon, self.action_dim),
-                dtype=jnp.float32,
-            )  # (b, w, p, a)
-        pred_eps = self.diffusion_model(embeddings, noisy_actions, time, train=train)
-        return pred_eps
-
-    def loss(
-        self,
-        transformer_outputs: Dict[str, TokenGroup],
-        actions: ArrayLike,
-        action_pad_mask: ArrayLike,
-        timestep_pad_mask: ArrayLike,
-        train: bool = True,
-    ) -> Tuple[Array, Dict[str, Array]]:
-        """Computes the loss for the diffusion objective.
-
-        Args:
-            transformer_ouputs: must contain self.readout_key with shape (batch_size, window_size, num_tokens,
-                embedding_size)
-            actions: shape (batch_size, >= window_size + action_horizon - 1, action_dim)
-            timestep_pad_mask: boolean array (batch, window_size) which is True if the timestep is not a padding timestep
-
-        Returns:
-            loss: float
-            metrics: dict
-        """
-        batch_size, window_size = timestep_pad_mask.shape[:2]
-
-        actions = jnp.clip(actions, -self.max_action, self.max_action)
-
-        # piggy-back on the dropout rng chain for diffusion rng
-        rng = self.make_rng("dropout")
-        time_key, noise_key = jax.random.split(rng)
-        time = jax.random.randint(
-            time_key,
-            (self.n_diffusion_samples, batch_size, window_size, 1),
-            0,
-            self.diffusion_steps,
-        )
-        noise = jax.random.normal(
-            noise_key, (self.n_diffusion_samples,) + actions.shape
-        )
-
-        scale = jnp.sqrt(self.alpha_hats[time])[..., None]
-        std = jnp.sqrt(1 - self.alpha_hats[time])[..., None]
-
-        noisy_actions = scale * actions[None] + std * noise
-
-        pred_eps = self(
-            transformer_outputs, train=train, time=time, noisy_actions=noisy_actions
-        )
-
-        # combine the timestep-level pad mask with the action-dimension-level pad mask
-        mask = (
-            jnp.broadcast_to(action_pad_mask[:, None, None, :], actions.shape)
-            * timestep_pad_mask
-        )
-        # add a dimension to the mask for n_diffusion_samples
-        mask = mask[None]
-
-        loss, metrics = continuous_loss(pred_eps, noise, mask, loss_type=self.loss_type)
-        # Sum over action dimension instead of averaging
-        loss = loss * self.action_dim
-        metrics["loss"] = metrics["loss"] * self.action_dim
-        metrics["mse"] = metrics["mse"] * self.action_dim
-        return loss, metrics
-
-    def predict_action(
-        self,
-        transformer_outputs: Dict[str, TokenGroup],
-        rng: PRNGKey,
-        train: bool = True,
-        embodiment_action_dim: Optional[int] = None,
-        *args,
-        sample_shape: tuple = (),
-        **kwargs,
-    ) -> jax.Array:
-        """Convenience methods for predicting actions for the final timestep in the window."""
-        if embodiment_action_dim is None:
-            logging.warning(
-                "embodiment_action_dim is highly recommended for diffusion action head"
-                " if any action dimensions were masked during training"
-            )
-        batch_size, window_size = transformer_outputs[self.readout_key].tokens.shape[:2]
-        module, variables = self.unbind()
-
-        action_mask = jnp.ones(
-            (
-                *sample_shape,
-                batch_size,
-                window_size,
-                self.action_horizon,
-                self.action_dim,
-            ),
-            dtype=bool,
-        )
-        if embodiment_action_dim is not None:
-            action_mask = action_mask.at[..., embodiment_action_dim:].set(False)
-
-        def scan_fn(carry, time):
-            current_x, rng = carry
-            input_time = jnp.broadcast_to(time, (*current_x.shape[:-2], 1))
-
-            eps_pred = module.apply(
-                variables, transformer_outputs, input_time, current_x, train=train
-            )
-
-            alpha_1 = 1 / jnp.sqrt(self.alphas[time][..., None])
-            alpha_2 = (1 - self.alphas[time][..., None]) / (
-                jnp.sqrt(1 - self.alpha_hats[time][..., None])
-            )
-            current_x = alpha_1 * (current_x - alpha_2 * eps_pred)
-
-            current_x = jnp.clip(current_x, -self.max_action, self.max_action)
-
-            rng, key = jax.random.split(rng)
-            z = jax.random.normal(key, shape=current_x.shape)
-            current_x = current_x + (time > 0) * (
-                jnp.sqrt(self.betas[time][..., None]) * z
-            )
-
-            # set non-eval actions to the noise that would have been seen during training
-            current_x = jnp.where(
-                action_mask,
-                current_x,
-                jnp.sqrt(1 - self.alpha_hats[time][..., None]) * z,
-            )
-
-            return (current_x, rng), ()
-
-        rng, key = jax.random.split(rng)
-        noise = jax.random.normal(
-            key,
-            (
-                *sample_shape,
-                batch_size,
-                window_size,
-                self.action_horizon,
-                self.action_dim,
-            ),
-        )
-
-        (actions, _), () = jax.lax.scan(
-            scan_fn,
-            (noise, rng),
-            jnp.arange(self.diffusion_steps - 1, -1, -1),
-        )
-        # only get the last timestep in the window
-        return actions[..., -1, :, :]
-
-
-def _squaredcos_cap_v2(timesteps, s=0.008):
-    t = jnp.linspace(0, timesteps, timesteps + 1) / timesteps
-    alphas_cumprod = jnp.cos((t + s) / (1 + s) * jnp.pi * 0.5) ** 2
-    alphas_cumprod = alphas_cumprod / alphas_cumprod[0]
-    betas = 1 - (alphas_cumprod[1:] / alphas_cumprod[:-1])
-    return jnp.clip(betas, 0, 0.999)
-
-
-class DDPMActionHead(nn.Module):
+class UNetDDPMActionHead(nn.Module):
     """
     Diffusion action head. Based on the DDPM implementation from Octo and Bridge.
     """
@@ -864,7 +628,7 @@ class DDPMActionHead(nn.Module):
 
     def setup(self):
         self.action_proj = nn.Dense(self.action_dim)
-        betas = _squaredcos_cap_v2(self.timesteps).astype(jnp.float32)
+        betas = unet_squaredcos_cap_v2(self.timesteps).astype(jnp.float32)
         self.alphas = 1.0 - betas  # So betas = 1 - alphas
         self.alphas_cumprod = jnp.cumprod(self.alphas, axis=0)
 
@@ -972,28 +736,6 @@ class DDPMActionHead(nn.Module):
         metrics["mse"] = metrics["mse"] * self.action_dim
         return loss, metrics
 
-    # def loss(
-    #     self,
-    #     transformer_outputs: Dict[str, TokenGroup],
-    #     actions: ArrayLike,
-    #     action_pad_mask: ArrayLike,
-    #     timestep_pad_mask: ArrayLike,
-    #     train: bool = True,
-    # ) -> Tuple[Array, Dict[str, Array]]:
-    #     # handle rng creation
-    #     time_key, noise_key = jax.random.split(self.make_rng("dropout"))
-    #     time = jax.random.randint(time_key, shape=(action.shape[0], 1), minval=0, maxval=self.timesteps)  # (B, 1)
-    #     noise = jax.random.normal(noise_key, action.shape)  # (B, T, D)
-
-    #     # Add noise to the action according to the schedule
-    #     sqrt_alpha_prod = jnp.sqrt(self.alphas_cumprod[time[:, None]])  # (B, 1, 1)
-    #     sqrt_one_minus_alpha_prod = jnp.sqrt(1 - self.alphas_cumprod[time[:, None]])  # (B, 1, 1)
-    #     noisy_action = sqrt_alpha_prod * action + sqrt_one_minus_alpha_prod * noise
-
-    #     pred = self(obs, time=time, action=noisy_action, train=train)
-
-    #     return jnp.square(pred - noise).sum(axis=-1)  # (B, T, D) --> (B, T)
-
     def predict_action(
         self,
         transformer_outputs: Dict[str, TokenGroup],
@@ -1010,19 +752,23 @@ class DDPMActionHead(nn.Module):
         batch_size, window_size = transformer_outputs[self.readout_key].tokens.shape[:2]
         module, variables = self.unbind()
 
-        # TODO: is this logic actually important during octo evals?
-        # action_mask = jnp.ones(
-        #     (
-        #         batch_size,
-        #         window_size,
-        #         self.action_horizon,
-        #         self.action_dim,
-        #     ),
-        #     dtype=bool,
-        # )
-        # if embodiment_action_dim is not None:
-        #     action_mask = action_mask.at[..., embodiment_action_dim:].set(False)
-        # flat_action_mask = rearrange(action_mask, "... p a -> ... (p a)")
+        action_mask = jnp.ones(
+            (
+                batch_size,
+                window_size,
+                self.action_horizon,
+                self.action_dim,
+            ),
+            dtype=bool,
+        )
+
+        if embodiment_action_dim is not None:
+            action_mask = action_mask.at[..., embodiment_action_dim:].set(False)
+        else:
+            logging.warning(
+                "embodiment_action_dim is highly recommended for diffusion action head"
+                " if any action dimensions were masked during training"
+            )
 
         def loop_body(i, args):
             sample, rng = args
@@ -1072,9 +818,12 @@ class DDPMActionHead(nn.Module):
             variance = jnp.where(
                 time > 0, variance, jnp.zeros(eps.shape, dtype=jnp.float32)
             )
-            prev = prev + jnp.sqrt(variance) * jax.random.normal(
-                key, shape=sample.shape, dtype=jnp.float32
-            )
+            z = jax.random.normal(key, shape=sample.shape, dtype=jnp.float32)
+            prev = prev + jnp.sqrt(variance) * z
+
+            # set non-eval actions to the noise that would have been seen during training
+            prev = jnp.where(action_mask, prev, jnp.sqrt(1 - alpha_prod_t) * z)
+
             return (prev, rng)
 
         rng, key = jax.random.split(rng)

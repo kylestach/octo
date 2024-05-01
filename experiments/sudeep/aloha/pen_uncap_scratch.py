@@ -5,7 +5,7 @@ from octo.utils.spec import ModuleSpec
 from octo.data.utils.text_processing import MuseEmbedding
 from octo.model.components.tokenizers import ImageTokenizer
 from octo.model.components.vit_encoders import ResNet26FILM
-from octo.model.components.action_heads import DDPMActionHead
+from octo.model.components.action_heads import UNetDDPMActionHead
 from ml_collections import ConfigDict
 from ml_collections.config_dict import FieldReference, placeholder
 
@@ -225,7 +225,7 @@ def get_model_config(pred_horizon):
     encoder = ModuleSpec.create(ResNet26FILM)
 
     action_head = ModuleSpec.create(
-        DDPMActionHead,
+        UNetDDPMActionHead,
         action_dim=n_act_dims,
         action_horizon=pred_horizon,
         readout_key="obs",
