@@ -58,7 +58,7 @@ def get_config(config_string=None):
         action_horizon=4,
         action_dim=action_dim,
         n_diffusion_samples=1,
-        max_action=1,
+        dropout_rate=0.0,
     )
 
     # We augment differently for the primary and wrist cameras
