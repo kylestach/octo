@@ -378,6 +378,7 @@ class OctoModule(nn.Module):
         token_embedding_size: int,
         max_horizon: int,
         repeat_task_tokens: bool = False,
+        use_correct_attention: bool = False,
     ) -> "OctoModule":
         """
         Canonical way to create an OctoModule from configuration.
@@ -417,6 +418,7 @@ class OctoModule(nn.Module):
             max_horizon=max_horizon,
             repeat_task_tokens=repeat_task_tokens,
             transformer_kwargs=transformer_kwargs,
+            use_correct_attention=use_correct_attention,
         )
 
         return cls(

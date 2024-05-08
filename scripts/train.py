@@ -53,8 +53,6 @@ config_flags.DEFINE_config_file(
     lock_config=False,
 )
 
-NUM_ACTIONS_FOR_VIS = 8
-
 
 def main(_):
     jax_utils.initialize_compilation_cache()
@@ -277,13 +275,14 @@ def main(_):
         **FLAGS.config.viz_kwargs.to_dict(),
     )
     if "rollout_kwargs" in FLAGS.config:
+        rollout_kwargs = FLAGS.config.rollout_kwargs.to_dict()
+        dataset_name = rollout_kwargs.pop("dataset_name")
         rollout_callback = RolloutVisualizationCallback(
             text_processor=text_processor,
-            history_length=FLAGS.config["window_size"],
-            model_pred_horizon=FLAGS.config["model"]["heads"]["action"]["kwargs"].get(
-                "pred_horizon", 1
-            ),
-            **FLAGS.config.rollout_kwargs.to_dict(),
+            unnormalization_statistics=train_data.dataset_statistics[dataset_name][
+                "action"
+            ],
+            **rollout_kwargs,
         )
     else:
         rollout_callback = None
