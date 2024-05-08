@@ -187,6 +187,7 @@ def get_dataset_statistics(
 def normalize_action_and_proprio(
     traj: dict,
     metadata: dict,
+    norm_type: str,
 ):
     """Normalizes the action and proprio fields of a trajectory using the given metadata."""
     # maps keys of `metadata` to corresponding keys in `traj`
@@ -200,10 +201,12 @@ def normalize_action_and_proprio(
         mask = metadata[key].get(
             "mask", tf.ones_like(metadata[key]["mean"], dtype=tf.bool)
         )
-        traj = dl.transforms.selective_tree_map(
-            traj,
-            match=lambda k, _: k == traj_key,
-            map_fn=lambda x: tf.where(
+        if norm_type == "normal":
+            map_fn = lambda x: tf.where(
+                mask, (x - metadata[key]["mean"]) / (metadata[key]["std"] + 1e-8), x
+            )
+        elif norm_type == "bounds":
+            map_fn = lambda x: tf.where(
                 mask,
                 tf.clip_by_value(
                     2
@@ -214,7 +217,13 @@ def normalize_action_and_proprio(
                     1,
                 ),
                 x,
-            ),
+            )
+        else:
+            raise ValueError
+        traj = dl.transforms.selective_tree_map(
+            traj,
+            match=lambda k, _: k == traj_key,
+            map_fn=map_fn,
         )
     return traj
 

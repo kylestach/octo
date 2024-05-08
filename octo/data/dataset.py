@@ -251,6 +251,7 @@ def make_dataset_from_rlds(
     action_normalization_mask: Optional[Sequence[bool]] = None,
     filter_functions: Sequence[ModuleSpec] = (),
     skip_norm: bool = False,
+    norm_type: str = "normal",
     ignore_errors: bool = False,
     num_parallel_reads: int = tf.data.AUTOTUNE,
     num_parallel_calls: int = tf.data.AUTOTUNE,
@@ -303,6 +304,7 @@ def make_dataset_from_rlds(
         filter_functions (Sequence[ModuleSpec]): ModuleSpecs for filtering functions applied to the
             raw dataset.
         skip_norm (bool): If true, skips normalization of actions and proprio. Default: False.
+        norm_type (str): Type of normalization to apply on the inputs (either normal/bounds). Default: normal.
         ignore_errors (bool): If true, skips erroneous dataset elements via dataset.ignore_errors(). Default: False.
         num_parallel_reads (int): number of parallel read workers. Default to AUTOTUNE.
         num_parallel_calls (int): number of parallel calls for traj_map operations. Default to AUTOTUNE.
@@ -439,6 +441,7 @@ def make_dataset_from_rlds(
             partial(
                 normalize_action_and_proprio,
                 metadata=dataset_statistics,
+                norm_type=norm_type,
             ),
             num_parallel_calls,
         )
