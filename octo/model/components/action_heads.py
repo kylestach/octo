@@ -478,7 +478,7 @@ class DiffusionActionHead(nn.Module):
                 embedding_size)
             actions: shape (batch_size, window_size, action_horizon, action_dim)
             timestep_pad_mask: boolean array (batch, window_size) which is True if the timestep is not a padding timestep
-            c
+            action_pad_mask: boolean array (same shape as actions) which is True if the action dimension is not a padding dimension
 
         Returns:
             loss: float
