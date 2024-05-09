@@ -478,7 +478,7 @@ class DiffusionActionHead(nn.Module):
                 embedding_size)
             actions: shape (batch_size, window_size, action_horizon, action_dim)
             timestep_pad_mask: boolean array (batch, window_size) which is True if the timestep is not a padding timestep
-            action_pad_mask: boolean array (same shape as actions) which is True if the action dimension is not a padding dimension
+            c
 
         Returns:
             loss: float
@@ -611,8 +611,15 @@ class DiffusionActionHead(nn.Module):
 
 
 class UNetDDPMActionHead(nn.Module):
-    """
-    Diffusion action head. Based on the DDPM implementation from Octo and Bridge.
+    """Predicts actions using a diffusion process and a U-Net architecture (unlike MLP above)
+
+    Only a single pass through the transformer is done to obtain an action embedding at each timestep. The
+    actions are then predicted using a diffusion process conditioned on this embedding. The diffusion model
+    architecture is an 1D unet based on the implementation from Chi et al: https://arxiv.org/abs/2303.04137
+
+    You may create an embedding by either mean-pooling across tokens (use_map=False) or using multi-head
+    attention pooling (use_map=True). It is recommended to use MAP when decoding from the observation token
+    stream.
     """
 
     readout_key: str
@@ -691,6 +698,7 @@ class UNetDDPMActionHead(nn.Module):
             transformer_ouputs: must contain self.readout_key with shape (batch_size, window_size, num_tokens,
                 embedding_size)
             actions: shape (batch_size, >= window_size + action_horizon - 1, action_dim)
+            action_pad_mask: boolean array (same shape as actions) which is True if the action dimension is not a padding dimension
             timestep_pad_mask: boolean array (batch, window_size) which is True if the timestep is not a padding timestep
 
         Returns:
