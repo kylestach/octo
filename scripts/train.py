@@ -211,6 +211,9 @@ def main(_):
         start_step = FLAGS.config.start_step or 0
     train_state = train_state.replace(step=start_step)
 
+    # refreshes the train state so it doesn't crash w/ certain pre-trained loaders
+    train_state = jax.device_get(train_state)
+
     def loss_fn(params, batch, rng, train=True):
         bound_module = model.module.bind({"params": params}, rngs={"dropout": rng})
         transformer_embeddings = bound_module.octo_transformer(

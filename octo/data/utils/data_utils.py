@@ -152,6 +152,8 @@ def get_dataset_statistics(
             "std": actions.std(0).tolist(),
             "max": actions.max(0).tolist(),
             "min": actions.min(0).tolist(),
+            "p99": np.quantile(actions, 0.99, 0).tolist(),
+            "p01": np.quantile(actions, 0.01, 0).tolist(),
         },
         "num_transitions": num_transitions,
         "num_trajectories": num_trajectories,
@@ -163,6 +165,8 @@ def get_dataset_statistics(
             "std": proprios.std(0).tolist(),
             "max": proprios.max(0).tolist(),
             "min": proprios.min(0).tolist(),
+            "p99": np.quantile(proprios, 0.99, 0).tolist(),
+            "p01": np.quantile(proprios, 0.01, 0).tolist(),
         }
 
     try:
@@ -183,6 +187,7 @@ def get_dataset_statistics(
 def normalize_action_and_proprio(
     traj: dict,
     metadata: dict,
+    norm_type: str,
 ):
     """Normalizes the action and proprio fields of a trajectory using the given metadata."""
     # maps keys of `metadata` to corresponding keys in `traj`
@@ -191,17 +196,34 @@ def normalize_action_and_proprio(
     }
     if "proprio" in traj["observation"]:
         keys_to_normalize["proprio"] = "observation/proprio"
-    # normalize to mean 0, std 1
+
     for key, traj_key in keys_to_normalize.items():
         mask = metadata[key].get(
             "mask", tf.ones_like(metadata[key]["mean"], dtype=tf.bool)
         )
+        if norm_type == "normal":
+            map_fn = lambda x: tf.where(
+                mask, (x - metadata[key]["mean"]) / (metadata[key]["std"] + 1e-8), x
+            )
+        elif norm_type == "bounds":
+            map_fn = lambda x: tf.where(
+                mask,
+                tf.clip_by_value(
+                    2
+                    * (x - metadata[key]["p01"])
+                    / (metadata[key]["p99"] - metadata[key]["p01"] + 1e-8)
+                    - 1,
+                    -1,
+                    1,
+                ),
+                x,
+            )
+        else:
+            raise ValueError
         traj = dl.transforms.selective_tree_map(
             traj,
             match=lambda k, _: k == traj_key,
-            map_fn=lambda x: tf.where(
-                mask, (x - metadata[key]["mean"]) / (metadata[key]["std"] + 1e-8), x
-            ),
+            map_fn=map_fn,
         )
     return traj
 

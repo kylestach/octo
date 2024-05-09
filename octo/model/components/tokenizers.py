@@ -7,6 +7,7 @@ import flax.linen as nn
 import jax
 import jax.numpy as jnp
 from jax.scipy.stats import norm
+import numpy as np
 
 from octo.model.components.base import TokenGroup
 from octo.model.components.transformer import MAPHead
@@ -202,7 +203,7 @@ class LanguageTokenizer(nn.Module):
             assert self.proper_pad_mask, "Cannot skip unless using proper pad mask."
             return None
 
-        if not isinstance(tasks["language_instruction"], jax.Array):
+        if not isinstance(tasks["language_instruction"], (jax.Array, np.ndarray)):
             assert (
                 self.encoder is not None
             ), "Received language tokens but no encoder specified."
