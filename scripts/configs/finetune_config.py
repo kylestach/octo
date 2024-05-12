@@ -109,7 +109,7 @@ def get_config(config_string="full,multimodal"):
 
     traj_transform_kwargs = dict(
         window_size=window_size,
-        action_horizon=3,
+        action_horizon=4,
         goal_relabeling_strategy=goal_relabeling_strategy,
         task_augment_strategy="delete_task_conditioning",
         task_augment_kwargs=dict(
@@ -149,10 +149,10 @@ def get_config(config_string="full,multimodal"):
             "primary": (256, 256),  # workspace (3rd person) camera is at 256x256
             "wrist": (128, 128),  # wrist camera is at 128x128
         },
-        image_augment_kwargs=[
-            workspace_augment_kwargs,
-            wrist_augment_kwargs,
-        ],
+        image_augment_kwargs=dict(
+            primary=workspace_augment_kwargs,
+            wrist=wrist_augment_kwargs,
+        ),
     )
     # If the default data loading speed is too slow, try these:
     config[

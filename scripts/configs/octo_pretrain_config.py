@@ -124,14 +124,14 @@ def get_config(config_string=None):
                 max_action_dim=action_dim,
                 task_augment_strategy="delete_and_rephrase",
                 task_augment_kwargs=dict(
-                    pickle_file_path="gs://rail-datasets-europe-west4/oxe/resize_256_256/paraphrases_oxe.pkl",
+                    pickle_file_path="gs://rail-orca-central2/resize_256_256/paraphrases_oxe.pkl",
                     rephrase_prob=0.5,
                 ),
             ),
             frame_transform_kwargs=dict(
                 image_dropout_prob=0.5,
             ),
-            batch_size=128,
+            batch_size=512,
             shuffle_buffer_size=500000,
             balance_weights=True,
         ),

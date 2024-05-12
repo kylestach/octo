@@ -113,7 +113,7 @@ def main(_):
         high=2.0,
         obs_keys=["proprio"],
     )
-    # Fully override the old action head with a new one (for smaller changes, you can use update_module_config)
+    # Fully override the old action head with a new one (for smaller changes, you can use update_config)
     config["model"]["heads"]["action"] = ModuleSpec.create(
         L1ActionHead,
         action_horizon=50,

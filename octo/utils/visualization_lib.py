@@ -52,7 +52,8 @@ BASE_METRIC_KEYS = {
     # What % of timesteps (near the actual gripper changes) is the predicted gripper correct?
     "gripping_accuracy": ("gripper_correct", ("gripper_changing",)),
     # Gripper prediction accuracy
-    # "gripping_accuracy_full": ("gripper_correct", tuple()),
+    "gripping_accuracy_full": ("gripper_correct", tuple()),
+    # The metrics below require propio to compute, uncomment if dataloader returns proprio
     # What is the relative height (in m) that we try to grip at, compared to the data?
     # "grip_height": ("height_to_grip", ("is_first_grip",)),
     # "early_gripped": ("early_gripped", ("is_first_grip",)),
@@ -383,7 +384,9 @@ class RolloutVisualizer:
         return rollout_info
 
 
-def unnormalize(arr, mean, std, mask, **kwargs):
+def unnormalize(arr, mean, std, mask=None, **kwargs):
+    if mask is None:
+        mask = np.ones_like(mean)
     adim = mean.shape[0]
     trunc_arr = arr[..., :adim]
     unnorm_arr = np.where(mask, trunc_arr * np.array(std) + np.array(mean), trunc_arr)

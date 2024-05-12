@@ -350,10 +350,7 @@ def main(_):
     if "rollout_kwargs" in FLAGS.config:
         rollout_callback = RolloutVisualizationCallback(
             text_processor=text_processor,
-            history_length=FLAGS.config["window_size"],
-            model_pred_horizon=config["model"]["heads"]["action"]["kwargs"].get(
-                "pred_horizon", 1
-            ),
+            unnormalization_statistics=dataset.dataset_statistics["action"],
             **FLAGS.config.rollout_kwargs.to_dict(),
         )
     else:
