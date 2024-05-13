@@ -4,7 +4,6 @@ from typing import Optional, Sequence, Tuple, Union
 
 import gym
 import gym.spaces
-import jax
 import numpy as np
 import tensorflow as tf
 
@@ -216,10 +215,11 @@ class ResizeImageWrapper(gym.ObservationWrapper):
             self.observation_space, gym.spaces.Dict
         ), "Only Dict observation spaces are supported."
         spaces = self.observation_space.spaces
+        self.resize_size = resize_size
 
         if resize_size is None:
             self.keys_to_resize = {}
-        elif isinstance(self.resize_size, tuple):
+        elif isinstance(resize_size, tuple):
             self.keys_to_resize = {k: resize_size for k in spaces if "image_" in k}
         else:
             self.keys_to_resize = {
@@ -243,49 +243,3 @@ class ResizeImageWrapper(gym.ObservationWrapper):
             image = tf.cast(tf.clip_by_value(tf.round(image), 0, 255), tf.uint8).numpy()
             observation[k] = image
         return observation
-
-
-class UnnormalizeActionProprio(gym.ActionWrapper, gym.ObservationWrapper):
-    """
-    Un-normalizes the action and proprio.
-    """
-
-    def __init__(
-        self,
-        env: gym.Env,
-        action_proprio_metadata: dict,
-    ):
-        self.action_proprio_metadata = jax.tree_map(
-            lambda x: np.array(x),
-            action_proprio_metadata,
-            is_leaf=lambda x: isinstance(x, list),
-        )
-        super().__init__(env)
-
-    def unnormalize(self, data, metadata):
-        mask = metadata.get("mask", np.ones_like(metadata["mean"], dtype=bool))
-        return np.where(
-            mask,
-            (data * metadata["std"]) + metadata["mean"],
-            data,
-        )
-
-    def normalize(self, data, metadata):
-        mask = metadata.get("mask", np.ones_like(metadata["mean"], dtype=bool))
-        return np.where(
-            mask,
-            (data - metadata["mean"]) / (metadata["std"] + 1e-8),
-            data,
-        )
-
-    def action(self, action):
-        return self.unnormalize(action, self.action_proprio_metadata["action"])
-
-    def observation(self, obs):
-        if "proprio" in self.action_proprio_metadata:
-            obs["proprio"] = self.normalize(
-                obs["proprio"], self.action_proprio_metadata["proprio"]
-            )
-        else:
-            assert "proprio" not in obs, "Cannot normalize proprio without metadata."
-        return obs

@@ -13,6 +13,7 @@ from octo.data.utils import goal_relabeling, task_augmentation
 from octo.data.utils.data_utils import (
     allocate_threads,
     get_dataset_statistics,
+    NormalizationType,
     normalize_action_and_proprio,
     pprint_data_mixture,
     sample_match_keys_uniform,
@@ -246,12 +247,12 @@ def make_dataset_from_rlds(
     depth_obs_keys: Mapping[str, Optional[str]] = {},
     proprio_obs_key: Optional[str] = None,
     language_key: Optional[str] = None,
+    action_proprio_normalization_type: NormalizationType = NormalizationType.NORMAL,
     dataset_statistics: Optional[Union[dict, str]] = None,
     force_recompute_dataset_statistics: bool = False,
     action_normalization_mask: Optional[Sequence[bool]] = None,
     filter_functions: Sequence[ModuleSpec] = (),
     skip_norm: bool = False,
-    norm_type: str = "normal",
     ignore_errors: bool = False,
     num_parallel_reads: int = tf.data.AUTOTUNE,
     num_parallel_calls: int = tf.data.AUTOTUNE,
@@ -293,6 +294,8 @@ def make_dataset_from_rlds(
         language_key (str, optional): If provided, the "task" dict will contain the key
             "language_instruction", extracted from `traj[language_key]`. If language_key fnmatches multiple
             keys, we sample one uniformly.
+        action_proprio_normalization_type (str, optional): The type of normalization to perform on the action,
+            proprio, or both. Can be "normal" (mean 0, std 1) or "bounds" (normalized to [-1, 1]).
         dataset_statistics: (dict|str, optional): dict (or path to JSON file) that contains dataset statistics
             for normalization. May also provide "num_transitions" and "num_trajectories" keys for downstream usage
             (e.g., for `make_interleaved_dataset`). If not provided, the statistics will be computed on the fly.
@@ -304,7 +307,6 @@ def make_dataset_from_rlds(
         filter_functions (Sequence[ModuleSpec]): ModuleSpecs for filtering functions applied to the
             raw dataset.
         skip_norm (bool): If true, skips normalization of actions and proprio. Default: False.
-        norm_type (str): Type of normalization to apply on the inputs (either normal/bounds). Default: normal.
         ignore_errors (bool): If true, skips erroneous dataset elements via dataset.ignore_errors(). Default: False.
         num_parallel_reads (int): number of parallel read workers. Default to AUTOTUNE.
         num_parallel_calls (int): number of parallel calls for traj_map operations. Default to AUTOTUNE.
@@ -441,7 +443,7 @@ def make_dataset_from_rlds(
             partial(
                 normalize_action_and_proprio,
                 metadata=dataset_statistics,
-                norm_type=norm_type,
+                normalization_type=action_proprio_normalization_type,
             ),
             num_parallel_calls,
         )

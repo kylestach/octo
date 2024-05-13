@@ -21,6 +21,7 @@ def get_config(config_string="full,multimodal"):
         "image_obs_keys": {"primary": "image_0", "wrist": None},
         "proprio_obs_key": "proprio",
         "language_key": "language_instruction",
+        "action_proprio_normalization_type": "normal",
         # We want to avoid normalizing the gripper
         "action_normalization_mask": [True, True, True, True, True, True, False],
         # standardize_fn is dynamically loaded from a file
@@ -99,7 +100,7 @@ def get_config(config_string="full,multimodal"):
         goal_relabeling_strategy = "uniform"
         keep_image_prob = 1.0
     elif task == "language_conditioned":
-        goal_relabeling_strategy = "no_image_conditioning"
+        goal_relabeling_strategy = None
         keep_image_prob = 0.0
     elif task == "multimodal":
         goal_relabeling_strategy = "uniform"

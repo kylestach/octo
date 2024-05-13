@@ -1,3 +1,4 @@
+from enum import Enum
 from fnmatch import fnmatch
 import hashlib
 import json
@@ -28,6 +29,13 @@ def tree_merge(*trees: dict) -> dict:
             else:
                 merged[k] = v
     return merged
+
+
+class NormalizationType(str, Enum):
+    """Defines supported normalization schemes for action and proprio."""
+
+    NORMAL = "normal"  # normalize to mean 0, std 1
+    BOUNDS = "bounds"  # normalize to [-1, 1]
 
 
 def to_padding(tensor: tf.Tensor) -> tf.Tensor:
@@ -185,9 +193,7 @@ def get_dataset_statistics(
 
 
 def normalize_action_and_proprio(
-    traj: dict,
-    metadata: dict,
-    norm_type: str,
+    traj: dict, metadata: dict, normalization_type: NormalizationType
 ):
     """Normalizes the action and proprio fields of a trajectory using the given metadata."""
     # maps keys of `metadata` to corresponding keys in `traj`
@@ -197,35 +203,46 @@ def normalize_action_and_proprio(
     if "proprio" in traj["observation"]:
         keys_to_normalize["proprio"] = "observation/proprio"
 
-    for key, traj_key in keys_to_normalize.items():
-        mask = metadata[key].get(
-            "mask", tf.ones_like(metadata[key]["mean"], dtype=tf.bool)
-        )
-        if norm_type == "normal":
-            map_fn = lambda x: tf.where(
-                mask, (x - metadata[key]["mean"]) / (metadata[key]["std"] + 1e-8), x
+    if normalization_type == NormalizationType.NORMAL:
+        # normalize to mean 0, std 1
+        for key, traj_key in keys_to_normalize.items():
+            mask = metadata[key].get(
+                "mask", tf.ones_like(metadata[key]["mean"], dtype=tf.bool)
             )
-        elif norm_type == "bounds":
-            map_fn = lambda x: tf.where(
-                mask,
-                tf.clip_by_value(
-                    2
-                    * (x - metadata[key]["p01"])
-                    / (metadata[key]["p99"] - metadata[key]["p01"] + 1e-8)
-                    - 1,
-                    -1,
-                    1,
+            traj = dl.transforms.selective_tree_map(
+                traj,
+                match=lambda k, _: k == traj_key,
+                map_fn=lambda x: tf.where(
+                    mask, (x - metadata[key]["mean"]) / (metadata[key]["std"] + 1e-8), x
                 ),
-                x,
             )
-        else:
-            raise ValueError
-        traj = dl.transforms.selective_tree_map(
-            traj,
-            match=lambda k, _: k == traj_key,
-            map_fn=map_fn,
-        )
-    return traj
+        return traj
+
+    if normalization_type == NormalizationType.BOUNDS:
+        # normalize to [-1, 1]
+        for key, traj_key in keys_to_normalize.items():
+            mask = metadata[key].get(
+                "mask", tf.ones_like(metadata[key]["p01"], dtype=tf.bool)
+            )
+            traj = dl.transforms.selective_tree_map(
+                traj,
+                match=lambda k, _: k == traj_key,
+                map_fn=lambda x: tf.where(
+                    mask,
+                    tf.clip_by_value(
+                        2
+                        * (x - metadata[key]["p01"])
+                        / (metadata[key]["p99"] - metadata[key]["p01"] + 1e-8)
+                        - 1,
+                        -1,
+                        1,
+                    ),
+                    x,
+                ),
+            )
+        return traj
+
+    raise ValueError(f"Unknown normalization type {normalization_type}")
 
 
 def binarize_gripper_actions(actions: tf.Tensor) -> tf.Tensor:
