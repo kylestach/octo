@@ -23,6 +23,15 @@ from octo.data.utils.data_utils import (
     relabel_actions,
 )
 
+METRIC_WAYPOINT_SPACING = {
+    'cory_hall_dataset': 0.06,
+    'go_stanford_dataset': 0.12,
+    'recon_dataset': 0.25,
+    'sacson_dataset': 0.255,
+    'scand_dataset': 0.38,
+    'seattle_dataset': 0.35,
+    'tartan_drive_dataset': 0.72,
+}
 
 def bridge_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
     # NOTE: this is not actually the official OXE copy of bridge, it is our own more up-to-date copy that you
@@ -857,7 +866,86 @@ def cmu_stretch_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
     return trajectory
 
 
+def cory_hall_transform_waypoint_norm(trajectory: Dict[str, Any]) -> Dict[str, Any]:
+    trajectory = gnm_dataset_transform(trajectory)
+    action = trajectory['action']
+
+    # add vint-like normalization to actions
+    assert action.shape[1] == 4 and action.shape[2] == 2 and len(action.shape) == 3 # (batch, 4 chunk, 2)
+
+    scaled_action = action[:, :, :2] / METRIC_WAYPOINT_SPACING['cory_hall_dataset']
+    trajectory["action"] = scaled_action
+
+    return trajectory
+
+def recon_transform_waypoint_norm(trajectory: Dict[str, Any]) -> Dict[str, Any]:
+    trajectory = gnm_dataset_transform(trajectory)
+    action = trajectory['action']
+
+    # add vint-like normalization to actions
+    assert action.shape[1] == 4 and action.shape[2] == 2 and len(action.shape) == 3 # (batch, 4 chunk, 2)
+    scaled_action = action[:, :, :2] / METRIC_WAYPOINT_SPACING['recon_dataset']
+    trajectory["action"] = scaled_action
+
+    return trajectory
+
+def sacson_transform_waypoint_norm(trajectory: Dict[str, Any]) -> Dict[str, Any]:
+    trajectory = gnm_dataset_transform(trajectory)
+    action = trajectory['action']
+
+    # add vint-like normalization to actions
+    assert action.shape[1] == 4 and action.shape[2] == 2 and len(action.shape) == 3 # (batch, 4 chunk, 2)
+    scaled_action = action[:, :, :2] / METRIC_WAYPOINT_SPACING['sacson_dataset']
+    trajectory["action"] = scaled_action
+
+    return trajectory
+
+def scand_transform_waypoint_norm(trajectory: Dict[str, Any]) -> Dict[str, Any]:
+    trajectory = gnm_dataset_transform(trajectory)
+    action = trajectory['action']
+
+    # add vint-like normalization to actions
+    assert action.shape[1] == 4 and action.shape[2] == 2 and len(action.shape) == 3 # (batch, 4 chunk, 2)
+    scaled_action = action[:, :, :2] / METRIC_WAYPOINT_SPACING['scand_dataset']
+    trajectory["action"] = scaled_action
+
+    return trajectory
+
+def seattle_transform_waypoint_norm(trajectory: Dict[str, Any]) -> Dict[str, Any]:
+    trajectory = gnm_dataset_transform(trajectory)
+    action = trajectory['action']
+
+    # add vint-like normalization to actions
+    assert action.shape[1] == 4 and action.shape[2] == 2 and len(action.shape) == 3 # (batch, 4 chunk, 2)
+    scaled_action = action[:, :, :2] / METRIC_WAYPOINT_SPACING['seattle_dataset']
+    trajectory["action"] = scaled_action
+
+    return trajectory
+
+def go_stanford_transform_waypoint_norm(trajectory: Dict[str, Any]) -> Dict[str, Any]:
+    trajectory = gnm_dataset_transform(trajectory)
+    action = trajectory['action']
+
+    # add vint-like normalization to actions
+    assert action.shape[1] == 4 and action.shape[2] == 2 and len(action.shape) == 3 # (batch, 4 chunk, 2)
+    scaled_action = action[:, :, :2] / METRIC_WAYPOINT_SPACING['go_stanford_dataset']
+    trajectory["action"] = scaled_action
+
+    return trajectory
+
+def tartan_drive_transform_waypoint_norm(trajectory: Dict[str, Any]) -> Dict[str, Any]:
+    trajectory = gnm_dataset_transform(trajectory)
+    action = trajectory['action']
+
+    # add vint-like normalization to actions
+    assert action.shape[1] == 4 and action.shape[2] == 2 and len(action.shape) == 3 # (batch, 4 chunk, 2)
+    scaled_action = action[:, :, :2] / METRIC_WAYPOINT_SPACING['tartan_drive_dataset']
+    trajectory["action"] = scaled_action
+
+    return trajectory
+
 def gnm_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
+    
     traj_len = tf.shape(trajectory["action"])[0]
     action_horizon = 4
     # scaling_factor = tf.linalg.norm(trajectory["action"][0]) / tf.maximum(
@@ -1016,11 +1104,11 @@ OXE_STANDARDIZATION_TRANSFORMS = {
     "roboset": roboset_dataset_transform,
     "rh20t": rh20t_dataset_transform,
     "gnm_normalized": gnm_dataset_transform,
-    "cory_hall_dataset": gnm_dataset_transform,
-    "go_stanford_dataset": gnm_dataset_transform,
-    "recon_dataset": gnm_dataset_transform,
-    "sacson_dataset": gnm_dataset_transform,
-    "scand_dataset": gnm_dataset_transform,
-    "seattle_dataset": gnm_dataset_transform,
-    "tartan_drive_dataset": gnm_dataset_transform,
+    "cory_hall_dataset": cory_hall_transform_waypoint_norm,
+    "go_stanford_dataset": go_stanford_transform_waypoint_norm,
+    "recon_dataset": recon_transform_waypoint_norm,
+    "sacson_dataset": sacson_transform_waypoint_norm,
+    "scand_dataset": scand_transform_waypoint_norm,
+    "seattle_dataset": seattle_transform_waypoint_norm,
+    "tartan_drive_dataset": tartan_drive_transform_waypoint_norm,
 }
