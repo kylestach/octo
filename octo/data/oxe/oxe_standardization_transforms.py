@@ -969,9 +969,6 @@ def mujoco_manip_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]
 
 
 def go1_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
-    # add padding image
-    # TODO: make dataloader work with datasets that don't have images
-    trajectory["image"] = tf.fill(tf.shape(trajectory["action"]), "")
     trajectory["observation"]["proprio"] = trajectory["observation"]["state"]
     return trajectory
 

@@ -527,7 +527,7 @@ OXE_DATASET_CONFIGS = {
     },
     "go1": {
         "image_obs_keys": {
-            "primary": "image",
+            "primary": None,
             "secondary": None,
             "wrist": None,
         },
