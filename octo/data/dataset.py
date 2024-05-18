@@ -256,6 +256,7 @@ def make_dataset_from_rlds(
     ignore_errors: bool = False,
     num_parallel_reads: int = tf.data.AUTOTUNE,
     num_parallel_calls: int = tf.data.AUTOTUNE,
+    **kwargs,
 ) -> Tuple[dl.DLataset, dict]:
     """This function is responsible for loading a specific RLDS dataset from storage and getting it into a
     standardized format. Yields a dataset of trajectories. Does not include CPU-intensive operations.
@@ -559,6 +560,12 @@ def make_interleaved_dataset(
         threads_per_dataset,
         reads_per_dataset,
     ):
+        # override global traj transform kwargs with dataset specfic ones
+        if "override_traj_transform_kwargs" in dataset_kwargs:
+            traj_transform_kwargs.update(
+                dataset_kwargs.pop("override_traj_transform_kwargs")
+            )
+
         dataset, _ = make_dataset_from_rlds(
             **dataset_kwargs,
             train=train,

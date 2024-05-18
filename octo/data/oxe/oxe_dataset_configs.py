@@ -534,5 +534,8 @@ OXE_DATASET_CONFIGS = {
         "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
         "proprio_encoding": ProprioEncoding.QUADRUPED,
         "action_encoding": ActionEncoding.QUADRUPED,
+        "override_traj_transform_kwargs": {
+            "task_augment_kwargs": {"keep_image_prob": 0.0}
+        },
     },
 }

@@ -85,7 +85,7 @@ def get_config(config_string=None):
             oxe_kwargs=dict(
                 data_mix=[("go1", 1.0)],
                 data_dir="/mnt2/homer/datasets/go1_rlds",
-                load_camera_views=(),
+                load_camera_views=("primary",),
                 load_depth=False,
                 load_proprio=True,
                 force_recompute_dataset_statistics=False,
@@ -95,7 +95,7 @@ def get_config(config_string=None):
                 max_action_dim=action_dim,
                 task_augment_strategy="delete_task_conditioning",
                 task_augment_kwargs=dict(
-                    keep_image_prob=0.0,
+                    keep_image_prob=0.5,
                 )
             ),
             batch_size=256,

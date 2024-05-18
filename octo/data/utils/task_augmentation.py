@@ -108,6 +108,10 @@ def delete_task_conditioning(
     traj_len = tf.shape(traj["action"])[0]
     should_keep_images = tf.random.uniform([traj_len]) < keep_image_prob
     should_keep_images |= ~traj["task"]["pad_mask_dict"]["language_instruction"]
+    # don't keep goal images if they are all padding
+    should_keep_images &= tf.reduce_any(
+        [traj["task"]["pad_mask_dict"][key] for key in image_keys]
+    )
 
     for key in image_keys | {"language_instruction"}:
         should_keep = should_keep_images if key in image_keys else ~should_keep_images
