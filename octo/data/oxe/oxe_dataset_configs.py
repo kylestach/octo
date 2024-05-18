@@ -24,6 +24,7 @@ class ProprioEncoding(IntEnum):
     JOINT = 3  # joint angles + gripper open/close
     JOINT_BIMANUAL = 4  # 2 x [6 x joint angles + gripper open/close]
     POS_NAV = 5  # XY + yaw
+    QUADRUPED = 6
 
 
 class ActionEncoding(IntEnum):
@@ -36,6 +37,7 @@ class ActionEncoding(IntEnum):
     JOINT_POS_BIMANUAL_NAV = (
         5  # 2 x [6 x joint pos + gripper] + linear base vel + angular base vel
     )
+    QUADRUPED = 6
 
 
 OXE_DATASET_CONFIGS = {
@@ -522,5 +524,15 @@ OXE_DATASET_CONFIGS = {
         "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
         "proprio_encoding": ProprioEncoding.POS_EULER,
         "action_encoding": ActionEncoding.EEF_POS,
+    },
+    "go1": {
+        "image_obs_keys": {
+            "primary": "image",
+            "secondary": None,
+            "wrist": None,
+        },
+        "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
+        "proprio_encoding": ProprioEncoding.QUADRUPED,
+        "action_encoding": ActionEncoding.QUADRUPED,
     },
 }

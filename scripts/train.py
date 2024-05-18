@@ -263,6 +263,11 @@ def main(_):
         FLAGS.config.dataset_kwargs["sample_weights"],
         FLAGS.config.eval_datasets,
     )
+    viz_datasets_kwargs_list, _ = filter_eval_datasets(
+        FLAGS.config.dataset_kwargs["dataset_kwargs_list"],
+        FLAGS.config.dataset_kwargs["sample_weights"],
+        FLAGS.config.viz_datasets,
+    )
     val_callback = ValidationCallback(
         loss_fn=loss_fn,
         process_batch_fn=lambda batch: shard(process_batch(batch)),
@@ -273,7 +278,7 @@ def main(_):
     )
     viz_callback = VisualizationCallback(
         text_processor=text_processor,
-        val_dataset_kwargs_list=val_datasets_kwargs_list,
+        viz_dataset_kwargs_list=viz_datasets_kwargs_list,
         dataset_kwargs=FLAGS.config.dataset_kwargs,
         **FLAGS.config.viz_kwargs.to_dict(),
     )
@@ -282,9 +287,7 @@ def main(_):
         dataset_name = rollout_kwargs.pop("dataset_name")
         rollout_callback = RolloutVisualizationCallback(
             text_processor=text_processor,
-            unnormalization_statistics=train_data.dataset_statistics[dataset_name][
-                "action"
-            ],
+            action_proprio_metadata=train_data.dataset_statistics[dataset_name],
             **rollout_kwargs,
         )
     else:

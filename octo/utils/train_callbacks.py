@@ -265,7 +265,7 @@ class ValidationCallback(Callback):
 @dataclass
 class VisualizationCallback(Callback):
     text_processor: TextProcessor
-    val_dataset_kwargs_list: Sequence[Mapping[str, Any]]
+    viz_dataset_kwargs_list: Sequence[Mapping[str, Any]]
     dataset_kwargs: Mapping[str, Any]
     eval_batch_size: int
     trajs_for_metrics: int
@@ -283,7 +283,7 @@ class VisualizationCallback(Callback):
             self.zero_text = None
 
         self.visualizers = {}
-        for single_dataset_kwargs in self.val_dataset_kwargs_list:
+        for single_dataset_kwargs in self.viz_dataset_kwargs_list:
             val_dataset = create_validation_dataset(
                 single_dataset_kwargs,
                 self.dataset_kwargs["traj_transform_kwargs"],
@@ -333,7 +333,7 @@ class RolloutVisualizationCallback(Callback):
     visualizer_kwargs_list: Sequence[Mapping[str, Any]]
     text_processor: TextProcessor
     trajs_for_rollouts: int
-    unnormalization_statistics: dict
+    action_proprio_metadata: dict
     modes_to_evaluate: str = ("text_conditioned", "image_conditioned")
 
     def __post_init__(self):
@@ -346,6 +346,7 @@ class RolloutVisualizationCallback(Callback):
 
         self.rollout_visualizers = [
             RolloutVisualizer(
+                action_proprio_metadata=self.action_proprio_metadata,
                 **kwargs,
             )
             for kwargs in self.visualizer_kwargs_list
@@ -358,7 +359,7 @@ class RolloutVisualizationCallback(Callback):
                 partial(
                     get_policy_sampled_actions,
                     train_state,
-                    unnormalization_statistics=self.unnormalization_statistics,
+                    unnormalization_statistics=self.action_proprio_metadata["action"],
                     zero_text=self.zero_text,
                     samples_per_state=1,
                     policy_mode=mode,

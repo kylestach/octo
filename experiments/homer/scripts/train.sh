@@ -1,5 +1,5 @@
 export WANDB_MODE=disabled
 
 python scripts/train.py \
-    --config scripts/configs/octo_pretrain_config.py:vit_s \
+    --config experiments/homer/scripts/configs/go1_config.py:vit_t \
     --name test \
