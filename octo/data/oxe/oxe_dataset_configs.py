@@ -532,6 +532,7 @@ OXE_DATASET_CONFIGS = {
             "wrist": None,
         },
         "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
+        "proprio_obs_keys": {"primary": "proprio"},
         "proprio_encoding": ProprioEncoding.QUADRUPED,
         "action_encoding": ActionEncoding.QUADRUPED,
         "override_traj_transform_kwargs": {

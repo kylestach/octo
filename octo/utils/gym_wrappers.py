@@ -8,6 +8,8 @@ import jax
 import numpy as np
 import tensorflow as tf
 
+from octo.data.utils.data_utils import fnmatch_filter
+
 
 def stack_and_pad(history: deque, num_obs: int):
     """
@@ -272,10 +274,10 @@ class UnnormalizeProprio(gym.ObservationWrapper):
         )
 
     def observation(self, obs):
-        if "proprio" in self.action_proprio_metadata:
-            obs["proprio"] = self.normalize(
-                obs["proprio"], self.action_proprio_metadata["proprio"]
-            )
-        else:
-            assert "proprio" not in obs, "Cannot normalize proprio without metadata."
+        proprio_keys = fnmatch_filter("proprio_*", obs.keys())
+        for key in proprio_keys:
+            assert (
+                key in self.action_proprio_metadata
+            ), "Cannot normalize proprio without metadata."
+            obs[key] = self.normalize(obs[key], self.action_proprio_metadata[key])
         return obs

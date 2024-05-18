@@ -12,6 +12,10 @@ import tensorflow as tf
 import tqdm
 
 
+def fnmatch_filter(template, xs):
+    return [x for x in xs if fnmatch(x, template)]
+
+
 def tree_map(fn: Callable, tree: dict) -> dict:
     """Maps a function over a nested dictionary."""
     return {
@@ -125,9 +129,10 @@ def get_dataset_statistics(
         lambda traj: {
             "action": traj["action"],
             **(
-                {"proprio": traj["observation"]["proprio"]}
-                if "proprio" in traj["observation"]
-                else {}
+                {
+                    key: traj["observation"][key]
+                    for key in fnmatch_filter("proprio_*", traj["observation"].keys())
+                }
             ),
         }
     )
@@ -141,7 +146,7 @@ def get_dataset_statistics(
         "once for each dataset."
     )
     actions = []
-    proprios = []
+    proprios = {}
     num_transitions = 0
     num_trajectories = 0
     for traj in tqdm.tqdm(
@@ -149,8 +154,11 @@ def get_dataset_statistics(
         total=cardinality if cardinality != tf.data.UNKNOWN_CARDINALITY else None,
     ):
         actions.append(traj["action"])
-        if "proprio" in traj:
-            proprios.append(traj["proprio"])
+        proprio_keys = fnmatch_filter("proprio_*", traj.keys())
+        for key in proprio_keys:
+            if key not in proprios:
+                proprios[key] = [traj[key]]
+            proprios[key].append(traj[key])
         num_transitions += traj["action"].shape[0]
         num_trajectories += 1
     actions = np.concatenate(actions)
@@ -167,15 +175,16 @@ def get_dataset_statistics(
         "num_trajectories": num_trajectories,
     }
     if proprios:
-        proprios = np.concatenate(proprios)
-        metadata["proprio"] = {
-            "mean": proprios.mean(0).tolist(),
-            "std": proprios.std(0).tolist(),
-            "max": proprios.max(0).tolist(),
-            "min": proprios.min(0).tolist(),
-            "p99": np.quantile(proprios, 0.99, 0).tolist(),
-            "p01": np.quantile(proprios, 0.01, 0).tolist(),
-        }
+        for key in proprios:
+            proprios[key] = np.concatenate(proprios[key])
+            metadata[key] = {
+                "mean": proprios[key].mean(0).tolist(),
+                "std": proprios[key].std(0).tolist(),
+                "max": proprios[key].max(0).tolist(),
+                "min": proprios[key].min(0).tolist(),
+                "p99": np.quantile(proprios[key], 0.99, 0).tolist(),
+                "p01": np.quantile(proprios[key], 0.01, 0).tolist(),
+            }
 
     try:
         with tf.io.gfile.GFile(path, "w") as f:
@@ -200,8 +209,8 @@ def normalize_action_and_proprio(
     keys_to_normalize = {
         "action": "action",
     }
-    if "proprio" in traj["observation"]:
-        keys_to_normalize["proprio"] = "observation/proprio"
+    for key in fnmatch_filter("proprio_*", traj["observation"].keys()):
+        keys_to_normalize[key] = f"observation/{key}"
 
     if normalization_type == NormalizationType.NORMAL:
         # normalize to mean 0, std 1

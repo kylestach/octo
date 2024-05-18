@@ -12,18 +12,23 @@ class Go1Wrapper(gym.Wrapper):
     def get_instruction(self):
         return "walk"
 
+    def process_obs(self, proprio):
+        obs = {"proprio_primary": proprio}
+        # return image just for rendering
+        obs["image_primary"] = self.env.render()
+        # TODO: prevent model from attending to this image if co-training with datasets that have images
+        return obs
+
     def step(self, action):
         self.ep_len += 1
         proprio, reward, done, trunc, info = self.env.step(action)
-        obs = {"proprio": proprio}
-        obs["image_primary"] = self.env.render()
+        obs = self.process_obs(proprio)
         return obs, reward, done, trunc, info
 
     def reset(self, **kwargs):
         self.ep_len = 0
         proprio, info = self.env.reset(return_info=True, **kwargs)
-        obs = {"proprio": proprio}
-        obs["image_primary"] = self.env.render()
+        obs = self.process_obs(proprio)
         return obs, info
 
     def get_episode_metrics(self):

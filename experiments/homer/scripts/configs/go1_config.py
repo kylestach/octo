@@ -29,9 +29,9 @@ def get_config(config_string=None):
     action_dim = FieldReference(12)
 
     config["model"]["observation_tokenizers"] = {
-        "proprio": ModuleSpec.create(
+        "proprio_primary": ModuleSpec.create(
             LowdimObsTokenizer,
-            obs_keys=["proprio"],
+            obs_keys=["proprio_primary"],
         ),
     }
 
@@ -85,7 +85,7 @@ def get_config(config_string=None):
             oxe_kwargs=dict(
                 data_mix=[("go1", 1.0)],
                 data_dir="/mnt2/homer/datasets/go1_rlds",
-                load_camera_views=("primary",),
+                load_camera_views=(),
                 load_depth=False,
                 load_proprio=True,
                 force_recompute_dataset_statistics=False,

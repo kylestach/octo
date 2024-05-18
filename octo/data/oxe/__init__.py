@@ -79,7 +79,9 @@ def make_oxe_dataset_kwargs(
     if not load_depth:
         dataset_kwargs.pop("depth_obs_keys")
     if load_proprio:
-        dataset_kwargs["proprio_obs_key"] = "proprio"
+        dataset_kwargs["proprio_obs_keys"] = dataset_kwargs.get(
+            "proprio_obs_keys", {"primary": "proprio"}
+        )
     if load_language:
         dataset_kwargs["language_key"] = "language_instruction"
 

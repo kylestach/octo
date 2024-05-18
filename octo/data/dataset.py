@@ -91,6 +91,7 @@ def apply_trajectory_transforms(
             lambda x: tf.math.reduce_all(tf.math.abs(x["action"]) <= max_action)
         )
 
+    # TODO fix this to work with "proprio_*" keys
     if max_proprio is not None and "proprio" in dataset.element_spec["observation"]:
         dataset = dataset.filter(
             lambda x: tf.math.reduce_all(
@@ -245,7 +246,7 @@ def make_dataset_from_rlds(
     shuffle: bool = True,
     image_obs_keys: Mapping[str, Optional[str]] = {},
     depth_obs_keys: Mapping[str, Optional[str]] = {},
-    proprio_obs_key: Optional[str] = None,
+    proprio_obs_keys: Optional[Mapping[str, Optional[str]]] = None,
     language_key: Optional[str] = None,
     action_proprio_normalization_type: NormalizationType = NormalizationType.NORMAL,
     dataset_statistics: Optional[Union[dict, str]] = None,
@@ -352,8 +353,12 @@ def make_dataset_from_rlds(
             else:
                 new_obs[f"depth_{new}"] = old_obs[old]
 
-        if proprio_obs_key is not None:
-            new_obs["proprio"] = tf.cast(old_obs[proprio_obs_key], tf.float32)
+        if proprio_obs_keys is not None:
+            for new, old in proprio_obs_keys.items():
+                if old is None:
+                    new_obs[f"proprio_{new}"] = tf.repeat("", traj_len)  # padding
+                else:
+                    new_obs[f"proprio_{new}"] = tf.cast(old_obs[old], tf.float32)
 
         # add timestep info
         new_obs["timestep"] = tf.range(traj_len)
@@ -398,7 +403,9 @@ def make_dataset_from_rlds(
             full_dataset,
             hash_dependencies=(
                 str(builder.info),
-                str(proprio_obs_key),
+                "".join(proprio_obs_keys.keys())
+                if proprio_obs_keys is not None
+                else "",
                 ModuleSpec.to_string(standardize_fn)
                 if standardize_fn is not None
                 else "",
