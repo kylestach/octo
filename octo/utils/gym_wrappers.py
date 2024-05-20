@@ -246,9 +246,9 @@ class ResizeImageWrapper(gym.ObservationWrapper):
         return observation
 
 
-class UnnormalizeProprio(gym.ObservationWrapper):
+class NormalizeProprio(gym.ObservationWrapper):
     """
-    Un-normalizes the proprio.
+    Normalizes the proprio.
     """
 
     def __init__(

@@ -1,11 +1,10 @@
 import itertools
-from typing import Optional
 
 import matplotlib
 
 matplotlib.use("Agg")
 from dataclasses import dataclass
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import dlimp as dl
 import flax
@@ -23,9 +22,9 @@ import wandb
 
 from octo.utils.gym_wrappers import (
     HistoryWrapper,
+    NormalizeProprio,
     RHCWrapper,
     TemporalEnsembleWrapper,
-    UnnormalizeProprio,
 )
 
 BASE_METRIC_KEYS = {
@@ -298,7 +297,7 @@ class RolloutVisualizer:
     def __post_init__(self):
         self._env = gym.make(self.env_name, **self.env_kwargs)
         if self.action_proprio_metadata is not None:
-            self._env = UnnormalizeProprio(self._env, self.action_proprio_metadata)
+            self._env = NormalizeProprio(self._env, self.action_proprio_metadata)
         self._env = HistoryWrapper(
             self._env,
             self.history_length,
