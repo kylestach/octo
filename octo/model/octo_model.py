@@ -191,6 +191,7 @@ class OctoModel:
             tasks: dict of tasks of shape (batch_size, *)
             unnormalization_statistics: dict of statistics for unnormalizing actions (must contain "mean",
                 "std", and optionally "mask")
+            normalization_type: type of normalization applied to the actions
             timestep_pad_mask: (batch_size, window_size) Boolean mask that is False when the timestep corresponds to padding
             train: whether to run in train mode
             ...see `action_heads.py` for the rest of the kwargs.
