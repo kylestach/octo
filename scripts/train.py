@@ -222,13 +222,32 @@ def main(_):
             batch["observation"]["timestep_pad_mask"],
             train=train,
         )
-        action_loss, action_metrics = bound_module.heads["action"].loss(
-            transformer_embeddings,  # action head knows to pull out the "action" readout_key
-            batch["action"],
-            batch["observation"]["timestep_pad_mask"],
-            batch["action_pad_mask"],
-            train=train,
-        )
+        # action_loss, action_metrics = bound_module.heads["action"].loss(
+        #     transformer_embeddings,  # action head knows to pull out the "action" readout_key
+        #     batch["action"],
+        #     batch["observation"]["timestep_pad_mask"],
+        #     batch["action_pad_mask"],
+        #     train=train,
+        # )
+
+        # add multi-head loss support
+        action_loss, action_metrics = 0, {}
+        for head_name, head in bound_module.heads.items():
+            head_loss, head_metrics = head.loss(
+                transformer_embeddings,  # action head knows to pull out the "action" readout_key
+                batch["action"],
+                batch["observation"]["timestep_pad_mask"],
+                batch["action_pad_mask"],
+                action_head_mask=batch["action_head_masks"][head_name],
+                train=train,
+            )
+
+            # weight loss by number of samples from each head
+            head_sample_fraction = (batch["action_head_masks"][head_name].sum()) / len(
+                batch["action"]
+            )
+            action_loss += head_loss * head_sample_fraction * head.loss_weight
+            action_metrics[head_name] = head_metrics
         return action_loss, action_metrics
 
     @partial(

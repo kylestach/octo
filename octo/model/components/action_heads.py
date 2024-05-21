@@ -150,6 +150,7 @@ class ContinuousActionHead(nn.Module, ActionHead):
     max_action: float = 5.0
     loss_type: str = "mse"
     num_preds: int = 0
+    loss_weight: float = 1.0
 
     def setup(self):
         if self.pool_strategy == "use_map":
@@ -203,6 +204,7 @@ class ContinuousActionHead(nn.Module, ActionHead):
         actions: ArrayLike,
         timestep_pad_mask: ArrayLike,
         action_pad_mask: ArrayLike,
+        action_head_mask: ArrayLike,
         train: bool = True,
     ) -> Tuple[Array, Dict[str, Array]]:
         """Computes the loss for the action regression objective.
@@ -213,6 +215,7 @@ class ContinuousActionHead(nn.Module, ActionHead):
             actions: shape (batch_size, window_size, action_horizon, action_dim)
             timestep_pad_mask: boolean array (batch, window_size) which is True if the timestep is not a padding timestep
             action_pad_mask: boolean array (same shape as actions) which is True if the action dimension is not a padding dimension
+            action_head_mask: boolean array (batch, ) which is True if the action space corresponds to this specific head
 
         Returns:
             loss: float
@@ -222,7 +225,13 @@ class ContinuousActionHead(nn.Module, ActionHead):
         mean = self(transformer_outputs, train=train)
 
         # combine the timestep pad mask with the action pad mask
-        mask = timestep_pad_mask[:, :, None, None] & action_pad_mask
+        # mask = timestep_pad_mask[:, :, None, None] & action_pad_mask
+
+        mask = (
+            timestep_pad_mask[:, :, None, None]
+            & action_pad_mask
+            & action_head_mask[:, None, None, None]
+        )
 
         loss, metrics = continuous_loss(mean, actions, mask, loss_type=self.loss_type)
         return loss, metrics

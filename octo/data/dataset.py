@@ -40,6 +40,7 @@ def apply_trajectory_transforms(
     max_proprio_dim: Optional[int] = None,
     post_chunk_transforms: Sequence[ModuleSpec] = (),
     num_parallel_calls: int = tf.data.AUTOTUNE,
+    num_action_heads: int = 1,
 ) -> dl.DLataset:
     """Applies common transforms that happen at a trajectory level. Such transforms are usually some sort of
     "relabeling" (e.g. filtering, chunking, adding goals, dropping keys). Transforms that happen in this
@@ -76,6 +77,7 @@ def apply_trajectory_transforms(
         post_chunk_transforms (Sequence[ModuleSpec]): ModuleSpecs of trajectory transforms applied after
             chunking.
         num_parallel_calls (int, optional): number of parallel calls for map operations. Default to AUTOTUNE.
+        num_action_heads (int, optional): If not using the sam head, specify the number of distinct action heads
     """
     if skip_unlabeled:
         if "language_instruction" not in dataset.element_spec["task"]:
@@ -118,6 +120,15 @@ def apply_trajectory_transforms(
             partial(
                 getattr(goal_relabeling, goal_relabeling_strategy),
                 **goal_relabeling_kwargs,
+            ),
+            num_parallel_calls,
+        )
+
+        # optionally add head-specific action masks
+        dataset = dataset.traj_map(
+            partial(
+                traj_transforms.add_head_specific_action_mask,
+                num_action_heads=num_action_heads,
             ),
             num_parallel_calls,
         )

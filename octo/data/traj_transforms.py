@@ -7,6 +7,8 @@ from typing import Optional
 
 import tensorflow as tf
 
+from octo.data.utils.dataset_names_to_type import BIMANUAL_DATASETS, MANIP_DATASETS
+
 
 def chunk_act_obs(
     traj: dict,
@@ -95,6 +97,37 @@ def chunk_act_obs(
         # [traj_len, window_size, action_horizon, 1]
         tf.logical_not(traj["observation"]["task_completed"])[:, :, :, None],
     )
+
+    return traj
+
+
+def add_head_specific_action_mask(traj: dict, num_action_heads: int = 1) -> dict:
+    """Adds an action head specific mask to trajectory."""
+
+    # TODO (ria): ideally have a "head" key in traj corresponding to manipulation / navigation / etc
+    if num_action_heads == 1:
+        traj["action_head_masks"] = {
+            "action": tf.ones_like(traj["dataset_name"], dtype=tf.bool)
+        }
+    else:
+        is_bimanual = tf.map_fn(
+            lambda dataset_name: tf.reduce_any(
+                tf.equal(BIMANUAL_DATASETS, dataset_name)
+            ),
+            traj["dataset_name"],
+            dtype=tf.bool,
+        )
+
+        is_manip = tf.map_fn(
+            lambda dataset_name: tf.reduce_any(tf.equal(MANIP_DATASETS, dataset_name)),
+            traj["dataset_name"],
+            dtype=tf.bool,
+        )
+
+        manip_mask = tf.where(is_manip, True, False)
+        bimanual_mask = tf.where(is_bimanual, True, False)
+
+        traj["action_head_masks"] = {"manip": manip_mask, "bimanual": bimanual_mask}
 
     return traj
 
