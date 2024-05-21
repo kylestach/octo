@@ -24,14 +24,13 @@ import jax
 import numpy as np
 import wandb
 
-# sys.path.append("path/to/your/act")
-sys.path.append("/nfs/nfs2/users/homer/act")
+sys.path.append("path/to/your/act")
 
 # keep this to register ALOHA sim env
 from envs.aloha_sim_env import AlohaGymEnv  # noqa
 
 from octo.model.octo_model import OctoModel
-from octo.utils.gym_wrappers import HistoryWrapper, RHCWrapper
+from octo.utils.gym_wrappers import HistoryWrapper, NormalizeProprio, RHCWrapper
 from octo.utils.train_callbacks import supply_rng
 
 FLAGS = flags.FLAGS
@@ -65,10 +64,14 @@ def main(_):
     ##################################################################################################################
     env = gym.make("aloha-sim-cube-v0")
 
+    # wrap env to normalize proprio
+    env = NormalizeProprio(env, model.dataset_statistics)
+
     # add wrappers for history and "receding horizon control", i.e. action chunking
     env = HistoryWrapper(env, horizon=1)
     env = RHCWrapper(env, exec_horizon=50)
 
+    # the supply_rng wrapper supplies a new random key to sample_actions every time it's called
     policy_fn = supply_rng(
         partial(
             model.sample_actions,
