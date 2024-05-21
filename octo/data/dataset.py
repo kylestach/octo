@@ -254,6 +254,7 @@ def make_dataset_from_rlds(
     action_normalization_mask: Optional[Sequence[bool]] = None,
     filter_functions: Sequence[ModuleSpec] = (),
     skip_norm: bool = False,
+    skip_norm_keys: list = [],
     ignore_errors: bool = False,
     num_parallel_reads: int = tf.data.AUTOTUNE,
     num_parallel_calls: int = tf.data.AUTOTUNE,
@@ -309,6 +310,7 @@ def make_dataset_from_rlds(
         filter_functions (Sequence[ModuleSpec]): ModuleSpecs for filtering functions applied to the
             raw dataset.
         skip_norm (bool): If true, skips normalization of actions and proprio. Default: False.
+        skip_norm_keys (list): A list of keys to skip when normalizing actions and proprio.
         ignore_errors (bool): If true, skips erroneous dataset elements via dataset.ignore_errors(). Default: False.
         num_parallel_reads (int): number of parallel read workers. Default to AUTOTUNE.
         num_parallel_calls (int): number of parallel calls for traj_map operations. Default to AUTOTUNE.
@@ -452,6 +454,7 @@ def make_dataset_from_rlds(
                 normalize_action_and_proprio,
                 metadata=dataset_statistics,
                 normalization_type=action_proprio_normalization_type,
+                skip_norm_keys=skip_norm_keys,
             ),
             num_parallel_calls,
         )

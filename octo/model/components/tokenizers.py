@@ -286,8 +286,15 @@ class LowdimObsTokenizer(BinTokenizer):
     obs_keys: Sequence[str] = tuple()
     discretize: bool = False
     proper_pad_mask: bool = True
+    dropout_rate: float = 0.0
 
-    def __call__(self, observations, *unused_args, **unused_kwargs):
+    def setup(self):
+        super().setup()
+        self.obs_dropout = nn.Dropout(rate=self.dropout_rate)
+
+    def __call__(
+        self, observations, tasks, train: bool = True, *unused_args, **unused_kwargs
+    ):
         assert self.obs_keys, "Need to specify observation keys to tokenize."
         if len(regex_filter(self.obs_keys, sorted(observations.keys()))) == 0:
             logging.warning(
@@ -304,7 +311,11 @@ class LowdimObsTokenizer(BinTokenizer):
                     len(observations[key].shape) == 3
                 ), f"Only supports non-spatial inputs but {key} has shape {observations[key].shape}."
                 tokenizer_inputs.append(observations[key])
+
+        # concatenate the inputs and (optionally) add dropout
         tokenizer_inputs = jnp.concatenate(tokenizer_inputs, axis=-1)
+        tokenizer_inputs = self.obs_dropout(tokenizer_inputs, deterministic=not train)
+
         if self.discretize:
             tokenized_inputs = super().__call__(tokenizer_inputs)
             tokens = jax.nn.one_hot(tokenized_inputs, self.n_bins)

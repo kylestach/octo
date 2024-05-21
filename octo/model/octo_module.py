@@ -170,12 +170,13 @@ class OctoTransformer(nn.Module):
             )(tokenizer_output.tokens)
             # task_tokens shape is (batch, n_tokens, token_embedding_size)
 
-            # Add positional embedding
-            task_tokens += self._create_positional_embedding(group_name, task_tokens)
+            # create positional embedding
+            task_pos_enc = self._create_positional_embedding(group_name, task_tokens)
 
             all_prefix_groups.append(
                 PrefixGroup(
                     tokens=task_tokens,
+                    pos_enc=task_pos_enc,
                     mask=tokenizer_output.mask,
                     name=group_name,
                     attention_rules=task_attention_rules,
@@ -199,8 +200,8 @@ class OctoTransformer(nn.Module):
             )(tokenizer_output.tokens)
             # obs_tokens shape is (batch, horizon, n_tokens, token_embedding_size)
 
-            # Add positional embedding
-            obs_tokens += self._create_positional_embedding(group_name, obs_tokens)
+            # create positional embedding
+            obs_pos_enc = self._create_positional_embedding(group_name, obs_tokens)
 
             # Update mask to account for which timesteps are padding
             obs_pad_mask = jnp.logical_and(
@@ -210,6 +211,7 @@ class OctoTransformer(nn.Module):
             all_timestep_groups.append(
                 TimestepGroup(
                     tokens=obs_tokens,
+                    pos_enc=obs_pos_enc,
                     mask=obs_pad_mask,
                     name=group_name,
                     attention_rules=observation_attention_rules,
@@ -223,14 +225,18 @@ class OctoTransformer(nn.Module):
             for tasks in all_prefix_groups:
                 # lang (batch, n_tokens, token_embedding_size)
                 task_tokens = tasks.tokens[:, jnp.newaxis, :, :]
+                pos_enc = tasks.pos_enc[:, jnp.newaxis, :, :]
+
                 ws = all_timestep_groups[0].tokens.shape[1]
                 task_tokens = jnp.tile(task_tokens, [1, ws, 1, 1])
+                pos_enc = jnp.tile(pos_enc, [1, ws, 1, 1])
                 task_pad_mask = tasks.mask[:, jnp.newaxis, :]
                 task_pad_mask = jnp.tile(task_pad_mask, [1, ws, 1])
                 group_name = f"obs_{tasks.name}"
                 all_timestep_groups.append(
                     TimestepGroup(
                         tokens=task_tokens,
+                        pos_enc=pos_enc,
                         mask=task_pad_mask,
                         name=group_name,
                         attention_rules=observation_attention_rules,
@@ -249,8 +255,8 @@ class OctoTransformer(nn.Module):
                 (batch_size, horizon, n_tokens_for_readout, self.token_embedding_size)
             )
 
-            # Add positional embedding
-            readout_tokens += self._create_positional_embedding(
+            # create positional embedding
+            readout_pos_enc = self._create_positional_embedding(
                 group_name, readout_tokens
             )
             readout_mask = jnp.ones((batch_size, horizon, n_tokens_for_readout))
@@ -263,6 +269,7 @@ class OctoTransformer(nn.Module):
             all_timestep_groups.append(
                 TimestepGroup(
                     tokens=readout_tokens,
+                    pos_enc=readout_pos_enc,
                     mask=readout_mask,
                     name=group_name,
                     attention_rules=readout_attention_rules,
@@ -270,10 +277,6 @@ class OctoTransformer(nn.Module):
             )
 
         # Run the transformer!
-        assert (
-            self.transformer_kwargs.get("add_position_embedding", False) is False
-        ), "Already added positional embeddings to the tokens"
-
         prefix_outputs, timestep_outputs = BlockTransformer(
             self.transformer_kwargs, use_correct_attention=self.use_correct_attention
         )(
@@ -392,6 +395,7 @@ class OctoModule(nn.Module):
             max_horizon (int): Sets the size of positional embeddings, and provides an upper limit on the
                 maximum horizon of the model
             repeat_task_tokens (bool): If true, repeats the task tokens at each observation timestep.
+            use_correct_attention (bool): If true, uses the fixed attention masks for readout tokens.
             transformer_kwargs: additional kwargs to forward to the transformer, which include:
                 num_layers (int): number of layers
                 mlp_dim (int): hidden dimension of the MLPs
@@ -417,8 +421,8 @@ class OctoModule(nn.Module):
             token_embedding_size=token_embedding_size,
             max_horizon=max_horizon,
             repeat_task_tokens=repeat_task_tokens,
-            transformer_kwargs=transformer_kwargs,
             use_correct_attention=use_correct_attention,
+            transformer_kwargs=transformer_kwargs,
         )
 
         return cls(

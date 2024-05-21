@@ -131,8 +131,9 @@ class Encoder1DBlock(nn.Module):
       dtype: the dtype of the computation (default: float32).
       dropout_rate: dropout rate.
       attention_dropout_rate: dropout for attention heads.
-      deterministic: bool, deterministic or not (to apply dropout).
+      deterministic: deterministic or not (to apply dropout).
       num_heads: Number of heads in nn.MultiHeadDotProductAttention
+      repeat_pos_enc: should pos be added back to keys/values during attention?
     """
 
     mlp_dim: int
@@ -140,9 +141,10 @@ class Encoder1DBlock(nn.Module):
     dtype: Dtype = jnp.float32
     dropout_rate: float = 0.1
     attention_dropout_rate: float = 0.1
+    repeat_pos_enc: bool = False
 
     @nn.compact
-    def __call__(self, inputs, attention_mask, *, deterministic):
+    def __call__(self, inputs, pos_enc, attention_mask, *, deterministic):
         """Applies Encoder1DBlock module.
 
         Args:
@@ -156,6 +158,8 @@ class Encoder1DBlock(nn.Module):
         # Attention block.
         assert inputs.ndim == 3, f"Expected (batch, seq, hidden) got {inputs.shape}"
         x = nn.LayerNorm(dtype=self.dtype)(inputs)
+
+        qk = x + pos_enc if self.repeat_pos_enc else x
         x = nn.MultiHeadDotProductAttention(
             dtype=self.dtype,
             kernel_init=nn.initializers.xavier_uniform(),
@@ -163,7 +167,7 @@ class Encoder1DBlock(nn.Module):
             deterministic=deterministic,
             dropout_rate=self.attention_dropout_rate,
             num_heads=self.num_heads,
-        )(x, x, mask=attention_mask)
+        )(inputs_q=qk, inputs_k=qk, inputs_v=x, mask=attention_mask)
         x = nn.Dropout(rate=self.dropout_rate)(x, deterministic=deterministic)
         x = x + inputs
 
@@ -185,6 +189,7 @@ class Transformer(nn.Module):
       num_heads: Number of heads in nn.MultiHeadDotProductAttention
       dropout_rate: dropout rate.
       attention_dropout_rate: dropout rate in self attention.
+      repeat_pos_enc: positional encodings added back to k/q during attn.
     """
 
     num_layers: int
@@ -192,10 +197,10 @@ class Transformer(nn.Module):
     num_attention_heads: int
     dropout_rate: float = 0.1
     attention_dropout_rate: float = 0.1
-    add_position_embedding: bool = False
+    repeat_pos_enc: bool = False
 
     @nn.compact
-    def __call__(self, x, attention_mask, *, train):
+    def __call__(self, x, pos_enc, attention_mask, *, train):
         """Applies Transformer model on the inputs.
 
         Args:
@@ -207,12 +212,9 @@ class Transformer(nn.Module):
         """
         assert x.ndim == 3  # (batch, len, emb)
 
-        if self.add_position_embedding:
-            x = AddPositionEmbs(
-                posemb_init=nn.initializers.normal(stddev=0.02),  # from BERT.
-                name="posembed_input",
-            )(x)
-            x = nn.Dropout(rate=self.dropout_rate)(x, deterministic=not train)
+        # only add pos_enc at start of computation if not repeating
+        if not self.repeat_pos_enc:
+            x = x + pos_enc
 
         # Input Encoder
         for lyr in range(self.num_layers):
@@ -222,7 +224,8 @@ class Transformer(nn.Module):
                 attention_dropout_rate=self.attention_dropout_rate,
                 name=f"encoderblock_{lyr}",
                 num_heads=self.num_attention_heads,
-            )(x, attention_mask, deterministic=not train)
+                repeat_pos_enc=self.repeat_pos_enc,
+            )(x, pos_enc, attention_mask, deterministic=not train)
         encoded = nn.LayerNorm(name="encoder_norm")(x)
 
         return encoded
@@ -231,7 +234,7 @@ class Transformer(nn.Module):
 def common_transformer_sizes(transformer_size: str) -> (int, dict):
     """
     Args:
-        transformer_size (str): The size of the transformer. One of "dummy", "vanilla", "vit_s", "vit_b", "vit_l", "vit_h"
+        transformer_size (str): The size of the transformer. One of "dummy", "vanilla", "detr", "vit_s", "vit_b", "vit_l", "vit_h"
 
     Returns:
             token_embedding_size (int): The size of the token embeddings
@@ -241,6 +244,7 @@ def common_transformer_sizes(transformer_size: str) -> (int, dict):
     assert transformer_size in [
         "dummy",
         "vanilla",
+        "detr",
         "vit_t",
         "vit_s",
         "vit_b",
@@ -249,7 +253,6 @@ def common_transformer_sizes(transformer_size: str) -> (int, dict):
     ]
     default_params = {
         "attention_dropout_rate": 0.0,
-        "add_position_embedding": False,
     }
 
     TRANSFORMER_SIZES = {
@@ -258,48 +261,63 @@ def common_transformer_sizes(transformer_size: str) -> (int, dict):
             mlp_dim=256,
             num_attention_heads=2,
             dropout_rate=0.1,
+            repeat_pos_enc=False,
         ),
         "vanilla": dict(
             num_layers=4,
             mlp_dim=1024,
             num_attention_heads=8,
             dropout_rate=0.1,
+            repeat_pos_enc=False,
+        ),
+        "detr": dict(
+            num_layers=12,  # techincally detr uses 6 enc + 6 dec
+            mlp_dim=2048,
+            num_attention_heads=8,
+            dropout_rate=0.1,
+            repeat_pos_enc=True,
         ),
         "vit_t": dict(
             num_layers=12,
             mlp_dim=768,
             num_attention_heads=3,
             dropout_rate=0.0,
+            repeat_pos_enc=False,
         ),
         "vit_s": dict(
             num_layers=12,
             mlp_dim=1536,
             num_attention_heads=6,
             dropout_rate=0.0,
+            repeat_pos_enc=False,
         ),
         "vit_b": dict(
             num_layers=12,
             mlp_dim=3072,
             num_attention_heads=12,
             dropout_rate=0.0,
+            repeat_pos_enc=False,
         ),
         "vit_l": dict(
             num_layers=24,
             mlp_dim=4096,
             num_attention_heads=16,
             dropout_rate=0.1,
+            repeat_pos_enc=False,
         ),
         "vit_h": dict(
             num_layers=32,
             mlp_dim=5120,
             num_attention_heads=16,
             dropout_rate=0.1,
+            repeat_pos_enc=False,
         ),
     }
 
     TOKEN_DIMS = {
         "dummy": 256,
         "vanilla": 256,
+        "detr": 512,
         "vit_t": 192,
         "vit_s": 384,
         "vit_b": 768,

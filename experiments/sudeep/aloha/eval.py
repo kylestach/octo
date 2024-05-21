@@ -14,6 +14,7 @@ import jax
 import jax.numpy as jnp
 from functools import partial
 
+from pathlib import Path
 from octo.model.octo_model import OctoModel
 from scipy.spatial.transform import Rotation as R
 
@@ -21,6 +22,7 @@ from scipy.spatial.transform import Rotation as R
 sys.path.append("/home/huzheyuan/Desktop/language-dagger/src")
 sys.path.append("/home/huzheyuan/Desktop/language-dagger/src/aloha_pro/aloha_scripts/")
 from aloha_pro.aloha_scripts.real_env import make_real_env
+OCTO_CKPT_CACHE_DIR = "/home/huzheyuan/octo_ckpts/"
 
 tf.config.set_visible_devices([], "GPU")
 
@@ -29,9 +31,38 @@ np.set_printoptions(suppress=True)
 logging.set_verbosity(logging.INFO)
 
 FLAGS = flags.FLAGS
-flags.DEFINE_bool("deterministic", True, "Whether to sample action deterministically")
-flags.DEFINE_float("temperature", 1e-7, "Temperature for sampling actions")
 flags.DEFINE_string("checkpoint", None, "Path to checkpoint")
+flags.DEFINE_integer("T", 1000, "Number of environment steps per rollout")
+flags.DEFINE_integer("num_rollouts", 10, "Number of rollouts to try")
+
+
+def maybe_download_from_gcs(checkpoint_path, step):
+    if not checkpoint_path.startswith("gs://"):
+        return checkpoint_path
+
+    weights_path = tf.io.gfile.join(checkpoint_path, f"{step}")
+    norm_path = tf.io.gfile.join(checkpoint_path, "dataset_statistics*")
+    config_path = tf.io.gfile.join(checkpoint_path, "config.json*")
+    example_batch_path = tf.io.gfile.join(checkpoint_path, "example_batch.msgpack*")
+
+    run_name = Path(checkpoint_path).name
+    save_path = os.path.join(OCTO_CKPT_CACHE_DIR, run_name)
+
+    target_checkpoint_path = os.path.join(save_path, f"{step}")
+    if os.path.exists(target_checkpoint_path):
+        logging.warning(
+            "Checkpoint already exists at %s, skipping download", target_checkpoint_path
+        )
+        return save_path
+    os.makedirs(save_path, exist_ok=True)
+    logging.warning("Downloading checkpoint and metadata to %s", save_path)
+
+    os.system(f"gsutil -m cp -r {weights_path} {save_path}/")
+    os.system(f"gsutil cp {norm_path} {save_path}/")
+    os.system(f"gsutil cp {config_path} {save_path}/")
+    os.system(f"gsutil cp {example_batch_path} {save_path}/")
+
+    return save_path
 
 
 def stack_and_pad_obs(fn, horizon):
@@ -133,6 +164,7 @@ def load_checkpoint(weights_path):
     weights_path = weights_path.rstrip('/')
     checkpoint_path = os.path.dirname(os.path.expanduser(weights_path))
     step = int(weights_path.split('/')[-1])
+    checkpoint_path = maybe_download_from_gcs(checkpoint_path, step)
     model = OctoModel.load_pretrained(checkpoint_path, step=step)
 
     with open(os.path.join(checkpoint_path, 'exp_hparams.yaml'), 'r') as f:
@@ -168,11 +200,11 @@ def load_checkpoint(weights_path):
             partial(
                 sample_actions,
                 model,
-                argmax=FLAGS.deterministic,
-                temperature=FLAGS.temperature,
+                argmax=experiment_hparams.get('deterministic', True),
+                temperature=experiment_hparams.get('temperature', 1e-7),
             ),
         ),
-        horizon=1, #model.config["dataset_kwargs"]["traj_transform_kwargs"]["window_size"],
+        horizon=1, #TODO fix: model.config["dataset_kwargs"]["traj_transform_kwargs"]["window_size"],
     )
     return policy_fn, action_denorm_fn, experiment_hparams, model
 
@@ -184,31 +216,74 @@ class OctoPolicy:
         self.img_mapping = exp_hparams['img_mapping']
         self.model = model
 
-        self.goal = self.model.create_tasks(texts=["uncap the pen"])
-        self._last_time = None
-        self.gamma = float(exp_hparams['gamma'])
+        self.goal = self.model.create_tasks(texts=[exp_hparams['text_goal']])
         self.period = 1.0 / float(exp_hparams['hz'])
-        self.last_ac = None
-        self.T = int(exp_hparams['control_horizon'])
-        self._action_history = deque(maxlen=self.T)
+        self.H = int(exp_hparams['control_horizon'])
 
-    def _convert_obs(self, observation):
-        proprio = observation['qpos']
+        # parameters for RCS/Temp Ensemble control schemes
+        self._ensemble = exp_hparams['temporal_ensemble']
+        if self._ensemble:
+            self._exp_weight = float(exp_hparams['exp_weight'])
+        else:
+            self._gamma = float(exp_hparams['gamma'])
+
+        # reset all policy parameters
+        self.reset()
+
+    def _infer_policy(self, observation):
         obs_dict = {
             k: index_and_resize(observation["images"], bgr_input=True, **img_hparams) for k, img_hparams in self.img_mapping.items()
         }
-        obs_dict['proprio'] = proprio.astype(np.float32)
-        return obs_dict
+        obs_dict['proprio'] = observation['qpos'].astype(np.float32)
+
+        # infer actions via BC model
+        actions = np.array(self.policy_fn([obs_dict], self.goal))[:self.H]
+
+        # make sure the model predicted enough steps
+        assert (
+            len(actions) >= self.H
+        ), "model did not return enough predictions!"
+        return actions
+
+    def _forward_ensemble(self, observation):
+        ac = self._infer_policy(observation)
+        self._action_history.append(ac)
+
+        # TODO potentially consider not ensembling every timestep.
+
+        # handle temporal blending
+        num_actions = len(self._action_history)
+        curr_act_preds = np.stack(
+            [
+                pred_actions[i]
+                for (i, pred_actions) in zip(
+                    range(num_actions - 1, -1, -1), self._action_history
+                )
+            ]
+        )
+
+        # more recent predictions get exponentially *less* weight than older predictions
+        weights = np.exp(-self._exp_weight * np.arange(num_actions))[::-1]
+        weights = weights / weights.sum()
+
+        # return the weighted average across all predictions for this timestep
+        return np.sum(weights[:, None] * curr_act_preds, axis=0)
+
+    def _forward_chunked(self, observation):
+        if not len(self._action_history):
+            actions = self._infer_policy(observation)
+            for ac in actions:
+                self._action_history.append(ac)
+
+        raw_ac = self._action_history.popleft()
+        last_ac = self.last_ac if self.last_ac is not None else raw_ac
+        self._last_ac = self._gamma * raw_ac + (1 - self._gamma) * last_ac
+        return self._last_ac.copy()
 
     def forward(self, observation):
-        if not len(self._action_history):
-            obs_hist = [self._convert_obs(observation)]
-            actions = np.array(self.policy_fn(obs_hist, self.goal))[0]
-            [self._action_history.append(ac) for ac in actions[:self.T]]
-
-        raw_ac = self.action_denorm_fn(self._action_history.popleft())
-        last_ac = self.last_ac if self.last_ac is not None else raw_ac
-        self.last_ac = self.gamma * raw_ac + (1 - self.gamma) * last_ac
+        ac = self._forward_ensemble(observation) if self._ensemble \
+             else self._forward_chunked(observation)
+        ac = self.action_denorm_fn(ac)
 
         if self._last_time is not None:
             delta = time.time() - self._last_time
@@ -219,7 +294,7 @@ class OctoPolicy:
             logging.info(f"Effective HZ: {hz}")
         self._last_time = time.time()
 
-        return self.last_ac
+        return ac
 
     def load_goal_imgs(self, goal_img_dict):
         logging.warning('settting image goal')
@@ -238,8 +313,9 @@ class OctoPolicy:
         self.forward(null_obs)
 
     def reset(self):
-        self._action_history.clear()
-        self.last_ac = None
+        self._action_history = deque(maxlen=self.H)
+        self._last_ac = None
+        self._last_time = None
 
 
 def main(_):
@@ -250,7 +326,7 @@ def main(_):
     env = make_real_env(init_node=True)
 
     # Roll out the policy num_rollout times
-    for rollout_num in range(10):
+    for _ in range(FLAGS.num_rollouts):
 
         last_input = None
         while last_input != "y":
@@ -261,7 +337,7 @@ def main(_):
         policy.reset()
 
         obs = env.reset()
-        for _ in range(500):
+        for _ in range(FLAGS.T):
             ac = policy.forward(obs.observation)
             obs = env.step(ac)
 

@@ -40,6 +40,7 @@ class PrefixGroup(TokenGroup):
 
     name: str
     attention_rules: Mapping[str, AttentionRule]
+    pos_enc: jax.typing.ArrayLike = None
 
     def __post_init__(self):
         assert (
@@ -57,6 +58,7 @@ class TimestepGroup(TokenGroup):
 
     name: str = flax.struct.field(pytree_node=False)
     attention_rules: Mapping[str, AttentionRule] = flax.struct.field(pytree_node=False)
+    pos_enc: jax.typing.ArrayLike = None
 
     def __post_init__(self):
         assert (
@@ -166,7 +168,9 @@ class BlockTransformer(nn.Module):
         assert all([group.tokens.shape[-1] == token_dim for group in timestep_groups])
 
         # Assemble input tokens (batch, total_tokens, token_embedding_size)
-        input_tokens = self.assemble_input_tokens(prefix_groups, timestep_groups)
+        input_tokens, pos_enc = self.assemble_input_tokens(
+            prefix_groups, timestep_groups
+        )
 
         # Creates correct attention mask for transformer using group attention rules and masks
         # Shape: (batch, 1, total_tokens, total_tokens)
@@ -178,7 +182,7 @@ class BlockTransformer(nn.Module):
 
         # Run transformer
         output = Transformer(**self.transformer_kwargs)(
-            input_tokens, attention_mask, train=train
+            input_tokens, pos_enc, attention_mask, train=train
         )
 
         # Split output into prefix and timestep groups
@@ -200,29 +204,34 @@ class BlockTransformer(nn.Module):
         Returns:
             tokens: A tensor of shape (batch, total_tokens, token_embedding_size)
         """
-        if len(prefix_groups) > 0:
-            all_prefix_tokens = jnp.concatenate(
-                [group.tokens for group in prefix_groups], axis=1
-            )
-        else:
-            all_prefix_tokens = jnp.zeros(
-                (
-                    timestep_groups[0].tokens.shape[0],
-                    0,
-                    timestep_groups[0].tokens.shape[-1],
-                ),
-                dtype=jnp.float32,
-            )
 
-        all_timestep_tokens = jnp.concatenate(
-            [group.tokens for group in timestep_groups], axis=2
-        )
-        all_timestep_tokens = einops.rearrange(
-            all_timestep_tokens,
-            "batch horizon n_tokens d -> batch (horizon n_tokens) d",
-        )
-        tokens = jnp.concatenate([all_prefix_tokens, all_timestep_tokens], axis=1)
-        return tokens
+        def _assemble_helper(key):
+            if len(prefix_groups) > 0:
+                all_prefix = jnp.concatenate(
+                    [getattr(group, key) for group in prefix_groups], axis=1
+                )
+            else:
+                all_prefix = jnp.zeros(
+                    (
+                        getattr(timestep_groups[0], key).shape[0],
+                        0,
+                        getattr(timestep_groups[0], key).shape[-1],
+                    ),
+                    dtype=jnp.float32,
+                )
+
+            all_timestep = jnp.concatenate(
+                [getattr(group, key) for group in timestep_groups], axis=2
+            )
+            all_timestep = einops.rearrange(
+                all_timestep,
+                "batch horizon n_tokens d -> batch (horizon n_tokens) d",
+            )
+            return jnp.concatenate([all_prefix, all_timestep], axis=1)
+
+        tokens = _assemble_helper("tokens")
+        pos_enc = _assemble_helper("pos_enc")
+        return tokens, pos_enc
 
     def split_output_tokens(
         self,

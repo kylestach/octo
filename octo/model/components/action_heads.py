@@ -82,9 +82,16 @@ def continuous_loss(
 
     mse = jnp.square(pred_value - ground_truth_value)
     mse = masked_mean(mse, mask)
+
+    sign_deltas = jnp.logical_or(
+        jnp.logical_and(ground_truth_value > 0, pred_value <= 0),
+        jnp.logical_and(ground_truth_value <= 0, pred_value > 0),
+    )
+    lsign = masked_mean(sign_deltas, mask)
     return loss, {
         "loss": loss,
         "mse": mse,
+        "lsign": lsign,
     }
 
 
@@ -136,16 +143,22 @@ class ContinuousActionHead(nn.Module, ActionHead):
     """
 
     readout_key: str
-    use_map: bool = False
+    pool_strategy: str = "mean"
     action_horizon: int = 1
     action_dim: int = 7
+    clip_pred: bool = True
     max_action: float = 5.0
     loss_type: str = "mse"
+    num_preds: int = 0
 
     def setup(self):
-        if self.use_map:
+        if self.pool_strategy == "use_map":
             self.map_head = MAPHead()
-        self.mean_proj = nn.Dense(self.action_horizon * self.action_dim)
+
+        num_preds = (
+            self.num_preds if self.num_preds else self.action_horizon * self.action_dim
+        )
+        self.mean_proj = nn.Dense(num_preds)
 
     def __call__(
         self, transformer_outputs: Dict[str, TokenGroup], train: bool = True
@@ -159,17 +172,29 @@ class ContinuousActionHead(nn.Module, ActionHead):
             f"Expected token_group.tokens to have shape (batch_size, window_size, num_tokens, embedding_size), "
             f"but got shape {token_group.tokens.shape}"
         )
-        if self.use_map:  # Multi-head attention pooling
+        if self.pool_strategy == "use_map":  # Multi-head attention pooling
             embeddings = self.map_head(token_group, train=train)[:, :, 0]
-        else:  # mean pooling
+        elif self.pool_strategy == "mean":  # mean pooling
             embeddings = token_group.tokens.mean(axis=-2)
-        # Now, embeddings is (batch_size, window_size, embedding_size)
+        elif self.pool_strategy == "pass":
+            embeddings = token_group.tokens
+        else:
+            raise ValueError(f"{self.pool_strategy} not implemented!")
 
-        mean = self.mean_proj(embeddings)
-        mean = rearrange(
-            mean, "b w (h a) -> b w h a", h=self.action_horizon, a=self.action_dim
-        )
-        mean = jnp.tanh(mean / self.max_action) * self.max_action
+        if len(embeddings.shape) == 3:
+            # Implies embeddings is (batch_size, window_size, embedding_size)
+            mean = self.mean_proj(embeddings)
+            mean = rearrange(
+                mean, "b w (h a) -> b w h a", h=self.action_horizon, a=self.action_dim
+            )
+        else:
+            # Assumes embeddings is (batch_size, window_size, H, embedding_size)
+            assert embeddings.shape[-2] == self.action_horizon
+            mean = self.mean_proj(embeddings)
+
+        if self.clip_pred:
+            mean = jnp.tanh(mean / self.max_action) * self.max_action
+
         return mean
 
     def loss(
@@ -200,10 +225,6 @@ class ContinuousActionHead(nn.Module, ActionHead):
         mask = timestep_pad_mask[:, :, None, None] & action_pad_mask
 
         loss, metrics = continuous_loss(mean, actions, mask, loss_type=self.loss_type)
-        # Sum over action dimension instead of averaging
-        loss = loss * self.action_dim
-        metrics["loss"] = metrics["loss"] * self.action_dim
-        metrics["mse"] = metrics["mse"] * self.action_dim
         return loss, metrics
 
     def predict_action(
