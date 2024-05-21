@@ -83,10 +83,10 @@ def get_config(config_string="64,0,abs_act"):
         log_interval=100,
         eval_interval=1e9,  # disable eval due to bugs
         save_interval=20000,
-        save_dir=placeholder(str),
+        save_dir='gs://multi-robot-bucket2/runs',
         seed=42,
         wandb=dict(
-            project="octo_finetune", group=placeholder(str), entity=placeholder(str)
+            project="octo", group=placeholder(str), entity=placeholder(str)
         ),
         dataset_kwargs=FINETUNING_KWARGS,
         modality=task,
@@ -119,6 +119,7 @@ def get_config(config_string="64,0,abs_act"):
             trajs_for_viz=8,
             samples_per_state=8,
         ),
+        text_processor=None,
     )
 
     if task == "image_conditioned":
