@@ -56,8 +56,15 @@ OXE_DATASET_CONFIGS = {
     # NOTE: this is not actually the official OXE copy of bridge, it is our own more up-to-date copy that you
     # can find at https://rail.eecs.berkeley.edu/datasets/bridge_release/data/tfds/
     "bridge_dataset": {
-        "image_obs_keys": {"primary": "image_0", "secondary": "image_1", "wrist": None},
+        "image_obs_keys": {
+            "primary": "image_0",
+            "high": None,
+            "left_wrist": None,
+            "right_wrist": None,
+        },
         "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
+        "proprio_obs_keys": {"primary": None},
+        "proprio_obs_dims": {"primary": 14},
         "proprio_encoding": ProprioEncoding.POS_EULER,
         "action_encoding": ActionEncoding.EEF_POS,
     },
@@ -540,8 +547,19 @@ OXE_DATASET_CONFIGS = {
         },
     },
     "aloha_pen_uncap_diverse_dataset": {
-        "override_traj_transform_kwargs": {
-            "task_augment_kwargs": {"keep_image_prob": 0.0}
+        "image_obs_keys": {
+            "primary": None,
+            "high": "cam_high",
+            "left_wrist": "cam_left_wrist",
+            "right_wrist": "cam_right_wrist",
         },
-    }
+        "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
+        "proprio_obs_keys": {"primary": "proprio"},
+        "proprio_obs_dims": {"primary": 14},
+        "proprio_encoding": ProprioEncoding.JOINT_BIMANUAL,
+        "action_encoding": ActionEncoding.JOINT_POS_BIMANUAL,
+        # "override_traj_transform_kwargs": {
+        #     "task_augment_kwargs": {"keep_image_prob": 0.0}
+        # },
+    },
 }

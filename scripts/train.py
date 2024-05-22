@@ -222,13 +222,6 @@ def main(_):
             batch["observation"]["timestep_pad_mask"],
             train=train,
         )
-        # action_loss, action_metrics = bound_module.heads["action"].loss(
-        #     transformer_embeddings,  # action head knows to pull out the "action" readout_key
-        #     batch["action"],
-        #     batch["observation"]["timestep_pad_mask"],
-        #     batch["action_pad_mask"],
-        #     train=train,
-        # )
 
         # add multi-head loss support
         action_loss, action_metrics = 0, {}

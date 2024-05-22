@@ -85,3 +85,20 @@ class CLIPTextProcessor(TextProcessor):
             np.arange(inputs["input_ids"].shape[1]), axis=0
         ).repeat(inputs["input_ids"].shape[0], axis=0)
         return inputs
+
+
+class UniversalSentenceEncoder(TextProcessor):
+    def __init__(self):
+        import tensorflow_hub as hub  # lazy import
+        import tensorflow_text  # noqa: F401
+
+        self.sentence_encoder = hub.load(
+            "https://tfhub.dev/google/universal-sentence-encoder-large/5"
+        )
+
+    def encode(self, strings: Sequence[str]):
+        with tf.device("/cpu:0"):
+            if len(strings) == 0:
+                return self.sentence_encoder([""]).numpy()
+            else:
+                return self.sentence_encoder(strings).numpy()

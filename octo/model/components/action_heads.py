@@ -151,6 +151,7 @@ class ContinuousActionHead(nn.Module, ActionHead):
     loss_type: str = "mse"
     num_preds: int = 0
     loss_weight: float = 1.0
+    constrain_loss_dims: bool = False
 
     def setup(self):
         if self.pool_strategy == "use_map":
@@ -221,12 +222,17 @@ class ContinuousActionHead(nn.Module, ActionHead):
             loss: float
             metrics: dict
         """
+        if self.constrain_loss_dims:
+            # when using separate heads we can constrain the loss to the action dimensions and action horizon specific to this head
+            actions = actions[:, :, : self.action_horizon, : self.action_dim]
+            action_pad_mask = action_pad_mask[
+                :, :, : self.action_horizon, : self.action_dim
+            ]
+
         # (batch, window_size, action_horizon, action_dim)
         mean = self(transformer_outputs, train=train)
 
-        # combine the timestep pad mask with the action pad mask
-        # mask = timestep_pad_mask[:, :, None, None] & action_pad_mask
-
+        # combine the timestep pad mask with the action pad mask and the action head mask
         mask = (
             timestep_pad_mask[:, :, None, None]
             & action_pad_mask
@@ -440,6 +446,8 @@ class DiffusionActionHead(nn.Module):
     use_layer_norm: bool = True
     diffusion_steps: int = 20
     n_diffusion_samples: int = 1
+    loss_weight: float = 1.0
+    constrain_loss_dims: bool = False
 
     def setup(self):
         if self.use_map:
@@ -499,6 +507,7 @@ class DiffusionActionHead(nn.Module):
         actions: ArrayLike,
         timestep_pad_mask: ArrayLike,
         action_pad_mask: ArrayLike,
+        action_head_mask: ArrayLike,
         train: bool = True,
     ) -> Tuple[Array, Dict[str, Array]]:
         """Computes the loss for the diffusion objective.
@@ -514,6 +523,13 @@ class DiffusionActionHead(nn.Module):
             loss: float
             metrics: dict
         """
+        if self.constrain_loss_dims:
+            # when using separate heads we can constrain the loss to the action dimensions and action horizon specific to this head
+            actions = actions[:, :, : self.action_horizon, : self.action_dim]
+            action_pad_mask = action_pad_mask[
+                :, :, : self.action_horizon, : self.action_dim
+            ]
+
         batch_size, window_size = timestep_pad_mask.shape
 
         # fold action_dim and action_horizon into one dimension
@@ -541,8 +557,12 @@ class DiffusionActionHead(nn.Module):
             transformer_outputs, train=train, time=time, noisy_actions=noisy_actions
         )
 
-        # combine the timestep pad mask with the action pad mask
-        mask = timestep_pad_mask[:, :, None, None] & action_pad_mask
+        # combine the timestep pad mask with the action pad mask and the action head mask
+        mask = (
+            timestep_pad_mask[:, :, None, None]
+            & action_pad_mask
+            & action_head_mask[:, None, None, None]
+        )
         # flatten the mask to match the flat actions
         mask = rearrange(mask, "b w h a -> b w (h a)")
         # add a dimension to the mask for n_diffusion_samples

@@ -84,10 +84,10 @@ def pprint_data_mixture(
 
 def get_dataset_statistics(
     dataset: dl.DLataset,
+    proprio_keys: list,
     hash_dependencies: Tuple[str, ...],
     save_dir: Optional[str] = None,
     force_recompute: bool = False,
-    skip_proprio_data_stats: bool = False,
 ) -> dict:
     """Either computes the statistics of a dataset or loads them from a cache file if this function has been
     called before with the same `hash_dependencies`. Currently, the statistics include the min/max/mean/std of
@@ -129,12 +129,7 @@ def get_dataset_statistics(
     dataset = dataset.traj_map(
         lambda traj: {
             "action": traj["action"],
-            **(
-                {
-                    key: traj["observation"][key]
-                    for key in fnmatch_filter("proprio_*", traj["observation"].keys())
-                }
-            ),
+            **({key: traj["observation"][key] for key in proprio_keys}),
         }
     )
 
@@ -155,7 +150,6 @@ def get_dataset_statistics(
         total=cardinality if cardinality != tf.data.UNKNOWN_CARDINALITY else None,
     ):
         actions.append(traj["action"])
-        proprio_keys = fnmatch_filter("proprio_*", traj.keys())
         for key in proprio_keys:
             if key not in proprios:
                 proprios[key] = [traj[key]]
@@ -175,7 +169,7 @@ def get_dataset_statistics(
         "num_transitions": num_transitions,
         "num_trajectories": num_trajectories,
     }
-    if proprios and not skip_proprio_data_stats:
+    if proprios:
         for key in proprios:
             proprios[key] = np.concatenate(proprios[key])
             metadata[key] = {
@@ -206,6 +200,7 @@ def normalize_action_and_proprio(
     traj: dict,
     metadata: dict,
     normalization_type: NormalizationType,
+    proprio_keys: list,
     skip_norm_keys: list,
 ):
     """Normalizes the action and proprio fields of a trajectory using the given metadata."""
@@ -213,7 +208,7 @@ def normalize_action_and_proprio(
     keys_to_normalize = {
         "action": "action",
     }
-    for key in fnmatch_filter("proprio_*", traj["observation"].keys()):
+    for key in proprio_keys:
         keys_to_normalize[key] = f"observation/{key}"
     keys_to_normalize = {
         k: v for k, v in keys_to_normalize.items() if k not in skip_norm_keys

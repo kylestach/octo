@@ -40,7 +40,7 @@ def apply_trajectory_transforms(
     max_proprio_dim: Optional[int] = None,
     post_chunk_transforms: Sequence[ModuleSpec] = (),
     num_parallel_calls: int = tf.data.AUTOTUNE,
-    num_action_heads: int = 1,
+    head_to_dataset: Optional[dict] = None,
 ) -> dl.DLataset:
     """Applies common transforms that happen at a trajectory level. Such transforms are usually some sort of
     "relabeling" (e.g. filtering, chunking, adding goals, dropping keys). Transforms that happen in this
@@ -77,7 +77,7 @@ def apply_trajectory_transforms(
         post_chunk_transforms (Sequence[ModuleSpec]): ModuleSpecs of trajectory transforms applied after
             chunking.
         num_parallel_calls (int, optional): number of parallel calls for map operations. Default to AUTOTUNE.
-        num_action_heads (int, optional): If not using the sam head, specify the number of distinct action heads
+        head_to_dataset (dict, optional): Mapping from head name to a list of dataset names that head should be applied to.
     """
     if skip_unlabeled:
         if "language_instruction" not in dataset.element_spec["task"]:
@@ -124,11 +124,11 @@ def apply_trajectory_transforms(
             num_parallel_calls,
         )
 
-        # optionally add head-specific action masks
+        # optionally add head action masks
         dataset = dataset.traj_map(
             partial(
-                traj_transforms.add_head_specific_action_mask,
-                num_action_heads=num_action_heads,
+                traj_transforms.add_head_action_mask,
+                head_to_dataset=head_to_dataset,
             ),
             num_parallel_calls,
         )
@@ -258,6 +258,7 @@ def make_dataset_from_rlds(
     image_obs_keys: Mapping[str, Optional[str]] = {},
     depth_obs_keys: Mapping[str, Optional[str]] = {},
     proprio_obs_keys: Optional[Mapping[str, Optional[str]]] = None,
+    proprio_obs_dims: Optional[Mapping[str, int]] = None,
     language_key: Optional[str] = None,
     action_proprio_normalization_type: NormalizationType = NormalizationType.NORMAL,
     dataset_statistics: Optional[Union[dict, str]] = None,
@@ -369,7 +370,9 @@ def make_dataset_from_rlds(
         if proprio_obs_keys is not None:
             for new, old in proprio_obs_keys.items():
                 if old is None:
-                    new_obs[f"proprio_{new}"] = tf.repeat("", traj_len)  # padding
+                    new_obs[f"proprio_{new}"] = tf.zeros(
+                        (traj_len, proprio_obs_dims[new]), dtype=tf.float32
+                    )  # padding
                 else:
                     new_obs[f"proprio_{new}"] = tf.cast(old_obs[old], tf.float32)
 
@@ -412,25 +415,27 @@ def make_dataset_from_rlds(
             full_dataset = full_dataset.ignore_errors()
         full_dataset = full_dataset.traj_map(restructure).filter(is_nonzero_length)
         # tries to load from cache, otherwise computes on the fly
-        # don't compute dataset_statistics for proprio_obs_keys that are None
 
-        skip_proprio_data_stats = True if np.all([v is None for v in list(proprio_obs_keys.values())]) else False
-
+        non_padding_proprio_keys = (
+            [f"proprio_{k}" for k, v in proprio_obs_keys.items() if v is not None]
+            if proprio_obs_keys is not None
+            else []
+        )
         dataset_statistics = get_dataset_statistics(
             full_dataset,
+            proprio_keys=non_padding_proprio_keys,
             hash_dependencies=(
                 str(builder.info),
-                "".join(proprio_obs_keys.keys())
-                if proprio_obs_keys is not None
-                else "",
-                ModuleSpec.to_string(standardize_fn)
-                if standardize_fn is not None
-                else "",
+                "".join(non_padding_proprio_keys),
+                (
+                    ModuleSpec.to_string(standardize_fn)
+                    if standardize_fn is not None
+                    else ""
+                ),
                 *map(ModuleSpec.to_string, filter_functions),
             ),
             save_dir=builder.data_dir,
             force_recompute=force_recompute_dataset_statistics,
-            skip_proprio_data_stats=skip_proprio_data_stats,
         )
     dataset_statistics = tree_map(np.array, dataset_statistics)
 
@@ -465,11 +470,17 @@ def make_dataset_from_rlds(
     )
 
     if not skip_norm:
+        non_padding_proprio_keys = (
+            [f"proprio_{k}" for k, v in proprio_obs_keys.items() if v is not None]
+            if proprio_obs_keys is not None
+            else []
+        )
         dataset = dataset.traj_map(
             partial(
                 normalize_action_and_proprio,
                 metadata=dataset_statistics,
                 normalization_type=action_proprio_normalization_type,
+                proprio_keys=non_padding_proprio_keys,
                 skip_norm_keys=skip_norm_keys,
             ),
             num_parallel_calls,
