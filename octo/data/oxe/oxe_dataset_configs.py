@@ -539,4 +539,9 @@ OXE_DATASET_CONFIGS = {
             "task_augment_kwargs": {"keep_image_prob": 0.0}
         },
     },
+    "aloha_pen_uncap_diverse_dataset": {
+        "override_traj_transform_kwargs": {
+            "task_augment_kwargs": {"keep_image_prob": 0.0}
+        },
+    }
 }

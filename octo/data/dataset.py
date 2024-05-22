@@ -412,6 +412,10 @@ def make_dataset_from_rlds(
             full_dataset = full_dataset.ignore_errors()
         full_dataset = full_dataset.traj_map(restructure).filter(is_nonzero_length)
         # tries to load from cache, otherwise computes on the fly
+        # don't compute dataset_statistics for proprio_obs_keys that are None
+
+        skip_proprio_data_stats = True if np.all([v is None for v in list(proprio_obs_keys.values())]) else False
+
         dataset_statistics = get_dataset_statistics(
             full_dataset,
             hash_dependencies=(
@@ -426,6 +430,7 @@ def make_dataset_from_rlds(
             ),
             save_dir=builder.data_dir,
             force_recompute=force_recompute_dataset_statistics,
+            skip_proprio_data_stats=skip_proprio_data_stats,
         )
     dataset_statistics = tree_map(np.array, dataset_statistics)
 

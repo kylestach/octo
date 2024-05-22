@@ -2,7 +2,7 @@ from ml_collections import ConfigDict
 from ml_collections.config_dict import FieldReference, placeholder
 
 from octo.data.utils.text_processing import MuseEmbedding
-from octo.model.components.action_heads import L1ActionHead
+from octo.model.components.action_heads import L1ActionHead, DiffusionActionHead
 from octo.model.components.tokenizers import ImageTokenizer, LowdimObsTokenizer
 from octo.model.components.transformer import common_transformer_sizes
 from octo.model.components.vit_encoders import ResNet26FILM
@@ -62,6 +62,7 @@ def get_config(
             model=get_model_config(model, action_horizon),
             window_size=window_size, # changed to 2 for bridge
             dataset_kwargs=get_dataset_config(task_cond, window_size, action_horizon),
+            skip_norm_keys=['proprio_primary'], # skip proprio norm for aloha
 
             # bridge optimizer is just huggingface's, using aloha's for now
             optimizer=dict(
@@ -120,15 +121,15 @@ def get_dataset_config(task_cond, window_size, action_horizon):
     base_aloha_kwargs = dict(
                         data_dir="gs://rail-orca-central2/",
                         image_obs_keys= {"primary": "cam_high", "left_wrist": "cam_left_wrist", "right_wrist": "cam_right_wrist", "wrist": None},
-                        proprio_obs_key="state",
-                        action_normalization_mask=[True] * ADIM,
+                        proprio_obs_keys={"proprio_primary": "state",},
+                        action_normalization_mask=[True] * BIMANUAL_ACTION_DIM,
                         language_key= "language_instruction",
-                        skip_proprio_norm=True,
                     )
 
     base_bridge_kwargs = dict(
-                            data_dir="gs://rail-orca-central2/",
+                            data_dir="gs://rail-orca-central2/resize_256_256/",
                             image_obs_keys={'primary': 'image_0', 'left_wrist': None, 'right_wrist': None, 'wrist': None},
+                            proprio_obs_keys={"proprio_primary": None,}, # no proprio for bridge
                             language_key='language_instruction',
                             standardize_fn=dict(
                                 module='octo.data.oxe.oxe_standardization_transforms',
@@ -162,14 +163,16 @@ def get_dataset_config(task_cond, window_size, action_horizon):
 
 
 def get_augmentation_config(task_cond, window_size, action_horizon):
-    if task_cond == "image":
-        keep_image_prob = 1.0
-    elif task_cond == "lang":
-        keep_image_prob = 0.0
-    elif task_cond == "multi":
-        keep_image_prob = 0.5
-    else:
-        raise ValueError("Invalid modality")
+    # if task_cond == "image":
+    #     keep_image_prob = 1.0
+    # elif task_cond == "lang":
+    #     keep_image_prob = 0.0
+    # elif task_cond == "multi":
+    #     keep_image_prob = 0.5
+    # else:
+    #     raise ValueError("Invalid modality")
+
+    # we manually override keep_image_prob = 0 for aloha in oxe_dataset_configs.py
 
     traj_transform_kwargs = dict(
         window_size=window_size,
@@ -178,10 +181,11 @@ def get_augmentation_config(task_cond, window_size, action_horizon):
         goal_relabeling_strategy="uniform",
         task_augment_strategy="delete_task_conditioning", # this is delete & rephrase for bridge
         task_augment_kwargs=dict(
-            keep_image_prob=keep_image_prob, # right now this is set to 0.0 since aloha is language conditioned
-            # should be 0.5 for bridge
-            # bridge also has rephrase_prob, which aloha doesn't
+            pickle_file_path="gs://rail-orca-central2/resize_256_256/paraphrases_oxe.pkl",
+            rephrase_prob=0.5,
+            keep_image_prob=0.5, #right now this is set to 0.0 since aloha is language conditioned
         ),
+
         # future_action_window_size=3, not set for aloha
         # subsample_length=100, not set for aloha
     )
@@ -291,7 +295,7 @@ def get_model_config(transformer_size, action_horizon):
                task_film_keys=["language_instruction"],
                encoder=encoder,
            ),
-           proprio=ModuleSpec.create(
+           proprio_primary=ModuleSpec.create(
              LowdimObsTokenizer,
              obs_keys=["proprio"],
              dropout_rate=0.2,
@@ -320,7 +324,7 @@ def get_model_config(transformer_size, action_horizon):
                 readout_key="readout_action",
                 use_map=False,
                 action_horizon=4,
-                action_dim=action_dim,
+                action_dim=MANIP_ACTION_DIM,
                 n_diffusion_samples=1,
                 loss_weight=1.0
             )

@@ -87,6 +87,7 @@ def get_dataset_statistics(
     hash_dependencies: Tuple[str, ...],
     save_dir: Optional[str] = None,
     force_recompute: bool = False,
+    skip_proprio_data_stats: bool = False,
 ) -> dict:
     """Either computes the statistics of a dataset or loads them from a cache file if this function has been
     called before with the same `hash_dependencies`. Currently, the statistics include the min/max/mean/std of
@@ -174,7 +175,7 @@ def get_dataset_statistics(
         "num_transitions": num_transitions,
         "num_trajectories": num_trajectories,
     }
-    if proprios:
+    if proprios and not skip_proprio_data_stats:
         for key in proprios:
             proprios[key] = np.concatenate(proprios[key])
             metadata[key] = {
