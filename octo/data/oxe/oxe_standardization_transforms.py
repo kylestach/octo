@@ -23,6 +23,16 @@ from octo.data.utils.data_utils import (
     relabel_actions,
 )
 
+METRIC_WAYPOINT_SPACING = {
+    "cory_hall": 0.06,
+    "go_stanford": 0.12,
+    "recon": 0.25,
+    "sacson": 0.255,
+    "scand": 0.38,
+    "seattle": 0.35,
+    "tartan_drive": 0.72,
+}
+
 
 def bridge_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
     # NOTE: this is not actually the official OXE copy of bridge, it is our own more up-to-date copy that you
@@ -857,40 +867,97 @@ def cmu_stretch_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
     return trajectory
 
 
-def gnm_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
-    def subsampled_traj():
-        # first compute per-dataset scaling factor from first action and first 2 positions
-        scaling_factor = tf.linalg.norm(trajectory["action"][0]) / tf.linalg.norm(
-            trajectory["observation"]["position"][1]
-            - trajectory["observation"]["position"][0]
-        )
-        # subsample trajectory by factor of 3
-        subsample_factor = 3
-        traj = tf.nest.map_structure(lambda x: x[::subsample_factor], trajectory)
-        # recompute actions from position and yaw
-        yaw = traj["observation"]["yaw"]
-        pos = traj["observation"]["position"]
-        rot_mat = tf.convert_to_tensor(
-            [
-                [tf.cos(yaw), -tf.sin(yaw)],
-                [tf.sin(yaw), tf.cos(yaw)],
-            ]
-        )
-        rot_mat = tf.transpose(rot_mat, [3, 2, 0, 1])[0]
-        delta = pos[1:] - pos[:-1]
-        action = tf.matmul(delta[:, None], rot_mat[:-1])[:, 0] * scaling_factor
-        # truncate last element for all other keys
-        traj = tf.nest.map_structure(lambda x: x[:-1], traj)
-        traj["action"] = action
-        return traj
+def omnimimic_gnm_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
+    traj_len = tf.shape(trajectory["action"])[0]
+    action_horizon = 4
 
-    def dummy_traj():
-        return tf.nest.map_structure(lambda x: x[:0], trajectory)
-
-    # we need to filter out trajectories of length 1 in order to compute the scaling factor
-    trajectory = tf.cond(
-        tf.shape(trajectory["action"])[0] > 1, subsampled_traj, dummy_traj
+    # Pad trajectory states
+    padding = tf.tile(trajectory["observation"]["state"][-1:, :], [action_horizon, 1])
+    trajectory["observation"]["state"] = tf.concat(
+        (trajectory["observation"]["state"], padding), axis=0
     )
+
+    # Get next len_seq_pred indices
+    indices = tf.reshape(tf.range(traj_len), [-1, 1]) + tf.range(1, action_horizon + 1)
+    global_waypoints = tf.gather(trajectory["observation"]["state"], indices)[:, :, :2]
+
+    # Get current position indices
+    curr_pos_indices = tf.reshape(tf.range(traj_len), [-1, 1]) + tf.range(
+        0, action_horizon
+    )
+    curr_pos = tf.gather(trajectory["observation"]["state"], curr_pos_indices)[
+        :, :, :2
+    ]  # delta waypoints
+
+    global_waypoints -= curr_pos
+    global_waypoints = tf.expand_dims(global_waypoints, 2)
+    actions = tf.squeeze(
+        tf.linalg.matmul(
+            global_waypoints,
+            tf.expand_dims(trajectory["observation"]["yaw_rotmat"][:, :2, :2], 1),
+        ),
+        2,
+    )
+
+    normalization_factor = 1.0
+    for dataset_name, value in METRIC_WAYPOINT_SPACING.items():
+        if tf.strings.regex_full_match(
+            trajectory["traj_metadata"]["episode_metadata"]["file_path"][0],
+            f".*{dataset_name}.*",
+        ):
+            normalization_factor = value
+    normalization_factor = tf.cast(normalization_factor, tf.float64)
+    actions = actions / normalization_factor
+
+    trajectory["action"] = actions
+
+    trajectory["observation"]["proprio"] = trajectory["observation"]["state"]
+
+    return trajectory
+
+
+def gnm_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
+    traj_len = tf.shape(trajectory["action"])[0]
+    action_horizon = 4
+    # scaling_factor = tf.linalg.norm(trajectory["action"][0]) / tf.maximum(
+    #     tf.linalg.norm(
+    #         trajectory["observation"]["position"][1]
+    #         - trajectory["observation"]["position"][0]
+    #     ),
+    #     1e-8,
+    # )
+
+    # compute rot matrix
+    yaw = trajectory["observation"]["yaw"]
+    rot_mat = tf.convert_to_tensor(
+        [
+            [tf.cos(yaw), -tf.sin(yaw)],
+            [tf.sin(yaw), tf.cos(yaw)],
+        ]
+    )
+    rot_mat = tf.transpose(rot_mat, [3, 2, 0, 1])[0]
+
+    # chunk actions and recompute as relative to the start of the chunk
+    pos = trajectory["observation"]["position"]
+    start = tf.broadcast_to(pos[:, None], [traj_len, action_horizon, 2])
+    end_indices = tf.range(traj_len)[:, None] + tf.range(1, action_horizon + 1)
+    end_indices = tf.minimum(end_indices, traj_len - 1)
+    end = tf.gather(pos, end_indices)
+    delta = end - start
+    action = tf.matmul(delta[:, :, None], rot_mat[:, None])[:, :, 0]  # * scaling_factor
+
+    # get normalization factor
+    normalization_factor = 1.0
+    for dataset_name, value in METRIC_WAYPOINT_SPACING.items():
+        if tf.strings.regex_full_match(
+            trajectory["traj_metadata"]["episode_metadata"]["file_path"][0],
+            f".*{dataset_name}.*",
+        ):
+            normalization_factor = value
+    normalization_factor = tf.cast(normalization_factor, tf.float64)
+    action = action / normalization_factor
+
+    trajectory["action"] = action
 
     trajectory["observation"]["proprio"] = trajectory["observation"]["state"]
 
@@ -1029,7 +1096,7 @@ OXE_STANDARDIZATION_TRANSFORMS = {
     "cmu_playing_with_food": cmu_playing_with_food_dataset_transform,
     "cmu_play_fusion": playfusion_dataset_transform,
     "cmu_stretch": cmu_stretch_dataset_transform,
-    "gnm_dataset": gnm_dataset_transform,
+    "gnm_dataset": omnimimic_gnm_transform,
     "aloha_static_dataset": aloha_dataset_transform,
     "aloha_dagger_dataset": aloha_dataset_transform,
     "aloha_mobile_dataset": aloha_dataset_transform,

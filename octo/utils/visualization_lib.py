@@ -1,6 +1,8 @@
+import io
 import itertools
 
 import matplotlib
+from PIL import Image
 
 matplotlib.use("Agg")
 from dataclasses import dataclass
@@ -16,6 +18,7 @@ import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import numpy as np
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 import tensorflow as tf
 import tqdm
 import wandb
@@ -81,6 +84,7 @@ def run_policy_on_trajectory(policy_fn, traj, *, text_processor=None):
         traj: A dictionary of trajectory data. Should contain "observations", "actions", and "language_instruction" keys.
         text_processor: A function that takes in a batch of text and returns a batch of tokens.
     """
+
     len_traj = len(traj["action"])
 
     tasks = {}
@@ -98,9 +102,12 @@ def run_policy_on_trajectory(policy_fn, traj, *, text_processor=None):
             [len(s.decode("utf-8")) > 0 for s in traj["task"]["language_instruction"]]
         )
 
-    actions = policy_fn(traj["observation"], tasks)
+    actions = policy_fn(
+        traj["observation"], tasks
+    )  # returns (traj_len, n_samples, chunk_len, action_dim)
 
     horizon = jax.tree_util.tree_leaves(traj["observation"])[0].shape[1]
+
     return {
         "n": np.array(len_traj),
         "pred_actions_chunk": actions,
@@ -172,11 +179,14 @@ class Visualizer:
 
         metrics = {}
         for k, (quantity_key, mask_keys) in metric_keys.items():
-            metrics[k] = masked_mean(quantity_key, *mask_keys)
-            for sub_condition_name, sub_condition in sub_conditions.items():
-                metrics[f"{k}_{sub_condition_name}"] = masked_mean(
-                    quantity_key, *mask_keys, *sub_condition
-                )
+            try:
+                metrics[k] = masked_mean(quantity_key, *mask_keys)
+                for sub_condition_name, sub_condition in sub_conditions.items():
+                    metrics[f"{k}_{sub_condition_name}"] = masked_mean(
+                        quantity_key, *mask_keys, *sub_condition
+                    )
+            except:
+                continue
         return metrics
 
     def visualize_for_wandb(
@@ -201,20 +211,29 @@ class Visualizer:
                 traj,
                 text_processor=self.text_processor,
             )
+
             info = add_unnormalized_info(info, self.action_proprio_stats)
-            info = add_manipulation_metrics(info)
 
             if "unnorm_proprio" in info:
                 plotly_fig = plot_trajectory_actions(**info)
                 visualizations[f"traj_{n}"] = plotly_fig
 
+            # uncomment to plot variance in trajectory actions
+            # visualizations[f"traj_{n}_samples"] = plot_policy_samples(
+            #     actions=info["unnorm_actions"],
+            #     pred_actions=info["unnorm_pred_actions"]
+            #     # pred_actions=info["unnorm_pred_actions_chunk"][:, :, :1].squeeze(2),
+            # )
+
+            # not super intuitive
             # plot qualitative action trajectory per dimension w/ and w/o action chunk
-            visualizations[f"traj_{n}_mpl"] = plot_trajectory_overview_mpl(
-                traj, act=info["unnorm_pred_actions_chunk"][:, :, :1], **info
-            )
-            visualizations[f"traj_{n}_mpl_chunk"] = plot_trajectory_overview_mpl(
-                traj, act=info["unnorm_pred_actions_chunk"], **info
-            )
+            # visualizations[f"traj_{n}_mpl"] = plot_trajectory_overview_mpl(
+            #     traj, act=info["unnorm_pred_actions_chunk"][:, :, :1], **info
+            # )
+            # visualizations[f"traj_{n}_mpl_chunk"] = plot_trajectory_overview_mpl(
+            #     traj, act=info["unnorm_pred_actions_chunk"], **info
+            # )
+
             if add_images or not self.visualized_trajs:
                 for key in filter(lambda key: "image" in key, traj["observation"]):
                     images = traj["observation"][key][:, 0]
@@ -251,7 +270,7 @@ class Visualizer:
                 text_processor=self.text_processor,
             )
             info = add_unnormalized_info(info, self.action_proprio_stats)
-            info = add_manipulation_metrics(info)
+            # info = add_manipulation_metrics(info)
             all_traj_info.append(info)
         return all_traj_info
 
@@ -406,6 +425,7 @@ def add_unnormalized_info(
     info,
     normalization_stats,
 ):
+
     info.update(
         {
             "unnorm_pred_actions": unnormalize(
@@ -461,6 +481,140 @@ def add_manipulation_metrics(info):
         multiple_sample_info, single_sample_info
     )
     return flax.core.copy(info, new_metrics)
+
+
+def plot_sampled_trajs(
+    unnorm_pred_actions,
+    unnorm_actions,
+    **kwargs,
+):
+    """Creates a 3D plotly figure of the trajectory and predicted actions."""
+    pred_actions, actions = unnorm_pred_actions, unnorm_actions
+    gt_actions = actions[:, 0, :]
+    traj_len = actions.shape[0]
+    num_samples = pred_actions.shape[1]
+
+    # pred actions has shape (traj_len, num_samples, action_dim)
+    # actions has shape (traj_len, action_dim)
+
+    fig = go.Figure()
+
+    x_acs, y_acs = np.cumsum(gt_actions[:, 0]), np.cumsum(gt_actions[:, 1])
+
+    # limit to four samples to avoid cluttering
+    colors = ["red", "black", "green", "orange"]
+    for i in range(min(num_samples, 4)):
+        x_pred = np.cumsum(pred_actions[:, i, 0])
+        y_pred = np.cumsum(pred_actions[:, i, 1])
+
+        # plot first ten actions of predicted trajectory (to unclutter viz)
+        fig.add_trace(
+            go.Scatter(
+                x=x_pred,
+                y=y_pred,
+                mode="lines+markers",
+                marker=dict(size=2, color=colors[i]),
+                line=dict(color=colors[i], width=2),
+                name="Predicted Trajectory",
+            )
+        )
+
+    # ground truth
+    fig.add_trace(
+        go.Scatter(
+            x=x_acs,
+            y=y_acs,
+            mode="lines+markers",
+            marker=dict(size=4, color="blue"),
+            line=dict(color="blue", width=2),
+            name="Ground Truth",
+        )
+    )
+
+    fig.update_layout(
+        title="Sampled Trajectories vs Ground Truth",
+        scene=dict(xaxis_title="X", yaxis_title="Y"),
+        showlegend=True,
+    )
+
+    # Set the axes to equal aspect ratio
+    fig.update_layout(
+        xaxis=dict(
+            scaleanchor="y",
+            scaleratio=1,
+        ),
+        yaxis=dict(
+            scaleanchor="x",
+            scaleratio=1,
+        ),
+    )
+
+    # Show the plot
+    return fig
+
+
+def plot_traj_actions_obses(unnorm_pred_actions, unnorm_actions, **kwargs):
+    """Creates a 3D plotly figure of the trajectory obses and predicted actions."""
+    # pred actions has shape (traj_len, num_samples, action_dim)
+    # actions has shape (traj_len, chunk_len, action_dim)
+    # we just want the first sample compared to first chunk
+
+    pred_actions, actions = unnorm_pred_actions, unnorm_actions
+    obses = kwargs["obses"][:, 1, :, :]
+
+    stride = len(obses) // 5
+    if stride < 1:
+        stride = 1
+
+    obses = obses[::stride]
+
+    num_obs = len(obses)  # Assuming 'obses' is a list or array-like of observations
+    num_action_dims = pred_actions.shape[-1]
+
+    specs = [
+        [{"type": "image"} for _ in range(num_obs)],
+        [{"colspan": num_obs, "type": "scatter"}] + [None] * (num_obs - 1),
+    ]
+    fig = make_subplots(rows=2, cols=num_obs, specs=specs, horizontal_spacing=0.005)
+
+    # Add observations to the subplot
+    for i in range(num_obs):
+        fig.add_trace(go.Image(z=obses[i]), row=1, col=i + 1)
+
+    # Hide axis labels for the observation visuals
+    for i in range(1, num_obs + 1):
+        fig.update_xaxes(showticklabels=False, row=1, col=i)
+        fig.update_yaxes(showticklabels=False, row=1, col=i)
+
+    # Add line plots for predicted vs. actual actions
+    for i in range(num_action_dims):
+        fig.add_trace(
+            go.Scatter(
+                x=np.arange(num_obs),
+                y=pred_actions[:, 0, i],  # first policy sample
+                mode="lines",
+                name=f"Predicted Actions {i+1}",
+            ),
+            row=2,
+            col=1,
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=np.arange(num_obs),
+                y=actions[:, 0, i],  # first chunk sample
+                mode="lines",
+                name=f"Actual Actions {i+1}",
+            ),
+            row=2,
+            col=1,
+        )
+
+    # Update layout and axis titles for the action comparison plot
+    fig.update_layout(height=400, width=1000)  # Adjust width as needed
+    fig.update_yaxes(title_text="Action Value", row=2, col=1)
+    fig.update_xaxes(title_text="Time Step", row=2, col=1)
+
+    return fig
 
 
 def plot_trajectory_actions(
@@ -551,6 +705,78 @@ class WandBFigure:
         plt.close(self.fig)
 
 
+def plot_policy_samples(
+    actions,
+    pred_actions,
+):
+    action_dim = 2
+    num_samples = 8
+    traj_len = actions.shape[0]
+
+    fig, axs = plt.subplots(1, action_dim * 2, figsize=(24, 12), sharey=True)
+
+    for dim in range(action_dim):
+        axs[dim].plot(actions[:, 0, dim], label="Action", linestyle="-", marker="o")
+
+        sample_vars_per_step = []
+        for step in range(traj_len):
+            # For each step, scatter all samples' predictions
+            x = np.full(
+                (num_samples,), step
+            )  # x-coordinates are the same (vertical line)
+            y = pred_actions[step, :, dim]  # y-coordinates are the predicted actions
+            axs[dim].scatter(
+                x, y, alpha=0.5, label="Policy Samples" if step == 0 else "_nolegend_"
+            )
+            sample_variance = []
+            for sample in range(num_samples):
+                sample_variance.append(
+                    np.abs(pred_actions[step, sample, dim] - actions[step, 0, dim])
+                )
+            sample_variance = sum(sample_variance) / num_samples
+
+            sample_vars_per_step.append(sample_variance)
+
+        axs[dim + 2].plot(
+            sample_vars_per_step,
+            label="sample vars per step",
+            linestyle="-",
+            marker="o",
+        )
+        axs[dim + 2].text(
+            0.5,
+            -0.1,
+            f"avg sample variance across dim {dim} for traj: {np.mean(sample_vars_per_step):.2f}",
+            fontsize=12,
+            transform=axs[dim].transAxes,
+            ha="center",
+        )
+
+        print(f"deviation dim {dim}: {np.mean(sample_vars_per_step)}")
+
+        total_x_devs, num_samples = 0, pred_actions.shape[1]
+        for sample in range(num_samples):
+            total_x_devs += pred_actions[:, sample, dim] - actions[:, 0, dim]
+        total_x_devs /= num_samples
+        dev = sum(total_x_devs) / traj_len
+
+        axs[dim].set_title(f"Action Dimension {dim+1}")
+        axs[dim].set_xlabel("Step in Trajectory")
+        if dim == 0:
+            axs[dim].set_ylabel("Action Value")
+        if dim == action_dim - 1:  # To avoid repeating the legend
+            axs[dim].legend()
+
+    plt.tight_layout()
+    buf = io.BytesIO()  # Create a buffer
+    fig.savefig(buf, format="png")  # Save your figure into the buffer as a PNG
+    buf.seek(0)  # Rewind the buffer to the beginning so it can be read from
+
+    image = Image.open(buf)
+    # Now you can create a wandb.Image from the buffer
+    return wandb.Image(image)
+
+
 def plot_trajectory_overview_mpl(
     traj,
     act,
@@ -563,11 +789,11 @@ def plot_trajectory_overview_mpl(
     gs = gridspec.GridSpec(grid_size, grid_size)
     with wandb_figure as fig:
         ax = fig.add_subplot(gs[0, 0])
-        ax.plot(info["mse"].mean(axis=1))
-        ax.set_ylabel("MSE")
+        # ax.plot(info["mse"].mean(axis=1))
+        # ax.set_ylabel("MSE")
         for i in range(n_act_dims):
             ax = fig.add_subplot(gs[(i + 1) // grid_size, (i + 1) % grid_size])
-            ax.plot(unnorm_actions[:, i], label="action")
+            ax.plot(unnorm_actions[:, :, i], label="action")
             # plot predicted action chunks, act.shape = [time, n_samples, chunk, act_dim]
             chunk_length = act.shape[2]
             for t in range(act.shape[0]):
