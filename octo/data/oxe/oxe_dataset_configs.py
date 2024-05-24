@@ -449,48 +449,6 @@ OXE_DATASET_CONFIGS = {
         "proprio_encoding": ProprioEncoding.POS_NAV,
         "action_encoding": ActionEncoding.NAV_2D,
     },
-    "cory_hall_dataset": {
-        "image_obs_keys": {"primary": "image", "secondary": None, "wrist": None},
-        "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
-        "proprio_encoding": ProprioEncoding.POS_NAV,
-        "action_encoding": ActionEncoding.NAV_2D,
-    },
-    "go_stanford_dataset": {
-        "image_obs_keys": {"primary": "image", "secondary": None, "wrist": None},
-        "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
-        "proprio_encoding": ProprioEncoding.POS_NAV,
-        "action_encoding": ActionEncoding.NAV_2D,
-    },
-    "recon_dataset": {
-        "image_obs_keys": {"primary": "image", "secondary": None, "wrist": None},
-        "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
-        "proprio_encoding": ProprioEncoding.POS_NAV,
-        "action_encoding": ActionEncoding.NAV_2D,
-    },
-    "sacson_dataset": {
-        "image_obs_keys": {"primary": "image", "secondary": None, "wrist": None},
-        "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
-        "proprio_encoding": ProprioEncoding.POS_NAV,
-        "action_encoding": ActionEncoding.NAV_2D,
-    },
-    "scand_dataset": {
-        "image_obs_keys": {"primary": "image", "secondary": None, "wrist": None},
-        "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
-        "proprio_encoding": ProprioEncoding.POS_NAV,
-        "action_encoding": ActionEncoding.NAV_2D,
-    },
-    "seattle_dataset": {
-        "image_obs_keys": {"primary": "image", "secondary": None, "wrist": None},
-        "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
-        "proprio_encoding": ProprioEncoding.POS_NAV,
-        "action_encoding": ActionEncoding.NAV_2D,
-    },
-    "tartan_drive_dataset": {
-        "image_obs_keys": {"primary": "image", "secondary": None, "wrist": None},
-        "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
-        "proprio_encoding": ProprioEncoding.POS_NAV,
-        "action_encoding": ActionEncoding.NAV_2D,
-    },
     "aloha_static_dataset": {
         "image_obs_keys": {
             "primary": "cam_high",
