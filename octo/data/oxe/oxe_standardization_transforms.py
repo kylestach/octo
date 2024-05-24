@@ -1086,5 +1086,4 @@ OXE_STANDARDIZATION_TRANSFORMS = {
     "dobbe": dobbe_dataset_transform,
     "roboset": roboset_dataset_transform,
     "rh20t": rh20t_dataset_transform,
-    "gnm_normalized": gnm_dataset_transform,
 }
