@@ -8,12 +8,9 @@ get_base_config = imp.load_source(
     "config", os.path.join(os.path.dirname(__file__), "config.py")
 ).get_config
 
-# WORKING CONFIG
-
-
 from octo.model.components.action_heads import DiffusionActionHead
 from octo.model.components.tokenizers import ImageTokenizer
-from octo.model.components.vit_encoders import SmallStem16, ViTResnet, vit_encoder_configs
+from octo.model.components.vit_encoders import SmallStem16
 from octo.utils.spec import ModuleSpec
 from typing import Dict, Any
 import tensorflow as tf
@@ -29,21 +26,18 @@ def update_config(config, **kwargs):
 
 
 def get_config(config_string=None):
-
     config = get_base_config(config_string)
 
     action_dim = 2
 
-    config["window_size"] = 5
+    config["window_size"] = 2
     config["num_steps"] = 300000
     config["model"]["observation_tokenizers"] = {
         "primary": ModuleSpec.create(
             ImageTokenizer,
             obs_stack_keys=["image_primary"],
             task_stack_keys=["image_primary"],
-            encoder=ModuleSpec.create(
-                ViTResnet,
-                num_layers=(2, 2, 2, 2)),  #changed from ModuleSpec.create(SmallStem16),
+            encoder=ModuleSpec.create(SmallStem16),
         ),
     }
     config["model"]["repeat_task_tokens"] = True
@@ -52,7 +46,7 @@ def get_config(config_string=None):
         DiffusionActionHead,
         readout_key="readout_action",
         use_map=False,
-        action_horizon=4, # changed from 4 to 1 after removing transform
+        action_horizon=4,
         action_dim=action_dim,
         n_diffusion_samples=1,
     )
@@ -97,29 +91,27 @@ def get_config(config_string=None):
         config,
         dataset_kwargs=dict(
             oxe_kwargs=dict(
-                data_mix="gnm_only_mix",
-                data_dir="gs://gnm_rlds_separate",
+                data_mix=[("gnm_normalized", 1.0)],
+                data_dir="gs://gnm_rlds_normalized",
                 load_camera_views=("primary",),
                 load_depth=False,
-                force_recompute_dataset_statistics=False, # recompute dataset stats now that we're removing transform
+                force_recompute_dataset_statistics=True,
                 filter_functions=[ModuleSpec.create(len_greater_than_one)],
                 # skip_norm=True,
             ),
             traj_transform_kwargs=dict(
-                action_horizon=4, # change action horizon to 1 when removing transform
+                action_horizon=4,
                 max_action_dim=action_dim,
                 goal_relabeling_kwargs=dict(
                     max_goal_distance=15,
                 )
             ),
-            batch_size=256,
+            batch_size=512,
             shuffle_buffer_size=500000,
             balance_weights=True,
         ),
-
         pretrained_loaders=(),
-        # eval_datasets=['sacson_dataset'],
-        eval_datasets=["cory_hall_dataset", "go_stanford_dataset", "recon_dataset", "sacson_dataset", "scand_dataset", "seattle_dataset", "tartan_drive_dataset"],
+        eval_datasets=["gnm_normalized"],
         log_interval=100,
         eval_interval=5000,
         viz_interval=2000000,

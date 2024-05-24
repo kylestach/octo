@@ -97,12 +97,13 @@ def get_config(config_string=None):
         config,
         dataset_kwargs=dict(
             oxe_kwargs=dict(
-                data_mix=[("gnm_dataset", 1.0)],
-                data_dir="gs://multi-robot-bucket1/train_data",
+                data_mix="gnm_only_mix",
+                data_dir="gs://gnm_rlds_separate",
                 load_camera_views=("primary",),
                 load_depth=False,
                 force_recompute_dataset_statistics=True, # recompute dataset stats now that we're removing transform
                 filter_functions=[ModuleSpec.create(len_greater_than_one)],
+
             ),
             traj_transform_kwargs=dict(
                 action_horizon=4, # change action horizon to 1 when removing transform
@@ -118,13 +119,13 @@ def get_config(config_string=None):
 
         pretrained_loaders=(),
         # eval_datasets=['sacson_dataset'],
-        eval_datasets=["gnm_dataset"],
+        eval_datasets=["cory_hall_dataset", "go_stanford_dataset", "recon_dataset", "sacson_dataset", "scand_dataset", "seattle_dataset", "tartan_drive_dataset"],
         log_interval=100,
         eval_interval=5000,
         viz_interval=2000000,
         save_interval=10000,
         skip_norm=True,
-        action_normalization_mask=None,
+        action_normalization_mask=None, # set norm mask to none if you're skipping norm
     )
 
     return config

@@ -973,7 +973,7 @@ def tartan_drive_transform_waypoint_norm(trajectory: Dict[str, Any]) -> Dict[str
     return trajectory
 
 
-def jonathan_gnm_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
+def omnimimic_gnm_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
     traj_len = tf.shape(trajectory["action"])[0]
     action_horizon = 4
 
@@ -1184,7 +1184,7 @@ OXE_STANDARDIZATION_TRANSFORMS = {
     "cmu_playing_with_food": cmu_playing_with_food_dataset_transform,
     "cmu_play_fusion": playfusion_dataset_transform,
     "cmu_stretch": cmu_stretch_dataset_transform,
-    "gnm_dataset": jonathan_gnm_transform,  # gnm_dataset_transform, #jonathan_gnm_transform,
+    "gnm_dataset": omnimimic_gnm_transform,
     "aloha_static_dataset": aloha_dataset_transform,
     "aloha_dagger_dataset": aloha_dataset_transform,
     "aloha_mobile_dataset": aloha_dataset_transform,
