@@ -14,8 +14,6 @@ from octo.model.components.vit_encoders import SmallStem16
 from octo.utils.spec import ModuleSpec
 from experiments.homer.sim.wrappers.mujoco import MujocoManipWrapper
 
-def len_greater_than_one(trajectory: Dict[str, Any]):
-    return tf.shape(trajectory["action"])[0] > 1
 
 def update_config(config, **kwargs):
     updates = ConfigDict(kwargs)
@@ -25,7 +23,6 @@ def update_config(config, **kwargs):
 
 
 def get_config(config_string=None):
-
     config = get_base_config(config_string)
 
     action_dim = FieldReference(7)
@@ -73,7 +70,6 @@ def get_config(config_string=None):
     del config["text_processor"]
     del config["pretrained_loaders"]
     del config["dataset_kwargs"]["traj_transform_kwargs"]["task_augment_kwargs"]
-
 
     config["dataset_kwargs"]["frame_transform_kwargs"]["resize_size"] = {
         "primary": (128, 128),  # workspace camera is at 128x128
