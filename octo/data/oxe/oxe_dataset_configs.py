@@ -58,6 +58,7 @@ OXE_DATASET_CONFIGS = {
     "bridge_dataset": {
         "image_obs_keys": {
             "primary": "image_0",
+            "secondary": None,
             "high": None,
             "left_wrist": None,
             "right_wrist": None,
@@ -67,6 +68,14 @@ OXE_DATASET_CONFIGS = {
         "proprio_obs_dims": {"primary": 14},
         "proprio_encoding": ProprioEncoding.POS_EULER,
         "action_encoding": ActionEncoding.EEF_POS,
+        "override_traj_transform_kwargs": {
+            "task_augment_strategy": "delete_and_rephrase",
+            "task_augment_kwargs": {
+                "pickle_file_path": "gs://rail-orca-central2/resize_256_256/paraphrases_oxe.pkl",
+                "rephrase_prob": 0.5,
+                "keep_image_prob": 0.5,
+            },
+        },
     },
     "taco_play": {
         "image_obs_keys": {
@@ -446,11 +455,16 @@ OXE_DATASET_CONFIGS = {
         "proprio_encoding": ProprioEncoding.POS_EULER,
         "action_encoding": ActionEncoding.EEF_POS,
     },
-    "gnm_dataset": {
-        "image_obs_keys": {"primary": "image", "secondary": None, "wrist": None},
-        "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
+    "omnimimic_gnm_dataset": {
+        "image_obs_keys": {"primary": None, "secondary": "image"},
+        "depth_obs_keys": {"primary": None, "secondary": None},
+        "proprio_obs_keys": {"primary": None},
+        "proprio_obs_dims": {"primary": 14},
         "proprio_encoding": ProprioEncoding.POS_NAV,
         "action_encoding": ActionEncoding.NAV_2D,
+        "override_traj_transform_kwargs": {
+            "goal_relabeling_kwargs": {"max_goal_distance": 15},
+        },
     },
     "aloha_static_dataset": {
         "image_obs_keys": {

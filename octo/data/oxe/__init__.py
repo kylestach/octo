@@ -82,6 +82,11 @@ def make_oxe_dataset_kwargs(
         dataset_kwargs["proprio_obs_keys"] = dataset_kwargs.get(
             "proprio_obs_keys", {"primary": "proprio"}
         )
+    else:
+        if "proprio_obs_keys" in dataset_kwargs:
+            del dataset_kwargs["proprio_obs_keys"]
+        if "proprio_obs_dim" in dataset_kwargs:
+            del dataset_kwargs["proprio_obs_dim"]
     if load_language:
         dataset_kwargs["language_key"] = "language_instruction"
 

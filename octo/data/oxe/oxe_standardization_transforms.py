@@ -916,7 +916,7 @@ def omnimimic_gnm_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
     return trajectory
 
 
-def gnm_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
+def old_gnm_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
     traj_len = tf.shape(trajectory["action"])[0]
     action_horizon = 4
     # scaling_factor = tf.linalg.norm(trajectory["action"][0]) / tf.maximum(
@@ -1096,7 +1096,7 @@ OXE_STANDARDIZATION_TRANSFORMS = {
     "cmu_playing_with_food": cmu_playing_with_food_dataset_transform,
     "cmu_play_fusion": playfusion_dataset_transform,
     "cmu_stretch": cmu_stretch_dataset_transform,
-    "gnm_dataset": omnimimic_gnm_transform,
+    "omnimimic_gnm_dataset": omnimimic_gnm_transform,
     "aloha_static_dataset": aloha_dataset_transform,
     "aloha_dagger_dataset": aloha_dataset_transform,
     "aloha_mobile_dataset": aloha_dataset_transform,

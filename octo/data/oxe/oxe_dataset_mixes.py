@@ -105,7 +105,7 @@ OXE_FLEX_ACT_SOUP = [
     ("utaustin_mutex", 1.0),
     ("berkeley_fanuc_manipulation", 2.0),
     ("cmu_stretch", 1.0),
-    ("gnm_dataset", 1.0),
+    ("omnimimic_gnm_dataset", 1.0),
     ("aloha_static_dataset", 3.0),
     # ("aloha_dagger_dataset", 1.0),
     ("aloha_mobile_dataset", 2.0),
@@ -207,7 +207,7 @@ OXE_FULL_MIX = [
     ("cmu_playing_with_food", 1.0),
     ("cmu_play_fusion", 1.0),
     ("cmu_stretch", 1.0),
-    ("gnm_dataset", 1.0),
+    ("omnimimic_gnm_dataset", 1.0),
 ]
 
 OXE_NAMED_MIXES = {

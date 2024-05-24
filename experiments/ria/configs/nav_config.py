@@ -10,7 +10,6 @@ get_base_config = imp.load_source(
 
 # WORKING CONFIG
 
-
 from octo.model.components.action_heads import DiffusionActionHead
 from octo.model.components.tokenizers import ImageTokenizer
 from octo.model.components.vit_encoders import SmallStem16, ViTResnet, vit_encoder_configs
@@ -100,7 +99,7 @@ def get_config(config_string=None):
         config,
         dataset_kwargs=dict(
             oxe_kwargs=dict(
-                data_mix=[("gnm_dataset", 1.0)],
+                data_mix=[("omnimimic_gnm_dataset", 1.0)],
                 data_dir="gs://multi-robot-bucket1/train_data",
                 load_camera_views=("primary",),
                 load_depth=False,
@@ -120,8 +119,7 @@ def get_config(config_string=None):
         ),
 
         pretrained_loaders=(),
-        # eval_datasets=['sacson_dataset'],
-        eval_datasets=["gnm_dataset"],
+        eval_datasets=["omnimimic_gnm_dataset"],
         log_interval=100,
         eval_interval=5000,
         viz_interval=2000000,
