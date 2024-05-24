@@ -295,7 +295,7 @@ def get_model_config(transformer_size):
                 readout_key="readout_action",
                 use_map=False,
                 action_horizon=4,
-                action_dim=MANIP_ACTION_DIM,
+                action_dim=SINGLE_ARM_ACTION_DIM,
                 n_diffusion_samples=1,
                 loss_weight=1.0,
                 constrain_loss_dims=True
