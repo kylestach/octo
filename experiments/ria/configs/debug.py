@@ -30,7 +30,7 @@ def get_config(config_string=None):
 
     action_dim = 2
 
-    config["window_size"] = 2
+    config["window_size"] = 5 # changed for updated nav runs
     config["num_steps"] = 300000
     config["model"]["observation_tokenizers"] = {
         "primary": ModuleSpec.create(
@@ -40,8 +40,17 @@ def get_config(config_string=None):
             encoder=ModuleSpec.create(SmallStem16),
         ),
     }
+    # config["model"]["task_tokenizers"] = {
+    #     "language": ModuleSpec.create(
+    #         LanguageTokenizer,
+    #         encoder="t5-base",
+    #         finetune_encoder=False,
+    #     ),
+    # }
     config["model"]["repeat_task_tokens"] = True
     config["model"]["readouts"] = {"action": 1}
+
+
     config["model"]["heads"]["action"] = ModuleSpec.create(
         DiffusionActionHead,
         readout_key="readout_action",
@@ -67,18 +76,32 @@ def get_config(config_string=None):
         ],
     )
 
+    # wrist_augment_kwargs = dict(
+    #     random_brightness=[0.1],
+    #     random_contrast=[0.9, 1.1],
+    #     random_saturation=[0.9, 1.1],
+    #     random_hue=[0.05],
+    #     augment_order=[
+    #         "random_brightness",
+    #         "random_contrast",
+    #         "random_saturation",
+    #         "random_hue",
+    #     ],
+    # )
+
     # ML-collections complains if the type of an existing field changes
     # so we delete and re-add the field
 
     del config["dataset_kwargs"]["frame_transform_kwargs"]["resize_size"]
     del config["dataset_kwargs"]["frame_transform_kwargs"]["image_augment_kwargs"]
 
-
     config["dataset_kwargs"]["frame_transform_kwargs"]["resize_size"] = {
         "primary": (256, 256),  # workspace camera is at 256x256
+        # "wrist": (128, 128),  # wrist camera is at 128x128
     }
     config["dataset_kwargs"]["frame_transform_kwargs"]["image_augment_kwargs"] = {
         "primary": primary_augment_kwargs,
+        #  "wrist": wrist_augment_kwargs,
     }
 
     del config["dataset_kwargs"]["oxe_kwargs"]["data_mix"]
@@ -91,27 +114,30 @@ def get_config(config_string=None):
         config,
         dataset_kwargs=dict(
             oxe_kwargs=dict(
-                data_mix=[("gnm_normalized", 1.0)],
-                data_dir="gs://gnm_rlds_normalized",
+                data_mix='gnm_only_mix',#[("gnm_dataset", 1.0)],
+                data_dir="gs://gnm_rlds_separate",
                 load_camera_views=("primary",),
                 load_depth=False,
-                force_recompute_dataset_statistics=True,
-                filter_functions=[ModuleSpec.create(len_greater_than_one)],
-                # skip_norm=True,
+                force_recompute_dataset_statistics=False,
+                filter_functions=[ModuleSpec.create(len_greater_than_one)]
             ),
             traj_transform_kwargs=dict(
                 action_horizon=4,
                 max_action_dim=action_dim,
+                num_action_heads=1,
+                overlap_action_dims=True,
+                # dataset_to_action_idx = {'manip':0, 'nav': 7},
+                regress_pad_loss=False,
                 goal_relabeling_kwargs=dict(
                     max_goal_distance=15,
                 )
             ),
-            batch_size=512,
-            shuffle_buffer_size=500000,
+            batch_size=256, # change from 512 to fit in mem
+            shuffle_buffer_size=500000, # 500000
             balance_weights=True,
         ),
         pretrained_loaders=(),
-        eval_datasets=["gnm_normalized"],
+        eval_datasets=["cory_hall_dataset"],
         log_interval=100,
         eval_interval=5000,
         viz_interval=2000000,
@@ -119,3 +145,5 @@ def get_config(config_string=None):
     )
 
     return config
+
+# currently using bridge without any language annotations or wrist cam data

@@ -11,7 +11,7 @@ TPU23="export TPU_VISIBLE_DEVICES=2,3 TPU_CHIPS_PER_HOST_BOUNDS=1,2,1 TPU_HOST_B
 NAME="working_gnm"
 
 CMD="python scripts/train.py \
-    --config experiments/homer/configs/nav_config.py:vit_s \
+    --config experiments/ria/configs/nav_config.py:vit_s \
     --name $NAME"
 
 $CMD

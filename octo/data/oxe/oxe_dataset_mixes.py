@@ -169,15 +169,6 @@ OXE_FULL_MIX = [
     ("cmu_stretch", 1.0),
     ("gnm_dataset", 1.0),
 ]
-GNM_ONLY_MIX = [
-    ("cory_hall_dataset", 1),
-    ("go_stanford_dataset", 1),
-    ("recon_dataset", 1),
-    ("sacson_dataset", 1),
-    ("scand_dataset", 1),
-    ("seattle_dataset", 1),
-    ("tartan_drive_dataset", 1),
-]
 
 OXE_NAMED_MIXES = {
     "bridge": BRIDGE_MIX,
@@ -185,5 +176,4 @@ OXE_NAMED_MIXES = {
     "rtx_franka": RT_X_MIX + OXE_FRANKA_MIX,
     "oxe_magic_soup": OXE_MAGIC_SOUP,
     "oxe_flex_act_soup": OXE_FLEX_ACT_SOUP,
-    "gnm_only_mix": GNM_ONLY_MIX,
 }
