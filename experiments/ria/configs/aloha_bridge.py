@@ -291,15 +291,26 @@ def get_model_config(transformer_size):
                 constrain_loss_dims=True
             ),
             single_arm=ModuleSpec.create(
-                DiffusionActionHead,
-                readout_key="readout_action",
-                use_map=False,
+                L1ActionHead,
                 action_horizon=4,
                 action_dim=SINGLE_ARM_ACTION_DIM,
-                n_diffusion_samples=1,
+                num_preds=SINGLE_ARM_ACTION_DIM,
+                pool_strategy="pass",
+                readout_key="readout_action",
+                clip_pred=False,
                 loss_weight=1.0,
                 constrain_loss_dims=True
             ),
+            # single_arm=ModuleSpec.create(
+            #     DiffusionActionHead,
+            #     action_horizon=4,
+            #     action_dim=SINGLE_ARM_ACTION_DIM,
+            #     readout_key="readout_action",
+            #     use_map=False,
+            #     n_diffusion_samples=1,
+            #     loss_weight=1.0,
+            #     constrain_loss_dims=True
+            # ),
         ),
         use_correct_attention=True,
         repeat_task_tokens=True,
