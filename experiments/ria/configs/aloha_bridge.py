@@ -294,8 +294,6 @@ def get_model_config(transformer_size):
                 L1ActionHead,
                 action_horizon=4,
                 action_dim=SINGLE_ARM_ACTION_DIM,
-                num_preds=SINGLE_ARM_ACTION_DIM,
-                pool_strategy="pass",
                 readout_key="readout_action",
                 clip_pred=False,
                 loss_weight=1.0,
