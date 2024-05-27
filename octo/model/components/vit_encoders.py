@@ -278,6 +278,10 @@ class ResNet26FILM(ViTResnet):
     num_layers: tuple = (2, 2, 2, 2)
 
 
+class ResNet26(ViTResnet):
+    num_layers: tuple = (2, 2, 2, 2)
+
+
 vit_encoder_configs = {
     "patchify-32-film": ft.partial(
         PatchEncoder,

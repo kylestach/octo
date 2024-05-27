@@ -5,7 +5,7 @@ from octo.data.utils.text_processing import UniversalSentenceEncoder
 from octo.model.components.action_heads import MSEActionHead
 from octo.model.components.tokenizers import ImageTokenizer, LowdimObsTokenizer
 from octo.model.components.transformer import common_transformer_sizes
-from octo.model.components.vit_encoders import ResNet26FILM
+from octo.model.components.vit_encoders import ResNet26, ResNet26FILM
 from octo.utils.spec import ModuleSpec
 
 import octo, os, sys, functools
@@ -258,8 +258,8 @@ def get_model_config(transformer_size):
                 ImageTokenizer,
                 obs_stack_keys=["image_nav"],
                 task_stack_keys=["image_nav"],
-                task_film_keys=["language_instruction"],
-                encoder=encoder,
+                task_film_keys=[],
+                encoder=ModuleSpec.create(ResNet26),
             ),
             high=ModuleSpec.create(
                 ImageTokenizer,

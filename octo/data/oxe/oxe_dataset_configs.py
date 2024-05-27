@@ -462,6 +462,7 @@ OXE_DATASET_CONFIGS = {
         "action_encoding": ActionEncoding.NAV_2D,
         "override_traj_transform_kwargs": {
             "goal_relabeling_kwargs": {"max_goal_distance": 15},
+            "task_augment_kwargs": {"keep_image_prob": 1.0},
         },
     },
     "aloha_dagger_dataset": {
