@@ -169,7 +169,7 @@ class OctoModel:
 
     @partial(
         jax.jit,
-        static_argnames=("train", "sample_shape", "argmax"),
+        static_argnames=("train", "sample_shape", "argmax", "head_name"),
     )
     def sample_actions(
         self,
@@ -183,6 +183,7 @@ class OctoModel:
         sample_shape: Tuple[int, ...] = (),
         rng: Optional[PRNGKey] = None,
         temperature: float = 1.0,
+        head_name: str = "action",
     ):
         """Samples actions from the model. See `action_heads.py` for more info.
 
@@ -205,7 +206,7 @@ class OctoModel:
             observations, tasks, timestep_pad_mask, train=train
         )
         action_head: ActionHead = self.module.bind({"params": self.params}).heads[
-            "action"
+            head_name
         ]
         action = action_head.predict_action(
             transformer_outputs,
@@ -279,10 +280,18 @@ class OctoModel:
             config = json.load(f)
 
         # shim to support old configs
-        if "pred_horizon" in config["model"]["heads"]["action"]["kwargs"]:
+        if (
+            "action" in config["model"]
+            and "pred_horizon" in config["model"]["heads"]["action"]["kwargs"]
+        ):
             config["model"]["heads"]["action"]["kwargs"]["action_horizon"] = config[
                 "model"
             ]["heads"]["action"]["kwargs"].pop("pred_horizon")
+
+        # shim to support old configs
+        if "add_position_embedding" in config["model"]["transformer_kwargs"]:
+            assert not config["model"]["transformer_kwargs"]["add_position_embedding"]
+            del config["model"]["transformer_kwargs"]["add_position_embedding"]
 
         # load example batch
         with tf.io.gfile.GFile(
