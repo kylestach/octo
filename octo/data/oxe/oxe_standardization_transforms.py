@@ -869,7 +869,7 @@ def cmu_stretch_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
 
 def omnimimic_gnm_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
     traj_len = tf.shape(trajectory["action"])[0]
-    action_horizon = 4
+    action_horizon = 100
 
     # Pad trajectory states
     padding = tf.tile(trajectory["observation"]["state"][-1:, :], [action_horizon, 1])
@@ -919,13 +919,6 @@ def omnimimic_gnm_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
 def old_gnm_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
     traj_len = tf.shape(trajectory["action"])[0]
     action_horizon = 4
-    # scaling_factor = tf.linalg.norm(trajectory["action"][0]) / tf.maximum(
-    #     tf.linalg.norm(
-    #         trajectory["observation"]["position"][1]
-    #         - trajectory["observation"]["position"][0]
-    #     ),
-    #     1e-8,
-    # )
 
     # compute rot matrix
     yaw = trajectory["observation"]["yaw"]
@@ -1045,6 +1038,12 @@ def aloha_pen_uncap_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, A
     return trajectory
 
 
+def aloha_dough_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
+    trajectory["language_instruction"] = trajectory["global_instruction"]
+    trajectory["observation"]["proprio"] = trajectory["observation"]["state"]
+    return trajectory
+
+
 OXE_STANDARDIZATION_TRANSFORMS = {
     "bridge_dataset": bridge_dataset_transform,
     "fractal20220817_data": rt1_dataset_transform,
@@ -1097,7 +1096,6 @@ OXE_STANDARDIZATION_TRANSFORMS = {
     "cmu_play_fusion": playfusion_dataset_transform,
     "cmu_stretch": cmu_stretch_dataset_transform,
     "omnimimic_gnm_dataset": omnimimic_gnm_transform,
-    "aloha_static_dataset": aloha_dataset_transform,
     "aloha_dagger_dataset": aloha_dataset_transform,
     "aloha_mobile_dataset": aloha_dataset_transform,
     "fmb_dataset": fmb_dataset_transform,
@@ -1107,4 +1105,10 @@ OXE_STANDARDIZATION_TRANSFORMS = {
     "mujoco_manip": mujoco_manip_dataset_transform,
     "go1": go1_dataset_transform,
     "aloha_pen_uncap_diverse_dataset": aloha_pen_uncap_dataset_transform,
+    "aloha_dough_cut_dataset": aloha_dough_dataset_transform,
+    "aloha_lucy_dataset": aloha_dough_dataset_transform,
+    "aloha_drawer_dataset": aloha_dough_dataset_transform,
+    "aloha_pick_place_dataset": aloha_dough_dataset_transform,
+    "aloha_static_dataset": aloha_dough_dataset_transform,
+    "aloha_sushi_cut_full_dataset": aloha_dough_dataset_transform,
 }

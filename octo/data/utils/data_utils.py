@@ -109,6 +109,8 @@ def get_dataset_statistics(
     )
 
     if save_dir is not None:
+        # temp fix, uncomment for big pod training
+        # path = tf.io.gfile.glob(tf.io.gfile.join(save_dir, "dataset_statistics*.json"))[0]
         path = tf.io.gfile.join(save_dir, f"dataset_statistics_{unique_hash}.json")
     else:
         path = local_path

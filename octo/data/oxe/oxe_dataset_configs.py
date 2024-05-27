@@ -58,24 +58,16 @@ OXE_DATASET_CONFIGS = {
     "bridge_dataset": {
         "image_obs_keys": {
             "primary": "image_0",
-            "secondary": None,
+            "nav": None,
             "high": None,
             "left_wrist": None,
             "right_wrist": None,
         },
         "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
-        "proprio_obs_keys": {"primary": None},
-        "proprio_obs_dims": {"primary": 14},
+        "proprio_obs_keys": {"bimanual": None, "quadruped": None},
+        "proprio_obs_dims": {"bimanual": 14, "quadruped": 59},
         "proprio_encoding": ProprioEncoding.POS_EULER,
         "action_encoding": ActionEncoding.EEF_POS,
-        "override_traj_transform_kwargs": {
-            "task_augment_strategy": "delete_and_rephrase",
-            "task_augment_kwargs": {
-                "pickle_file_path": "gs://rail-orca-central2/resize_256_256/paraphrases_oxe.pkl",
-                "rephrase_prob": 0.5,
-                "keep_image_prob": 0.5,
-            },
-        },
     },
     "taco_play": {
         "image_obs_keys": {
@@ -456,25 +448,21 @@ OXE_DATASET_CONFIGS = {
         "action_encoding": ActionEncoding.EEF_POS,
     },
     "omnimimic_gnm_dataset": {
-        "image_obs_keys": {"primary": None, "secondary": "image"},
+        "image_obs_keys": {
+            "primary": None,
+            "nav": "image",
+            "high": None,
+            "left_wrist": None,
+            "right_wrist": None,
+        },
         "depth_obs_keys": {"primary": None, "secondary": None},
-        "proprio_obs_keys": {"primary": None},
-        "proprio_obs_dims": {"primary": 14},
+        "proprio_obs_keys": {"bimanual": None, "quadruped": None},
+        "proprio_obs_dims": {"bimanual": 14, "quadruped": 59},
         "proprio_encoding": ProprioEncoding.POS_NAV,
         "action_encoding": ActionEncoding.NAV_2D,
         "override_traj_transform_kwargs": {
             "goal_relabeling_kwargs": {"max_goal_distance": 15},
         },
-    },
-    "aloha_static_dataset": {
-        "image_obs_keys": {
-            "primary": "cam_high",
-            "secondary": "cam_low",
-            "wrist": "cam_right_wrist",
-        },
-        "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
-        "proprio_encoding": ProprioEncoding.JOINT_BIMANUAL,
-        "action_encoding": ActionEncoding.JOINT_POS_BIMANUAL,
     },
     "aloha_dagger_dataset": {
         "image_obs_keys": {
@@ -549,11 +537,14 @@ OXE_DATASET_CONFIGS = {
     "go1": {
         "image_obs_keys": {
             "primary": None,
-            "secondary": None,
-            "wrist": None,
+            "nav": None,
+            "high": None,
+            "left_wrist": None,
+            "right_wrist": None,
         },
         "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
-        "proprio_obs_keys": {"primary": "proprio"},
+        "proprio_obs_keys": {"bimanual": None, "quadruped": "proprio"},
+        "proprio_obs_dims": {"bimanual": 14, "quadruped": 59},
         "proprio_encoding": ProprioEncoding.QUADRUPED,
         "action_encoding": ActionEncoding.QUADRUPED,
         "override_traj_transform_kwargs": {
@@ -563,17 +554,99 @@ OXE_DATASET_CONFIGS = {
     "aloha_pen_uncap_diverse_dataset": {
         "image_obs_keys": {
             "primary": None,
+            "nav": None,
             "high": "cam_high",
             "left_wrist": "cam_left_wrist",
             "right_wrist": "cam_right_wrist",
         },
         "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
-        "proprio_obs_keys": {"primary": "proprio"},
-        "proprio_obs_dims": {"primary": 14},
+        "proprio_obs_keys": {"bimanual": "proprio", "quadruped": None},
+        "proprio_obs_dims": {"bimanual": 14, "quadruped": 59},
         "proprio_encoding": ProprioEncoding.JOINT_BIMANUAL,
         "action_encoding": ActionEncoding.JOINT_POS_BIMANUAL,
-        # "override_traj_transform_kwargs": {
-        #     "task_augment_kwargs": {"keep_image_prob": 0.0}
-        # },
+    },
+    "aloha_dough_cut_dataset": {
+        "image_obs_keys": {
+            "primary": None,
+            "nav": None,
+            "high": "cam_high",
+            "left_wrist": "cam_left_wrist",
+            "right_wrist": "cam_right_wrist",
+        },
+        "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
+        "proprio_obs_keys": {"bimanual": "proprio", "quadruped": None},
+        "proprio_obs_dims": {"bimanual": 14, "quadruped": 59},
+        "proprio_encoding": ProprioEncoding.JOINT_BIMANUAL,
+        "action_encoding": ActionEncoding.JOINT_POS_BIMANUAL,
+    },
+    "aloha_lucy_dataset": {
+        "image_obs_keys": {
+            "primary": None,
+            "nav": None,
+            "high": "cam_high",
+            "left_wrist": "cam_left_wrist",
+            "right_wrist": "cam_right_wrist",
+        },
+        "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
+        "proprio_obs_keys": {"bimanual": "proprio", "quadruped": None},
+        "proprio_obs_dims": {"bimanual": 14, "quadruped": 59},
+        "proprio_encoding": ProprioEncoding.JOINT_BIMANUAL,
+        "action_encoding": ActionEncoding.JOINT_POS_BIMANUAL,
+    },
+    "aloha_drawer_dataset": {
+        "image_obs_keys": {
+            "primary": None,
+            "nav": None,
+            "high": "cam_high",
+            "left_wrist": "cam_left_wrist",
+            "right_wrist": "cam_right_wrist",
+        },
+        "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
+        "proprio_obs_keys": {"bimanual": "proprio", "quadruped": None},
+        "proprio_obs_dims": {"bimanual": 14, "quadruped": 59},
+        "proprio_encoding": ProprioEncoding.JOINT_BIMANUAL,
+        "action_encoding": ActionEncoding.JOINT_POS_BIMANUAL,
+    },
+    "aloha_pick_place_dataset": {
+        "image_obs_keys": {
+            "primary": None,
+            "nav": None,
+            "high": "cam_high",
+            "left_wrist": "cam_left_wrist",
+            "right_wrist": "cam_right_wrist",
+        },
+        "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
+        "proprio_obs_keys": {"bimanual": "proprio", "quadruped": None},
+        "proprio_obs_dims": {"bimanual": 14, "quadruped": 59},
+        "proprio_encoding": ProprioEncoding.JOINT_BIMANUAL,
+        "action_encoding": ActionEncoding.JOINT_POS_BIMANUAL,
+    },
+    "aloha_static_dataset": {
+        "image_obs_keys": {
+            "primary": None,
+            "nav": None,
+            "high": "cam_high",
+            "left_wrist": "cam_left_wrist",
+            "right_wrist": "cam_right_wrist",
+        },
+        "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
+        "proprio_obs_keys": {"bimanual": "proprio", "quadruped": None},
+        "proprio_obs_dims": {"bimanual": 14, "quadruped": 59},
+        "proprio_encoding": ProprioEncoding.JOINT_BIMANUAL,
+        "action_encoding": ActionEncoding.JOINT_POS_BIMANUAL,
+    },
+    "aloha_sushi_cut_full_dataset": {
+        "image_obs_keys": {
+            "primary": None,
+            "nav": None,
+            "high": "cam_high",
+            "left_wrist": "cam_left_wrist",
+            "right_wrist": "cam_right_wrist",
+        },
+        "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
+        "proprio_obs_keys": {"bimanual": "proprio", "quadruped": None},
+        "proprio_obs_dims": {"bimanual": 14, "quadruped": 59},
+        "proprio_encoding": ProprioEncoding.JOINT_BIMANUAL,
+        "action_encoding": ActionEncoding.JOINT_POS_BIMANUAL,
     },
 }

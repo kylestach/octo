@@ -210,6 +210,19 @@ OXE_FULL_MIX = [
     ("omnimimic_gnm_dataset", 1.0),
 ]
 
+CROSS_EMBODIMENT_TARGET = [
+    ("aloha_pen_uncap_diverse_dataset", 1 / 7),
+    ("aloha_dough_cut_dataset", 1 / 7),
+    ("aloha_lucy_dataset", 1 / 7),
+    ("aloha_drawer_dataset", 1 / 7),
+    ("aloha_pick_place_dataset", 1 / 7),
+    ("aloha_static_dataset", 1 / 7),
+    ("aloha_sushi_cut_full_dataset", 1 / 7),
+    ("bridge_dataset", 1.0),
+    ("go1", 1.0),
+    ("omnimimic_gnm_dataset", 1.0),
+]
+
 OXE_NAMED_MIXES = {
     "bridge": BRIDGE_MIX,
     "rtx": RT_X_MIX,
@@ -217,4 +230,5 @@ OXE_NAMED_MIXES = {
     "oxe_magic_soup": OXE_MAGIC_SOUP,
     "oxe_expanded_soup": OXE_EXPANDED_SOUP,
     "oxe_flex_act_soup": OXE_FLEX_ACT_SOUP,
+    "cross_embodiment_target": CROSS_EMBODIMENT_TARGET,
 }

@@ -404,15 +404,11 @@ class DiscreteActionHead(nn.Module, ActionHead):
 
 
 class MSEActionHead(ContinuousActionHead):
-    max_action: float = 5.0
     loss_type: str = "mse"
-    use_map: bool = True
 
 
 class L1ActionHead(ContinuousActionHead):
-    max_action: float = 5.0
     loss_type: str = "l1"
-    use_map: bool = True
 
 
 class TokenPerDimActionHead(DiscreteActionHead):
