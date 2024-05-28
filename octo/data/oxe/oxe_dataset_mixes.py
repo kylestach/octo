@@ -211,13 +211,13 @@ OXE_FULL_MIX = [
 ]
 
 CROSS_EMBODIMENT_TARGET = [
-    ("aloha_pen_uncap_diverse_dataset", 1 / 7),
-    ("aloha_dough_cut_dataset", 1 / 7),
-    ("aloha_lucy_dataset", 1 / 7),
-    ("aloha_drawer_dataset", 1 / 7),
-    ("aloha_pick_place_dataset", 1 / 7),
-    ("aloha_static_dataset", 1 / 7),
-    ("aloha_sushi_cut_full_dataset", 1 / 7),
+    ("aloha_pen_uncap_diverse_dataset", 1 / 2),
+    ("aloha_dough_cut_dataset", 1 / 12),
+    ("aloha_lucy_dataset", 1 / 12),
+    ("aloha_drawer_dataset", 1 / 12),
+    ("aloha_pick_place_dataset", 1 / 12),
+    ("aloha_static_dataset", 1 / 12),
+    ("aloha_sushi_cut_full_dataset", 1 / 12),
     ("bridge_dataset", 1.0),
     ("go1", 1.0),
     ("omnimimic_gnm_dataset", 1.0),

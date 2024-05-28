@@ -68,6 +68,7 @@ OXE_DATASET_CONFIGS = {
         "proprio_obs_dims": {"bimanual": 14, "quadruped": 59},
         "proprio_encoding": ProprioEncoding.POS_EULER,
         "action_encoding": ActionEncoding.EEF_POS,
+        "override_traj_transform_kwargs": {"override_window_size": 2},
     },
     "taco_play": {
         "image_obs_keys": {
@@ -565,6 +566,7 @@ OXE_DATASET_CONFIGS = {
         "proprio_obs_dims": {"bimanual": 14, "quadruped": 59},
         "proprio_encoding": ProprioEncoding.JOINT_BIMANUAL,
         "action_encoding": ActionEncoding.JOINT_POS_BIMANUAL,
+        "override_traj_transform_kwargs": {"override_window_size": 1},
     },
     "aloha_dough_cut_dataset": {
         "image_obs_keys": {
@@ -579,6 +581,7 @@ OXE_DATASET_CONFIGS = {
         "proprio_obs_dims": {"bimanual": 14, "quadruped": 59},
         "proprio_encoding": ProprioEncoding.JOINT_BIMANUAL,
         "action_encoding": ActionEncoding.JOINT_POS_BIMANUAL,
+        "override_traj_transform_kwargs": {"override_window_size": 1},
     },
     "aloha_lucy_dataset": {
         "image_obs_keys": {
@@ -593,6 +596,7 @@ OXE_DATASET_CONFIGS = {
         "proprio_obs_dims": {"bimanual": 14, "quadruped": 59},
         "proprio_encoding": ProprioEncoding.JOINT_BIMANUAL,
         "action_encoding": ActionEncoding.JOINT_POS_BIMANUAL,
+        "override_traj_transform_kwargs": {"override_window_size": 1},
     },
     "aloha_drawer_dataset": {
         "image_obs_keys": {
@@ -607,6 +611,7 @@ OXE_DATASET_CONFIGS = {
         "proprio_obs_dims": {"bimanual": 14, "quadruped": 59},
         "proprio_encoding": ProprioEncoding.JOINT_BIMANUAL,
         "action_encoding": ActionEncoding.JOINT_POS_BIMANUAL,
+        "override_traj_transform_kwargs": {"override_window_size": 1},
     },
     "aloha_pick_place_dataset": {
         "image_obs_keys": {
@@ -621,6 +626,7 @@ OXE_DATASET_CONFIGS = {
         "proprio_obs_dims": {"bimanual": 14, "quadruped": 59},
         "proprio_encoding": ProprioEncoding.JOINT_BIMANUAL,
         "action_encoding": ActionEncoding.JOINT_POS_BIMANUAL,
+        "override_traj_transform_kwargs": {"override_window_size": 1},
     },
     "aloha_static_dataset": {
         "image_obs_keys": {
@@ -635,6 +641,7 @@ OXE_DATASET_CONFIGS = {
         "proprio_obs_dims": {"bimanual": 14, "quadruped": 59},
         "proprio_encoding": ProprioEncoding.JOINT_BIMANUAL,
         "action_encoding": ActionEncoding.JOINT_POS_BIMANUAL,
+        "override_traj_transform_kwargs": {"override_window_size": 1},
     },
     "aloha_sushi_cut_full_dataset": {
         "image_obs_keys": {
@@ -649,5 +656,6 @@ OXE_DATASET_CONFIGS = {
         "proprio_obs_dims": {"bimanual": 14, "quadruped": 59},
         "proprio_encoding": ProprioEncoding.JOINT_BIMANUAL,
         "action_encoding": ActionEncoding.JOINT_POS_BIMANUAL,
+        "override_traj_transform_kwargs": {"override_window_size": 1},
     },
 }

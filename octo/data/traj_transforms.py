@@ -3,6 +3,7 @@ Contains trajectory transforms used in the octo data pipeline. Trajectory transf
 that represents a single trajectory, meaning each tensor has the same leading dimension (the trajectory
 length).
 """
+
 from typing import Optional
 
 import tensorflow as tf
@@ -12,6 +13,7 @@ def chunk_act_obs(
     traj: dict,
     window_size: int = 1,
     action_horizon: int = 1,
+    override_window_size: Optional[int] = None,
 ) -> dict:
     """Chunks actions and observations.
 
@@ -36,6 +38,13 @@ def chunk_act_obs(
     )  # [traj_len, window_size]
     # indicates which observations at the beginning of the trajectory are padding
     timestep_pad_mask = history_indices >= 0
+    # optinally override window size with dataset specfific window size
+    if override_window_size is not None:
+        timestep_pad_mask = tf.where(
+            tf.range(window_size) >= window_size - override_window_size,
+            timestep_pad_mask,
+            False,
+        )
     # repeat the first observation at the beginning of the trajectory rather than going out of bounds
     history_indices = tf.maximum(history_indices, 0)
     # gather
@@ -89,9 +98,11 @@ def chunk_act_obs(
     # broadcast "action_pad_mask" to the new chunked shape, and mark actions past the goal timestep as padding
     traj["action_pad_mask"] = tf.logical_and(
         # [traj_len, 1, 1, action_dim]
-        traj["action_pad_mask"][:, None, None, :]
-        if len(traj["action_pad_mask"].shape) == 2
-        else traj["action_pad_mask"][:, None, :],
+        (
+            traj["action_pad_mask"][:, None, None, :]
+            if len(traj["action_pad_mask"].shape) == 2
+            else traj["action_pad_mask"][:, None, :]
+        ),
         # [traj_len, window_size, action_horizon, 1]
         tf.logical_not(traj["observation"]["task_completed"])[:, :, :, None],
     )

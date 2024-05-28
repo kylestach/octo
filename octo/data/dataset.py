@@ -29,6 +29,7 @@ def apply_trajectory_transforms(
     goal_relabeling_strategy: Optional[str] = None,
     goal_relabeling_kwargs: dict = {},
     window_size: int = 1,
+    override_window_size: Optional[int] = None,
     action_horizon: int = 1,
     subsample_length: Optional[int] = None,
     skip_unlabeled: bool = False,
@@ -150,6 +151,7 @@ def apply_trajectory_transforms(
             traj_transforms.chunk_act_obs,
             window_size=window_size,
             action_horizon=action_horizon,
+            override_window_size=override_window_size,
         ),
         num_parallel_calls,
     )

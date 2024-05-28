@@ -154,6 +154,7 @@ def get_policy_sampled_actions(
     rng,
     unnormalization_statistics=None,
     policy_mode=None,
+    head_name="action",
 ):
     if policy_mode == "text_conditioned":
         tasks = remove_images(tasks)
@@ -170,6 +171,7 @@ def get_policy_sampled_actions(
         argmax=False,
         sample_shape=(samples_per_state,),
         rng=rng,
+        head_name=head_name,
     )
 
     # viz expects (batch_size, n_samples, action_dim)

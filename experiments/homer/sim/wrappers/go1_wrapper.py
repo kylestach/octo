@@ -13,10 +13,9 @@ class Go1Wrapper(gym.Wrapper):
         return "walk"
 
     def process_obs(self, proprio):
-        obs = {"proprio_primary": proprio}
+        obs = {"proprio_quadruped": proprio}
         # return image just for rendering
-        obs["image_primary"] = self.env.render()
-        # TODO: prevent model from attending to this image if co-training with datasets that have images
+        obs["image_video"] = self.env.render()
         return obs
 
     def step(self, action):

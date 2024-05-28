@@ -2,7 +2,7 @@ from ml_collections import ConfigDict
 from ml_collections.config_dict import FieldReference, placeholder
 
 from octo.data.utils.text_processing import UniversalSentenceEncoder
-from octo.model.components.action_heads import MSEActionHead
+from octo.model.components.action_heads import L1ActionHead
 from octo.model.components.tokenizers import ImageTokenizer, LowdimObsTokenizer
 from octo.model.components.transformer import common_transformer_sizes
 from octo.model.components.vit_encoders import ResNet26, ResNet26FILM
@@ -79,7 +79,6 @@ def get_config():
             model=get_model_config("detr"),
             window_size=window_size,
             dataset_kwargs=get_dataset_config("multi", window_size, 100),
-            skip_norm_keys=["proprio_bimanual", "proprio_quadruped"],
             optimizer=dict(
                 learning_rate=dict(
                     name="rsqrt",
@@ -174,6 +173,7 @@ def get_augmentation_config(task_cond, window_size, action_horizon):
         goal_relabeling_strategy="uniform",
         task_augment_strategy="delete_and_rephrase",
         task_augment_kwargs=dict(
+            # pickle_file_path="gs://rail-orca-central2/resize_256_256/paraphrases_oxe.pkl",
             pickle_file_path="gs://rail-datasets-europe-west4/oxe/resize_256_256/paraphrases_oxe.pkl",
             rephrase_prob=0.5,
             keep_image_prob=keep_image_prob,
@@ -296,41 +296,45 @@ def get_model_config(transformer_size):
         task_tokenizers=dict(),
         heads=dict(
             bimanual=ModuleSpec.create(
-                MSEActionHead,
+                L1ActionHead,
                 action_horizon=100,
                 action_dim=BIMANUAL_ACTION_DIM,
-                pool_strategy="use_map",
-                readout_key="readout_action",
+                num_preds=BIMANUAL_ACTION_DIM,
+                pool_strategy="pass",
+                readout_key="readout_bimanual",
                 clip_pred=False,
                 loss_weight=1.0,
                 constrain_loss_dims=True
             ),
             single_arm=ModuleSpec.create(
-                MSEActionHead,
+                L1ActionHead,
                 action_horizon=4,
                 action_dim=SINGLE_ARM_ACTION_DIM,
-                pool_strategy="use_map",
-                readout_key="readout_action",
+                num_preds=SINGLE_ARM_ACTION_DIM,
+                pool_strategy="pass",
+                readout_key="readout_single_arm",
                 clip_pred=False,
                 loss_weight=1.0,
                 constrain_loss_dims=True
             ),
             nav=ModuleSpec.create(
-                MSEActionHead,
+                L1ActionHead,
                 action_horizon=4,
                 action_dim=NAV_ACTION_DIM,
-                pool_strategy="use_map",
-                readout_key="readout_action",
+                num_preds=NAV_ACTION_DIM,
+                pool_strategy="pass",
+                readout_key="readout_nav",
                 clip_pred=False,
                 loss_weight=1.0,
                 constrain_loss_dims=True
             ),
             quadruped=ModuleSpec.create(
-                MSEActionHead,
+                L1ActionHead,
                 action_horizon=1,
                 action_dim=QUADRUPED_ACTION_DIM,
-                pool_strategy="use_map",
-                readout_key="readout_action",
+                num_preds=QUADRUPED_ACTION_DIM,
+                pool_strategy="pass",
+                readout_key="readout_quadruped",
                 clip_pred=False,
                 loss_weight=1.0,
                 constrain_loss_dims=True
@@ -338,7 +342,12 @@ def get_model_config(transformer_size):
         ),
         use_correct_attention=True,
         repeat_task_tokens=True,
-        readouts=dict(action=64),
+        readouts=dict(
+            bimanual=100,
+            single_arm=4,
+            nav=4,
+            quadruped=1
+        ),
         token_embedding_size=token_embedding_size,
         transformer_kwargs=transformer_kwargs,
         max_horizon=10,

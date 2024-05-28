@@ -312,6 +312,8 @@ class RolloutVisualizer:
     vis_fps: int = 10
     video_subsample_rate: int = 1
     action_proprio_metadata: Optional[dict] = None
+    video_obs_key: str = "image_primary"
+    head_name: str = "action"
 
     def __post_init__(self):
         self._env = gym.make(self.env_name, **self.env_kwargs)
@@ -342,21 +344,23 @@ class RolloutVisualizer:
                 task = state.model.create_tasks(goals=self._env.get_goal())
             else:
                 raise ValueError(f"Rollout eval mode {mode} not supported")
-            images = [obs["image_primary"][-1]]
+            images = [obs[self.video_obs_key][-1]]
             episode_return = 0.0
             metrics = []
             while len(images) < self.max_episode_length:
                 # policy outputs are shape [batch, n_samples, pred_horizon, act_dim]
                 # we remove batch dimension & use first sampled action, ignoring other samples
-                actions = policy_fn(jax.tree_map(lambda x: x[None], obs), task)
+                actions = policy_fn(
+                    jax.tree_map(lambda x: x[None], obs), task, head_name=self.head_name
+                )
                 actions = np.array(actions[0, 0])
                 obs, reward, done, trunc, info = self._env.step(actions)
                 if "observations" in info:
                     images.extend(
-                        [o["image_primary"][-1] for o in info["observations"]]
+                        [o[self.video_obs_key][-1] for o in info["observations"]]
                     )
                 else:
-                    images.append(obs["image_primary"][-1])
+                    images.append(obs[self.video_obs_key][-1])
                 episode_return += reward
                 if "metrics" in info:
                     metrics.append(info["metrics"])
@@ -389,7 +393,7 @@ class RolloutVisualizer:
                 ), f"Expect [height, width, channels] format, got {images[0].shape}"
                 if mode == "image_conditioned":
                     images = [
-                        np.concatenate([task["image_primary"][0], frame], axis=0)
+                        np.concatenate([task[self.video_obs_key][0], frame], axis=0)
                         for frame in images
                     ]
                 rollout_info[f"rollout_{rollout_idx}_vid"] = wandb.Video(
