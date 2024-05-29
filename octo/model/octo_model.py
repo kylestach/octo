@@ -281,7 +281,7 @@ class OctoModel:
 
         # shim to support old configs
         if (
-            "action" in config["model"]
+            "action" in config["model"]["heads"]
             and "pred_horizon" in config["model"]["heads"]["action"]["kwargs"]
         ):
             config["model"]["heads"]["action"]["kwargs"]["action_horizon"] = config[
