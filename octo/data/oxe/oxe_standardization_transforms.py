@@ -1044,6 +1044,24 @@ def aloha_dough_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
     return trajectory
 
 
+def droid_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
+    trajectory["action"] = tf.concat(
+        [
+            trajectory["action_dict"]["cartesian_velocity"],
+            invert_gripper_actions(trajectory["action_dict"]["gripper_position"]),
+        ],
+        axis=-1,
+    )
+    trajectory["observation"]["proprio"] = tf.concat(
+        (
+            trajectory["observation"]["cartesian_position"],
+            trajectory["observation"]["gripper_position"],
+        ),
+        axis=-1,
+    )
+    return trajectory
+
+
 OXE_STANDARDIZATION_TRANSFORMS = {
     "bridge_dataset": bridge_dataset_transform,
     "fractal20220817_data": rt1_dataset_transform,
@@ -1111,4 +1129,6 @@ OXE_STANDARDIZATION_TRANSFORMS = {
     "aloha_pick_place_dataset": aloha_dough_dataset_transform,
     "aloha_static_dataset": aloha_dough_dataset_transform,
     "aloha_sushi_cut_full_dataset": aloha_dough_dataset_transform,
+    "droid": droid_dataset_transform,
+    "droid_wipe": droid_dataset_transform,
 }

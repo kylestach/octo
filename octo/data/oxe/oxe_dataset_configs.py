@@ -12,7 +12,10 @@ Target configuration:
     proprio_encoding: Type of proprio encoding used
     action_encoding: Type of action encoding used, e.g. EEF position vs joint position control
 """
+
 from enum import IntEnum
+
+from octo.utils.spec import ModuleSpec
 
 
 class ProprioEncoding(IntEnum):
@@ -42,14 +45,28 @@ class ActionEncoding(IntEnum):
 
 OXE_DATASET_CONFIGS = {
     "fractal20220817_data": {
-        "image_obs_keys": {"primary": "image", "secondary": None, "wrist": None},
+        "image_obs_keys": {
+            "primary": "image",
+            "nav": None,
+            "left_wrist": None,
+            "right_wrist": None,
+        },
         "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
+        "proprio_obs_keys": {"bimanual": None, "quadruped": None},
+        "proprio_obs_dims": {"bimanual": 14, "quadruped": 59},
         "proprio_encoding": ProprioEncoding.POS_QUAT,
         "action_encoding": ActionEncoding.EEF_POS,
     },
     "kuka": {
-        "image_obs_keys": {"primary": "image", "secondary": None, "wrist": None},
+        "image_obs_keys": {
+            "primary": "image",
+            "nav": None,
+            "left_wrist": None,
+            "right_wrist": None,
+        },
         "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
+        "proprio_obs_keys": {"bimanual": None, "quadruped": None},
+        "proprio_obs_dims": {"bimanual": 14, "quadruped": 59},
         "proprio_encoding": ProprioEncoding.POS_QUAT,
         "action_encoding": ActionEncoding.EEF_POS,
     },
@@ -59,7 +76,6 @@ OXE_DATASET_CONFIGS = {
         "image_obs_keys": {
             "primary": "image_0",
             "nav": None,
-            "high": None,
             "left_wrist": None,
             "right_wrist": None,
         },
@@ -68,28 +84,33 @@ OXE_DATASET_CONFIGS = {
         "proprio_obs_dims": {"bimanual": 14, "quadruped": 59},
         "proprio_encoding": ProprioEncoding.POS_EULER,
         "action_encoding": ActionEncoding.EEF_POS,
-        "override_traj_transform_kwargs": {"override_window_size": 2},
     },
     "taco_play": {
         "image_obs_keys": {
             "primary": "rgb_static",
-            "secondary": None,
-            "wrist": "rgb_gripper",
+            "nav": None,
+            "left_wrist": "rgb_gripper",
+            "right_wrist": "rgb_gripper",
         },
         "depth_obs_keys": {
             "primary": "depth_static",
             "secondary": None,
             "wrist": "depth_gripper",
         },
+        "proprio_obs_keys": {"bimanual": None, "quadruped": None},
+        "proprio_obs_dims": {"bimanual": 14, "quadruped": 59},
         "proprio_encoding": ProprioEncoding.POS_EULER,
         "action_encoding": ActionEncoding.EEF_POS,
     },
     "taco_extra": {
         "image_obs_keys": {
             "primary": "rgb_static",
-            "secondary": None,
-            "wrist": "rgb_gripper",
+            "nav": None,
+            "left_wrist": "rgb_gripper",
+            "right_wrist": "rgb_gripper",
         },
+        "proprio_obs_keys": {"bimanual": None, "quadruped": None},
+        "proprio_obs_dims": {"bimanual": 14, "quadruped": 59},
         "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
         "proprio_encoding": ProprioEncoding.POS_EULER,
         "action_encoding": ActionEncoding.EEF_POS,
@@ -97,9 +118,12 @@ OXE_DATASET_CONFIGS = {
     "jaco_play": {
         "image_obs_keys": {
             "primary": "image",
-            "secondary": None,
-            "wrist": "image_wrist",
+            "nav": None,
+            "left_wrist": "image_wrist",
+            "right_wrist": "image_wrist",
         },
+        "proprio_obs_keys": {"bimanual": None, "quadruped": None},
+        "proprio_obs_dims": {"bimanual": 14, "quadruped": 59},
         "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
         "proprio_encoding": ProprioEncoding.POS_EULER,
         "action_encoding": ActionEncoding.EEF_POS,
@@ -107,31 +131,51 @@ OXE_DATASET_CONFIGS = {
     "berkeley_cable_routing": {
         "image_obs_keys": {
             "primary": "image",
-            "secondary": "top_image",
-            "wrist": "wrist45_image",
+            "nav": None,
+            "left_wrist": "wrist45_image",
+            "right_wrist": "wrist45_image",
         },
+        "proprio_obs_keys": {"bimanual": None, "quadruped": None},
+        "proprio_obs_dims": {"bimanual": 14, "quadruped": 59},
         "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
         "proprio_encoding": ProprioEncoding.JOINT,
         "action_encoding": ActionEncoding.EEF_POS,
     },
     "roboturk": {
-        "image_obs_keys": {"primary": "front_rgb", "secondary": None, "wrist": None},
+        "image_obs_keys": {
+            "primary": "front_rgb",
+            "nav": None,
+            "left_wrist": None,
+            "right_wrist": None,
+        },
         "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
+        "proprio_obs_keys": {"bimanual": None, "quadruped": None},
+        "proprio_obs_dims": {"bimanual": 14, "quadruped": 59},
         "proprio_encoding": ProprioEncoding.NONE,
         "action_encoding": ActionEncoding.EEF_POS,
     },
     "nyu_door_opening_surprising_effectiveness": {
-        "image_obs_keys": {"primary": None, "secondary": None, "wrist": "image"},
+        "image_obs_keys": {
+            "primary": None,
+            "nav": None,
+            "left_wrist": "image",
+            "right_wrist": "image",
+        },
         "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
+        "proprio_obs_keys": {"bimanual": None, "quadruped": None},
+        "proprio_obs_dims": {"bimanual": 14, "quadruped": 59},
         "proprio_encoding": ProprioEncoding.NONE,
         "action_encoding": ActionEncoding.EEF_POS,
     },
     "viola": {
         "image_obs_keys": {
             "primary": "agentview_rgb",
-            "secondary": None,
-            "wrist": "eye_in_hand_rgb",
+            "nav": None,
+            "left_wrist": "eye_in_hand_rgb",
+            "right_wrist": "eye_in_hand_rgb",
         },
+        "proprio_obs_keys": {"bimanual": None, "quadruped": None},
+        "proprio_obs_dims": {"bimanual": 14, "quadruped": 59},
         "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
         "proprio_encoding": ProprioEncoding.JOINT,
         "action_encoding": ActionEncoding.EEF_POS,
@@ -139,21 +183,38 @@ OXE_DATASET_CONFIGS = {
     "berkeley_autolab_ur5": {
         "image_obs_keys": {
             "primary": "image",
-            "secondary": None,
-            "wrist": "hand_image",
+            "nav": None,
+            "left_wrist": "hand_image",
+            "right_wrist": "hand_image",
         },
+        "proprio_obs_keys": {"bimanual": None, "quadruped": None},
+        "proprio_obs_dims": {"bimanual": 14, "quadruped": 59},
         "depth_obs_keys": {"primary": "depth", "secondary": None, "wrist": None},
         "proprio_encoding": ProprioEncoding.POS_QUAT,
         "action_encoding": ActionEncoding.EEF_POS,
     },
     "toto": {
-        "image_obs_keys": {"primary": "image", "secondary": None, "wrist": None},
+        "image_obs_keys": {
+            "primary": "image",
+            "nav": None,
+            "left_wrist": None,
+            "right_wrist": None,
+        },
+        "proprio_obs_keys": {"bimanual": None, "quadruped": None},
+        "proprio_obs_dims": {"bimanual": 14, "quadruped": 59},
         "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
         "proprio_encoding": ProprioEncoding.JOINT,
         "action_encoding": ActionEncoding.EEF_POS,
     },
     "language_table": {
-        "image_obs_keys": {"primary": "rgb", "secondary": None, "wrist": None},
+        "image_obs_keys": {
+            "primary": "rgb",
+            "nav": None,
+            "left_wrist": None,
+            "right_wrist": None,
+        },
+        "proprio_obs_keys": {"bimanual": None, "quadruped": None},
+        "proprio_obs_dims": {"bimanual": 14, "quadruped": 59},
         "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
         "proprio_encoding": ProprioEncoding.POS_EULER,
         "action_encoding": ActionEncoding.EEF_POS,
@@ -183,9 +244,12 @@ OXE_DATASET_CONFIGS = {
     "stanford_hydra_dataset_converted_externally_to_rlds": {
         "image_obs_keys": {
             "primary": "image",
-            "secondary": None,
-            "wrist": "wrist_image",
+            "nav": None,
+            "left_wrist": "wrist_image",
+            "right_wrist": "wrist_image",
         },
+        "proprio_obs_keys": {"bimanual": None, "quadruped": None},
+        "proprio_obs_dims": {"bimanual": 14, "quadruped": 59},
         "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
         "proprio_encoding": ProprioEncoding.POS_EULER,
         "action_encoding": ActionEncoding.EEF_POS,
@@ -193,9 +257,12 @@ OXE_DATASET_CONFIGS = {
     "austin_buds_dataset_converted_externally_to_rlds": {
         "image_obs_keys": {
             "primary": "image",
-            "secondary": None,
-            "wrist": "wrist_image",
+            "nav": None,
+            "left_wrist": "wrist_image",
+            "right_wrist": "wrist_image",
         },
+        "proprio_obs_keys": {"bimanual": None, "quadruped": None},
+        "proprio_obs_dims": {"bimanual": 14, "quadruped": 59},
         "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
         "proprio_encoding": ProprioEncoding.JOINT,
         "action_encoding": ActionEncoding.EEF_POS,
@@ -203,9 +270,12 @@ OXE_DATASET_CONFIGS = {
     "nyu_franka_play_dataset_converted_externally_to_rlds": {
         "image_obs_keys": {
             "primary": "image",
-            "secondary": "image_additional_view",
-            "wrist": None,
+            "nav": None,
+            "left_wrist": None,
+            "right_wrist": None,
         },
+        "proprio_obs_keys": {"bimanual": None, "quadruped": None},
+        "proprio_obs_dims": {"bimanual": 14, "quadruped": 59},
         "depth_obs_keys": {
             "primary": "depth",
             "secondary": "depth_additional_view",
@@ -231,9 +301,12 @@ OXE_DATASET_CONFIGS = {
     "furniture_bench_dataset_converted_externally_to_rlds": {
         "image_obs_keys": {
             "primary": "image",
-            "secondary": None,
-            "wrist": "wrist_image",
+            "nav": None,
+            "left_wrist": "wrist_image",
+            "right_wrist": "wrist_image",
         },
+        "proprio_obs_keys": {"bimanual": None, "quadruped": None},
+        "proprio_obs_dims": {"bimanual": 14, "quadruped": 59},
         "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
         "proprio_encoding": ProprioEncoding.POS_QUAT,
         "action_encoding": ActionEncoding.EEF_POS,
@@ -263,9 +336,12 @@ OXE_DATASET_CONFIGS = {
     "austin_sailor_dataset_converted_externally_to_rlds": {
         "image_obs_keys": {
             "primary": "image",
-            "secondary": None,
-            "wrist": "wrist_image",
+            "nav": None,
+            "left_wrist": "wrist_image",
+            "right_wrist": "wrist_image",
         },
+        "proprio_obs_keys": {"bimanual": None, "quadruped": None},
+        "proprio_obs_dims": {"bimanual": 14, "quadruped": 59},
         "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
         "proprio_encoding": ProprioEncoding.POS_QUAT,
         "action_encoding": ActionEncoding.EEF_POS,
@@ -273,15 +349,25 @@ OXE_DATASET_CONFIGS = {
     "austin_sirius_dataset_converted_externally_to_rlds": {
         "image_obs_keys": {
             "primary": "image",
-            "secondary": None,
-            "wrist": "wrist_image",
+            "nav": None,
+            "left_wrist": "wrist_image",
+            "right_wrist": "wrist_image",
         },
+        "proprio_obs_keys": {"bimanual": None, "quadruped": None},
+        "proprio_obs_dims": {"bimanual": 14, "quadruped": 59},
         "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
         "proprio_encoding": ProprioEncoding.POS_QUAT,
         "action_encoding": ActionEncoding.EEF_POS,
     },
     "bc_z": {
-        "image_obs_keys": {"primary": "image", "secondary": None, "wrist": None},
+        "image_obs_keys": {
+            "primary": "image",
+            "nav": None,
+            "left_wrist": None,
+            "right_wrist": None,
+        },
+        "proprio_obs_keys": {"bimanual": None, "quadruped": None},
+        "proprio_obs_dims": {"bimanual": 14, "quadruped": 59},
         "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
         "proprio_encoding": ProprioEncoding.POS_EULER,
         "action_encoding": ActionEncoding.EEF_POS,
@@ -363,7 +449,14 @@ OXE_DATASET_CONFIGS = {
         "action_encoding": ActionEncoding.EEF_POS,
     },
     "dlr_edan_shared_control_converted_externally_to_rlds": {
-        "image_obs_keys": {"primary": "image", "secondary": None, "wrist": None},
+        "image_obs_keys": {
+            "primary": "image",
+            "nav": None,
+            "left_wrist": None,
+            "right_wrist": None,
+        },
+        "proprio_obs_keys": {"bimanual": None, "quadruped": None},
+        "proprio_obs_dims": {"bimanual": 14, "quadruped": 59},
         "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
         "proprio_encoding": ProprioEncoding.POS_EULER,
         "action_encoding": ActionEncoding.EEF_POS,
@@ -393,9 +486,12 @@ OXE_DATASET_CONFIGS = {
     "iamlab_cmu_pickup_insert_converted_externally_to_rlds": {
         "image_obs_keys": {
             "primary": "image",
-            "secondary": None,
-            "wrist": "wrist_image",
+            "nav": None,
+            "left_wrist": "wrist_image",
+            "right_wrist": "wrist_image",
         },
+        "proprio_obs_keys": {"bimanual": None, "quadruped": None},
+        "proprio_obs_dims": {"bimanual": 14, "quadruped": 59},
         "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
         "proprio_encoding": ProprioEncoding.JOINT,
         "action_encoding": ActionEncoding.EEF_POS,
@@ -409,9 +505,12 @@ OXE_DATASET_CONFIGS = {
     "utaustin_mutex": {
         "image_obs_keys": {
             "primary": "image",
-            "secondary": None,
-            "wrist": "wrist_image",
+            "nav": None,
+            "left_wrist": "wrist_image",
+            "right_wrist": "wrist_image",
         },
+        "proprio_obs_keys": {"bimanual": None, "quadruped": None},
+        "proprio_obs_dims": {"bimanual": 14, "quadruped": 59},
         "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
         "proprio_encoding": ProprioEncoding.JOINT,
         "action_encoding": ActionEncoding.EEF_POS,
@@ -419,9 +518,12 @@ OXE_DATASET_CONFIGS = {
     "berkeley_fanuc_manipulation": {
         "image_obs_keys": {
             "primary": "image",
-            "secondary": None,
-            "wrist": "wrist_image",
+            "nav": None,
+            "left_wrist": "wrist_image",
+            "right_wrist": "wrist_image",
         },
+        "proprio_obs_keys": {"bimanual": None, "quadruped": None},
+        "proprio_obs_dims": {"bimanual": 14, "quadruped": 59},
         "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
         "proprio_encoding": ProprioEncoding.JOINT,
         "action_encoding": ActionEncoding.EEF_POS,
@@ -443,7 +545,14 @@ OXE_DATASET_CONFIGS = {
         "action_encoding": ActionEncoding.EEF_POS,
     },
     "cmu_stretch": {
-        "image_obs_keys": {"primary": "image", "secondary": None, "wrist": None},
+        "image_obs_keys": {
+            "primary": "image",
+            "nav": None,
+            "left_wrist": None,
+            "right_wrist": None,
+        },
+        "proprio_obs_keys": {"bimanual": None, "quadruped": None},
+        "proprio_obs_dims": {"bimanual": 14, "quadruped": 59},
         "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
         "proprio_encoding": ProprioEncoding.POS_EULER,
         "action_encoding": ActionEncoding.EEF_POS,
@@ -452,7 +561,6 @@ OXE_DATASET_CONFIGS = {
         "image_obs_keys": {
             "primary": None,
             "nav": "image",
-            "high": None,
             "left_wrist": None,
             "right_wrist": None,
         },
@@ -540,7 +648,6 @@ OXE_DATASET_CONFIGS = {
         "image_obs_keys": {
             "primary": None,
             "nav": None,
-            "high": None,
             "left_wrist": None,
             "right_wrist": None,
         },
@@ -555,9 +662,8 @@ OXE_DATASET_CONFIGS = {
     },
     "aloha_pen_uncap_diverse_dataset": {
         "image_obs_keys": {
-            "primary": None,
+            "primary": "cam_high",
             "nav": None,
-            "high": "cam_high",
             "left_wrist": "cam_left_wrist",
             "right_wrist": "cam_right_wrist",
         },
@@ -566,13 +672,11 @@ OXE_DATASET_CONFIGS = {
         "proprio_obs_dims": {"bimanual": 14, "quadruped": 59},
         "proprio_encoding": ProprioEncoding.JOINT_BIMANUAL,
         "action_encoding": ActionEncoding.JOINT_POS_BIMANUAL,
-        "override_traj_transform_kwargs": {"override_window_size": 1},
     },
     "aloha_dough_cut_dataset": {
         "image_obs_keys": {
-            "primary": None,
+            "primary": "cam_high",
             "nav": None,
-            "high": "cam_high",
             "left_wrist": "cam_left_wrist",
             "right_wrist": "cam_right_wrist",
         },
@@ -581,13 +685,11 @@ OXE_DATASET_CONFIGS = {
         "proprio_obs_dims": {"bimanual": 14, "quadruped": 59},
         "proprio_encoding": ProprioEncoding.JOINT_BIMANUAL,
         "action_encoding": ActionEncoding.JOINT_POS_BIMANUAL,
-        "override_traj_transform_kwargs": {"override_window_size": 1},
     },
     "aloha_lucy_dataset": {
         "image_obs_keys": {
-            "primary": None,
+            "primary": "cam_high",
             "nav": None,
-            "high": "cam_high",
             "left_wrist": "cam_left_wrist",
             "right_wrist": "cam_right_wrist",
         },
@@ -596,13 +698,11 @@ OXE_DATASET_CONFIGS = {
         "proprio_obs_dims": {"bimanual": 14, "quadruped": 59},
         "proprio_encoding": ProprioEncoding.JOINT_BIMANUAL,
         "action_encoding": ActionEncoding.JOINT_POS_BIMANUAL,
-        "override_traj_transform_kwargs": {"override_window_size": 1},
     },
     "aloha_drawer_dataset": {
         "image_obs_keys": {
-            "primary": None,
+            "primary": "cam_high",
             "nav": None,
-            "high": "cam_high",
             "left_wrist": "cam_left_wrist",
             "right_wrist": "cam_right_wrist",
         },
@@ -611,13 +711,11 @@ OXE_DATASET_CONFIGS = {
         "proprio_obs_dims": {"bimanual": 14, "quadruped": 59},
         "proprio_encoding": ProprioEncoding.JOINT_BIMANUAL,
         "action_encoding": ActionEncoding.JOINT_POS_BIMANUAL,
-        "override_traj_transform_kwargs": {"override_window_size": 1},
     },
     "aloha_pick_place_dataset": {
         "image_obs_keys": {
-            "primary": None,
+            "primary": "cam_high",
             "nav": None,
-            "high": "cam_high",
             "left_wrist": "cam_left_wrist",
             "right_wrist": "cam_right_wrist",
         },
@@ -626,13 +724,11 @@ OXE_DATASET_CONFIGS = {
         "proprio_obs_dims": {"bimanual": 14, "quadruped": 59},
         "proprio_encoding": ProprioEncoding.JOINT_BIMANUAL,
         "action_encoding": ActionEncoding.JOINT_POS_BIMANUAL,
-        "override_traj_transform_kwargs": {"override_window_size": 1},
     },
     "aloha_static_dataset": {
         "image_obs_keys": {
-            "primary": None,
+            "primary": "cam_high",
             "nav": None,
-            "high": "cam_high",
             "left_wrist": "cam_left_wrist",
             "right_wrist": "cam_right_wrist",
         },
@@ -641,13 +737,11 @@ OXE_DATASET_CONFIGS = {
         "proprio_obs_dims": {"bimanual": 14, "quadruped": 59},
         "proprio_encoding": ProprioEncoding.JOINT_BIMANUAL,
         "action_encoding": ActionEncoding.JOINT_POS_BIMANUAL,
-        "override_traj_transform_kwargs": {"override_window_size": 1},
     },
     "aloha_sushi_cut_full_dataset": {
         "image_obs_keys": {
-            "primary": None,
+            "primary": "cam_high",
             "nav": None,
-            "high": "cam_high",
             "left_wrist": "cam_left_wrist",
             "right_wrist": "cam_right_wrist",
         },
@@ -656,6 +750,36 @@ OXE_DATASET_CONFIGS = {
         "proprio_obs_dims": {"bimanual": 14, "quadruped": 59},
         "proprio_encoding": ProprioEncoding.JOINT_BIMANUAL,
         "action_encoding": ActionEncoding.JOINT_POS_BIMANUAL,
-        "override_traj_transform_kwargs": {"override_window_size": 1},
+    },
+    "droid": {
+        "image_obs_keys": {
+            "primary": "exterior_image_1_left",
+            "nav": None,
+            "left_wrist": "wrist_image_left",
+            "right_wrist": "wrist_image_left",
+        },
+        "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
+        "proprio_obs_keys": {"bimanual": "proprio", "quadruped": None},
+        "proprio_obs_dims": {"bimanual": 14, "quadruped": 59},
+        "proprio_encoding": ProprioEncoding.POS_EULER,
+        "action_encoding": ActionEncoding.EEF_POS,
+        "filter_functions": [
+            ModuleSpec.create(
+                "experiments.homer.scripts.configs.cross_embodiment:filter_success"
+            )
+        ],
+    },
+    "droid_wipe": {
+        "image_obs_keys": {
+            "primary": "exterior_image_2_left",
+            "nav": None,
+            "left_wrist": "wrist_image_left",
+            "right_wrist": "wrist_image_left",
+        },
+        "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
+        "proprio_obs_keys": {"bimanual": "proprio", "quadruped": None},
+        "proprio_obs_dims": {"bimanual": 14, "quadruped": 59},
+        "proprio_encoding": ProprioEncoding.POS_EULER,
+        "action_encoding": ActionEncoding.EEF_POS,
     },
 }

@@ -1,6 +1,5 @@
 """Defines dataset mixtures and weights for the Open X-Embodiment Datasets."""
 
-
 BRIDGE_MIX = [
     ("bridge_dataset", 1.0),
 ]
@@ -62,7 +61,7 @@ OXE_MAGIC_SOUP = [
     ("austin_buds_dataset_converted_externally_to_rlds", 1.0),
     ("nyu_franka_play_dataset_converted_externally_to_rlds", 3.0),
     ("furniture_bench_dataset_converted_externally_to_rlds", 0.1),
-    ("ucsd_kitchen_dataset_converted_externally_to_rlds", 2.0),
+    # ("ucsd_kitchen_dataset_converted_externally_to_rlds", 2.0), --> weird actions
     ("austin_sailor_dataset_converted_externally_to_rlds", 1.0),
     ("austin_sirius_dataset_converted_externally_to_rlds", 1.0),
     ("bc_z", 0.2),
@@ -72,6 +71,33 @@ OXE_MAGIC_SOUP = [
     ("utaustin_mutex", 1.0),
     ("berkeley_fanuc_manipulation", 2.0),
     ("cmu_stretch", 1.0),
+]
+
+OXE_MAGIC_SOUP_BALANCED = [
+    ("kuka", 0.14503701874493363),
+    ("taco_play", 0.06657998827701668),
+    ("taco_extra", 0.015452958868388737),
+    ("jaco_play", 0.010914534155076169),
+    ("berkeley_cable_routing", 0.005925612796973822),
+    ("roboturk", 0.052499238268860826),
+    ("nyu_door_opening_surprising_effectiveness", 0.0028565519070650833),
+    ("viola", 0.021369612129854),
+    ("berkeley_autolab_ur5", 0.027421498380401588),
+    ("toto", 0.045595496181288435),
+    ("language_table", 0.09863155061985435),
+    ("stanford_hydra_dataset_converted_externally_to_rlds", 0.10030032010542056),
+    ("austin_buds_dataset_converted_externally_to_rlds", 0.004775432426062442),
+    ("nyu_franka_play_dataset_converted_externally_to_rlds", 0.01884652293499813),
+    ("furniture_bench_dataset_converted_externally_to_rlds", 0.05526993262706029),
+    ("austin_sailor_dataset_converted_externally_to_rlds", 0.04943059735717906),
+    ("austin_sirius_dataset_converted_externally_to_rlds", 0.03918942829266809),
+    ("bc_z", 0.14503701874493363),
+    ("dlr_edan_shared_control_converted_externally_to_rlds", 0.00124985520344411),
+    ("iamlab_cmu_pickup_insert_converted_externally_to_rlds", 0.020472678629801757),
+    ("utaustin_mutex", 0.05066099356944051),
+    ("berkeley_fanuc_manipulation", 0.017530731149920712),
+    ("cmu_stretch", 0.003502058441908362),
+    ("droid", 0.001450370187449336),
 ]
 
 
@@ -211,16 +237,18 @@ OXE_FULL_MIX = [
 ]
 
 CROSS_EMBODIMENT_TARGET = [
-    ("aloha_pen_uncap_diverse_dataset", 1 / 2),
-    ("aloha_dough_cut_dataset", 1 / 12),
-    ("aloha_lucy_dataset", 1 / 12),
-    ("aloha_drawer_dataset", 1 / 12),
-    ("aloha_pick_place_dataset", 1 / 12),
-    ("aloha_static_dataset", 1 / 12),
-    ("aloha_sushi_cut_full_dataset", 1 / 12),
-    ("bridge_dataset", 1.0),
-    ("go1", 1.0),
-    ("omnimimic_gnm_dataset", 1.0),
+    ("aloha_pen_uncap_diverse_dataset", 0.1),
+    ("aloha_dough_cut_dataset", 1 / 60),
+    ("aloha_lucy_dataset", 1 / 60),
+    ("aloha_drawer_dataset", 1 / 60),
+    ("aloha_pick_place_dataset", 1 / 60),
+    ("aloha_static_dataset", 1 / 60),
+    ("aloha_sushi_cut_full_dataset", 1 / 60),
+    ("bridge_dataset", 0.2),
+    ("go1", 0.1),
+    ("droid_wipe", 0.1),
+    ("omnimimic_gnm_dataset", 0.2),
+    ("fractal20220817_data", 0.2),
 ]
 
 ALOHA_MIX = [
@@ -233,6 +261,11 @@ ALOHA_MIX = [
     ("aloha_sushi_cut_full_dataset", 1 / 12),
 ]
 
+CROSS_EMBODIMENT = [
+    (name, weight * 0.3) for name, weight in OXE_MAGIC_SOUP_BALANCED
+] + [(name, weight * 0.7) for name, weight in CROSS_EMBODIMENT_TARGET]
+
+
 OXE_NAMED_MIXES = {
     "bridge": BRIDGE_MIX,
     "rtx": RT_X_MIX,
@@ -242,4 +275,5 @@ OXE_NAMED_MIXES = {
     "oxe_flex_act_soup": OXE_FLEX_ACT_SOUP,
     "cross_embodiment_target": CROSS_EMBODIMENT_TARGET,
     "aloha_mix": ALOHA_MIX,
+    "cross_embodiment": CROSS_EMBODIMENT,
 }

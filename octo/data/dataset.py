@@ -125,14 +125,14 @@ def apply_trajectory_transforms(
             num_parallel_calls,
         )
 
-        # optionally add head action masks
-        dataset = dataset.traj_map(
-            partial(
-                traj_transforms.add_head_action_mask,
-                head_to_dataset=head_to_dataset,
-            ),
-            num_parallel_calls,
-        )
+    # optionally add head action masks
+    dataset = dataset.traj_map(
+        partial(
+            traj_transforms.add_head_action_mask,
+            head_to_dataset=head_to_dataset,
+        ),
+        num_parallel_calls,
+    )
 
     # must run task augmentation before chunking, in case it changes goal timesteps
     if train and task_augment_strategy is not None:
