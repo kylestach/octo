@@ -2,11 +2,13 @@ from ml_collections import ConfigDict
 from ml_collections.config_dict import FieldReference, placeholder
 
 from octo.data.utils.text_processing import UniversalSentenceEncoder
-from octo.model.components.action_heads import L1ActionHead
+from octo.model.components.action_heads import L1ActionHead, DiffusionActionHead
 from octo.model.components.tokenizers import ImageTokenizer, LowdimObsTokenizer
 from octo.model.components.transformer import common_transformer_sizes
 from octo.model.components.vit_encoders import ResNet26, ResNet26FILM
 from octo.utils.spec import ModuleSpec
+from octo.data.oxe.oxe_dataset_mixes import OXE_NAMED_MIXES
+import tensorflow as tf
 
 import octo, os, sys, functools
 
@@ -19,11 +21,35 @@ NAV_ACTION_DIM = 2
 QUADRUPED_ACTION_DIM = 12
 
 HEAD_TO_DATASET = {
-    "nav": [
-        "omnimimic_gnm_dataset"
-    ],
+    "nav": ["omnimimic_gnm_dataset"],
     "single_arm": [
         "bridge_dataset",
+        "fractal20220817_data",
+        "kuka",
+        "taco_play",
+        "taco_extra",
+        "jaco_play",
+        "berkeley_cable_routing",
+        "roboturk",
+        "nyu_door_opening_surprising_effectiveness",
+        "viola",
+        "berkeley_autolab_ur5",
+        "toto",
+        "language_table",
+        "stanford_hydra_dataset_converted_externally_to_rlds",
+        "austin_buds_dataset_converted_externally_to_rlds",
+        "nyu_franka_play_dataset_converted_externally_to_rlds",
+        "furniture_bench_dataset_converted_externally_to_rlds",
+        "austin_sailor_dataset_converted_externally_to_rlds",
+        "austin_sirius_dataset_converted_externally_to_rlds",
+        "bc_z",
+        "dlr_edan_shared_control_converted_externally_to_rlds",
+        "iamlab_cmu_pickup_insert_converted_externally_to_rlds",
+        "utaustin_mutex",
+        "berkeley_fanuc_manipulation",
+        "cmu_stretch",
+        "droid",
+        "droid_wipe"
     ],
     "bimanual": [
         "aloha_pen_uncap_diverse_dataset",
@@ -32,12 +58,17 @@ HEAD_TO_DATASET = {
         "aloha_drawer_dataset",
         "aloha_pick_place_dataset",
         "aloha_static_dataset",
-        "aloha_sushi_cut_full_dataset"
+        "aloha_sushi_cut_full_dataset",
     ],
-    "quadruped": [
-        "go1"
-    ],
+    "quadruped": ["go1"],
 }
+
+
+def filter_success(trajectory: dict[str, any]):
+    # only keep DROID trajectories that have "success" in the file path
+    return tf.strings.regex_full_match(
+        trajectory["traj_metadata"]["episode_metadata"]["file_path"][0], ".*/success/.*"
+    )
 
 
 def wrap(f):
@@ -79,6 +110,7 @@ def get_config():
             model=get_model_config("detr"),
             window_size=window_size,
             dataset_kwargs=get_dataset_config("multi", window_size, 100),
+            skip_norm_keys=["proprio_bimanual"],
             optimizer=dict(
                 learning_rate=dict(
                     name="rsqrt",
@@ -94,7 +126,7 @@ def get_config():
             prefetch_num_batches=0,
             start_step=placeholder(int),
             log_interval=500,
-            eval_interval=10000,
+            eval_interval=5e20,
             viz_interval=5e20,
             save_interval=10000,
             val_kwargs=dict(
@@ -112,7 +144,8 @@ def get_config():
             pretrained_loaders=(
                 ModuleSpec.create(
                     resnet_26_loader,
-                    restore_path="gs://sudeep_r2d2_experiments/R26_S_32-i21k-300ep-lr_0.001-aug_light1-wd_0.1-do_0.0-sd_0.0.npz",
+                    # restore_path="gs://sudeep_r2d2_experiments/R26_S_32-i21k-300ep-lr_0.001-aug_light1-wd_0.1-do_0.0-sd_0.0.npz",
+                    restore_path="gs://rail-tpus-homer-v5/R26_S_32-i21k-300ep-lr_0.001-aug_light1-wd_0.1-do_0.0-sd_0.0.npz",
                 ),
             ),
             wandb=dict(
@@ -121,13 +154,8 @@ def get_config():
                 entity=placeholder(str),
             ),
             wandb_resume_id=placeholder(str),
-            eval_datasets=(
-                "aloha_pen_uncap_diverse_dataset",
-                "bridge_dataset",
-                "go1",
-                "omnimimic_gnm_dataset"
-            ),
-            viz_datasets=()
+            eval_datasets=(),
+            viz_datasets=(),
         )
     )
 
@@ -137,11 +165,19 @@ def get_dataset_config(task_cond, window_size, action_horizon):
         task_cond, window_size, action_horizon
     )
 
+    mix = "cross_embodiment"
+    assert all(
+        [
+            any([name in datasets for datasets in HEAD_TO_DATASET.values()])
+            for name, weight in OXE_NAMED_MIXES[mix]
+        ]
+    ), "Dataset in mix doesn't have assigned head."
+
     return dict(
         oxe_kwargs=dict(
-            data_mix="cross_embodiment_target",
+            data_mix=mix,
             data_dir="gs://rail-orca-central2/resize_256_256/",
-            load_camera_views=("primary", "nav", "high", "left_wrist", "right_wrist"),
+            load_camera_views=("primary", "nav", "left_wrist", "right_wrist"),
             load_proprio=True,
             load_depth=False,
         ),
@@ -171,15 +207,11 @@ def get_augmentation_config(task_cond, window_size, action_horizon):
         max_action_dim=BIMANUAL_ACTION_DIM,
         head_to_dataset=HEAD_TO_DATASET,
         goal_relabeling_strategy="uniform",
-        task_augment_strategy="delete_and_rephrase",
+        task_augment_strategy="delete_task_conditioning",
         task_augment_kwargs=dict(
-            # pickle_file_path="gs://rail-orca-central2/resize_256_256/paraphrases_oxe.pkl",
-            pickle_file_path="gs://rail-datasets-europe-west4/oxe/resize_256_256/paraphrases_oxe.pkl",
-            rephrase_prob=0.5,
             keep_image_prob=keep_image_prob,
         ),
-        # TODO: fine to not have this for aloha and bridge, should check that we don't need to subsample for other datasets
-        # subsample_length=100,
+        subsample_length=100,
     )
 
     aloha_image_augment_kwargs = dict(
@@ -216,14 +248,12 @@ def get_augmentation_config(task_cond, window_size, action_horizon):
         resize_size={
             "primary": (224, 224),
             "nav": (224, 224),
-            "high": (224, 224),
             "left_wrist": (224, 224),
             "right_wrist": (224, 224),
         },
         image_augment_kwargs={
             "primary": bridge_image_augment_kwargs,
             "nav": bridge_image_augment_kwargs,
-            "high": aloha_image_augment_kwargs,
             "left_wrist": aloha_image_augment_kwargs,
             "right_wrist": aloha_image_augment_kwargs,
         },
@@ -261,13 +291,6 @@ def get_model_config(transformer_size):
                 task_film_keys=[],
                 encoder=ModuleSpec.create(ResNet26),
             ),
-            high=ModuleSpec.create(
-                ImageTokenizer,
-                obs_stack_keys=["image_high"],
-                task_stack_keys=["image_high"],
-                task_film_keys=["language_instruction"],
-                encoder=encoder,
-            ),
             left=ModuleSpec.create(
                 ImageTokenizer,
                 obs_stack_keys=["image_left_wrist"],
@@ -291,7 +314,6 @@ def get_model_config(transformer_size):
                 LowdimObsTokenizer,
                 obs_keys=["proprio_quadruped"],
             ),
-
         ),
         task_tokenizers=dict(),
         heads=dict(
@@ -304,7 +326,7 @@ def get_model_config(transformer_size):
                 readout_key="readout_bimanual",
                 clip_pred=False,
                 loss_weight=1.0,
-                constrain_loss_dims=True
+                constrain_loss_dims=True,
             ),
             single_arm=ModuleSpec.create(
                 L1ActionHead,
@@ -315,7 +337,7 @@ def get_model_config(transformer_size):
                 readout_key="readout_single_arm",
                 clip_pred=False,
                 loss_weight=1.0,
-                constrain_loss_dims=True
+                constrain_loss_dims=True,
             ),
             nav=ModuleSpec.create(
                 L1ActionHead,
@@ -326,7 +348,7 @@ def get_model_config(transformer_size):
                 readout_key="readout_nav",
                 clip_pred=False,
                 loss_weight=1.0,
-                constrain_loss_dims=True
+                constrain_loss_dims=True,
             ),
             quadruped=ModuleSpec.create(
                 L1ActionHead,
@@ -337,17 +359,12 @@ def get_model_config(transformer_size):
                 readout_key="readout_quadruped",
                 clip_pred=False,
                 loss_weight=1.0,
-                constrain_loss_dims=True
+                constrain_loss_dims=True,
             ),
         ),
         use_correct_attention=True,
         repeat_task_tokens=True,
-        readouts=dict(
-            bimanual=100,
-            single_arm=4,
-            nav=4,
-            quadruped=1
-        ),
+        readouts=dict(bimanual=100, single_arm=4, nav=4, quadruped=1),
         token_embedding_size=token_embedding_size,
         transformer_kwargs=transformer_kwargs,
         max_horizon=10,
