@@ -60,7 +60,7 @@ def get_config():
         dict(
             seed=42,
             num_steps=300000,
-            save_dir="gs://rail-tpus-homer-v4/log",
+            save_dir="gs://multi-robot-bucket2/runs",
             model=get_model_config("detr"),
             window_size=window_size,
             dataset_kwargs=get_dataset_config("multi", window_size, 100),
@@ -79,7 +79,7 @@ def get_config():
             prefetch_num_batches=0,
             start_step=placeholder(int),
             log_interval=500,
-            eval_interval=10000,
+            eval_interval=20000,
             viz_interval=5e20,
             save_interval=10000,
             val_kwargs=dict(
