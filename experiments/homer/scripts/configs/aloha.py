@@ -86,7 +86,7 @@ def get_config():
             prefetch_num_batches=0,
             start_step=placeholder(int),
             log_interval=500,
-            eval_interval=20000,
+            eval_interval=5e20,
             viz_interval=5e20,
             save_interval=10000,
             val_kwargs=dict(
@@ -130,13 +130,13 @@ def get_dataset_config(task_cond, window_size, action_horizon):
         oxe_kwargs=dict(
             data_mix="aloha_mix",
             data_dir="gs://rail-orca-central2/resize_256_256/",
-            load_camera_views=("high", "left_wrist", "right_wrist"),
+            load_camera_views=("primary", "left_wrist", "right_wrist"),
             load_proprio=True,
             load_depth=False,
         ),
         traj_transform_kwargs=traj_transform_kwargs,
         frame_transform_kwargs=frame_transform_kwargs,
-        batch_size=128,
+        batch_size=64,
         shuffle_buffer_size=50000,
         balance_weights=False,
         traj_transform_threads=48,
@@ -171,6 +171,21 @@ def get_augmentation_config(task_cond, window_size, action_horizon):
         # subsample_length=100,
     )
 
+    bridge_image_augment_kwargs = dict(
+        random_resized_crop=dict(scale=[0.8, 1.0], ratio=[0.9, 1.1]),
+        random_brightness=[0.1],
+        random_contrast=[0.9, 1.1],
+        random_saturation=[0.9, 1.1],
+        random_hue=[0.05],
+        augment_order=[
+            "random_resized_crop",
+            "random_brightness",
+            "random_contrast",
+            "random_saturation",
+            "random_hue",
+        ],
+    )
+
     aloha_image_augment_kwargs = dict(
         random_resized_crop=dict(scale=[0.9, 1.0], ratio=[0.75, 4.0 / 3]),
         random_brightness=[0.1],
@@ -188,12 +203,12 @@ def get_augmentation_config(task_cond, window_size, action_horizon):
 
     frame_transform_kwargs = dict(
         resize_size={
-            "high": (224, 224),
+            "primary": (224, 224),
             "left_wrist": (224, 224),
             "right_wrist": (224, 224),
         },
         image_augment_kwargs={
-            "high": aloha_image_augment_kwargs,
+            "primary": bridge_image_augment_kwargs,
             "left_wrist": aloha_image_augment_kwargs,
             "right_wrist": aloha_image_augment_kwargs,
         },
@@ -217,10 +232,10 @@ def get_model_config(transformer_size):
     encoder = ModuleSpec.create(ResNet26FILM)
     return dict(
         observation_tokenizers=dict(
-            high=ModuleSpec.create(
+            primary=ModuleSpec.create(
                 ImageTokenizer,
-                obs_stack_keys=["image_high"],
-                task_stack_keys=["image_high"],
+                obs_stack_keys=["image_primary"],
+                task_stack_keys=["image_primary"],
                 task_film_keys=["language_instruction"],
                 encoder=encoder,
             ),

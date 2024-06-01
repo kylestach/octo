@@ -94,10 +94,10 @@ def get_config():
             resume_path=placeholder(str),
             text_processor=ModuleSpec.create(UniversalSentenceEncoder),
             pretrained_loaders=(
-                ModuleSpec.create(
-                    resnet_26_loader,
-                    restore_path="gs://sudeep_r2d2_experiments/R26_S_32-i21k-300ep-lr_0.001-aug_light1-wd_0.1-do_0.0-sd_0.0.npz",
-                ),
+                # ModuleSpec.create(
+                #     resnet_26_loader,
+                #     restore_path="gs://sudeep_r2d2_experiments/R26_S_32-i21k-300ep-lr_0.001-aug_light1-wd_0.1-do_0.0-sd_0.0.npz",
+                # ),
             ),
             wandb=dict(
                 project="octo",
@@ -122,7 +122,7 @@ def get_dataset_config(task_cond, window_size, action_horizon):
         oxe_kwargs=dict(
             data_mix=[("omnimimic_gnm_dataset", 1.0)],
             data_dir="gs://rail-orca-central2/resize_256_256/",
-            load_camera_views=("nav"),
+            load_camera_views=("nav",),
             load_proprio=False,
             load_depth=False,
         ),
@@ -202,7 +202,6 @@ def get_model_config(transformer_size):
         transformer_size
     )
 
-    encoder = ModuleSpec.create(ResNet26FILM)
     return dict(
         observation_tokenizers=dict(
             nav=ModuleSpec.create(

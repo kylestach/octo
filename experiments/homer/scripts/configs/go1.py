@@ -95,10 +95,10 @@ def get_config():
             resume_path=placeholder(str),
             text_processor=ModuleSpec.create(UniversalSentenceEncoder),
             pretrained_loaders=(
-                ModuleSpec.create(
-                    resnet_26_loader,
-                    restore_path="gs://sudeep_r2d2_experiments/R26_S_32-i21k-300ep-lr_0.001-aug_light1-wd_0.1-do_0.0-sd_0.0.npz",
-                ),
+                # ModuleSpec.create(
+                #     resnet_26_loader,
+                #     restore_path="gs://sudeep_r2d2_experiments/R26_S_32-i21k-300ep-lr_0.001-aug_light1-wd_0.1-do_0.0-sd_0.0.npz",
+                # ),
             ),
             wandb=dict(
                 project="octo",
@@ -128,6 +128,7 @@ def get_dataset_config(task_cond, window_size, action_horizon):
             load_depth=False,
         ),
         traj_transform_kwargs=traj_transform_kwargs,
+        frame_transform_kwargs=frame_transform_kwargs,
         batch_size=128,
         shuffle_buffer_size=50000,
         balance_weights=False,
@@ -163,6 +164,7 @@ def get_augmentation_config(task_cond, window_size, action_horizon):
         # subsample_length=100,
     )
 
+    frame_transform_kwargs = dict()
 
     return traj_transform_kwargs, frame_transform_kwargs
 
