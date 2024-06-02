@@ -251,6 +251,8 @@ def common_transformer_sizes(transformer_size: str) -> (int, dict):
         "vit_l",
         "vit_h",
         "vint",
+        "vit_t_repeat", 
+        "vit_s_repeat",
     ]
     default_params = {
         "attention_dropout_rate": 0.0,
@@ -319,6 +321,20 @@ def common_transformer_sizes(transformer_size: str) -> (int, dict):
             num_attention_heads=4,
             dropout_rate=0.0,
         ),
+        "vit_t_repeat": dict(
+            num_layers=12,
+            mlp_dim=768,
+            num_attention_heads=3,
+            dropout_rate=0.1,
+            repeat_pos_enc=True,
+        ),
+        "vit_s_repeat": dict(
+            num_layers=12,
+            mlp_dim=1536,
+            num_attention_heads=6,
+            dropout_rate=0.1,
+            repeat_pos_enc=True,
+        ),
     }
 
     TOKEN_DIMS = {
@@ -331,6 +347,8 @@ def common_transformer_sizes(transformer_size: str) -> (int, dict):
         "vit_l": 1024,
         "vit_h": 1280,
         "vint": 512,
+        "vit_t_repeat": 192,
+        "vit_s_repeat": 384,
     }
 
     return TOKEN_DIMS[transformer_size], {

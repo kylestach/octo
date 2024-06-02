@@ -61,7 +61,7 @@ def get_config():
             seed=42,
             num_steps=300000,
             save_dir="gs://multi-robot-bucket2/runs",
-            model=get_model_config("detr"),
+            model=get_model_config("vit_t_repeat"),
             window_size=window_size,
             dataset_kwargs=get_dataset_config("multi", window_size, 100),
             optimizer=dict(
@@ -94,12 +94,7 @@ def get_config():
             ),
             resume_path=placeholder(str),
             text_processor=ModuleSpec.create(UniversalSentenceEncoder),
-            pretrained_loaders=(
-                # ModuleSpec.create(
-                #     resnet_26_loader,
-                #     restore_path="gs://sudeep_r2d2_experiments/R26_S_32-i21k-300ep-lr_0.001-aug_light1-wd_0.1-do_0.0-sd_0.0.npz",
-                # ),
-            ),
+            pretrained_loaders=(),
             wandb=dict(
                 project="octo",
                 group=placeholder(str),
@@ -153,11 +148,8 @@ def get_augmentation_config(task_cond, window_size, action_horizon):
         max_action_dim=QUADRUPED_ACTION_DIM,
         head_to_dataset=HEAD_TO_DATASET,
         goal_relabeling_strategy="uniform",
-        task_augment_strategy="delete_and_rephrase",
+        task_augment_strategy="delete_task_conditioning",
         task_augment_kwargs=dict(
-            # pickle_file_path="gs://rail-orca-central2/resize_256_256/paraphrases_oxe.pkl",
-            pickle_file_path="gs://rail-datasets-europe-west4/oxe/resize_256_256/paraphrases_oxe.pkl",
-            rephrase_prob=0.5,
             keep_image_prob=keep_image_prob,
         ),
         # TODO: fine to not have this for aloha and bridge, should check that we don't need to subsample for other datasets

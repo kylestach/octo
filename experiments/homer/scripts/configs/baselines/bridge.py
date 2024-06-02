@@ -129,7 +129,7 @@ def get_dataset_config(task_cond, window_size, action_horizon):
         ),
         traj_transform_kwargs=traj_transform_kwargs,
         frame_transform_kwargs=frame_transform_kwargs,
-        batch_size=8,
+        batch_size=128,
         shuffle_buffer_size=50000,
         balance_weights=False,
         traj_transform_threads=48,
@@ -153,11 +153,8 @@ def get_augmentation_config(task_cond, window_size, action_horizon):
         max_action_dim=SINGLE_ARM_ACTION_DIM,
         head_to_dataset=HEAD_TO_DATASET,
         goal_relabeling_strategy="uniform",
-        task_augment_strategy="delete_and_rephrase",
+        task_augment_strategy="delete_task_conditioning",
         task_augment_kwargs=dict(
-            # pickle_file_path="gs://rail-orca-central2/resize_256_256/paraphrases_oxe.pkl",
-            pickle_file_path="gs://rail-datasets-europe-west4/oxe/resize_256_256/paraphrases_oxe.pkl",
-            rephrase_prob=0.5,
             keep_image_prob=keep_image_prob,
         ),
         # TODO: fine to not have this for aloha and bridge, should check that we don't need to subsample for other datasets
