@@ -177,7 +177,7 @@ def get_dataset_config(task_cond, window_size, action_horizon):
         oxe_kwargs=dict(
             data_mix=mix,
             data_dir="gs://rail-orca-central2/resize_256_256/",
-            load_camera_views=("primary", "nav", "left_wrist", "right_wrist"),
+            load_camera_views=("primary", "high", "nav", "left_wrist", "right_wrist"),
             load_proprio=True,
             load_depth=False,
         ),
@@ -247,12 +247,14 @@ def get_augmentation_config(task_cond, window_size, action_horizon):
     frame_transform_kwargs = dict(
         resize_size={
             "primary": (224, 224),
+            "high": (224, 224),
             "nav": (224, 224),
             "left_wrist": (224, 224),
             "right_wrist": (224, 224),
         },
         image_augment_kwargs={
             "primary": bridge_image_augment_kwargs,
+            "high": aloha_image_augment_kwargs,
             "nav": bridge_image_augment_kwargs,
             "left_wrist": aloha_image_augment_kwargs,
             "right_wrist": aloha_image_augment_kwargs,
@@ -281,6 +283,13 @@ def get_model_config(transformer_size):
                 ImageTokenizer,
                 obs_stack_keys=["image_primary"],
                 task_stack_keys=["image_primary"],
+                task_film_keys=["language_instruction"],
+                encoder=encoder,
+            ),
+            high=ModuleSpec.create(
+                ImageTokenizer,
+                obs_stack_keys=["image_high"],
+                task_stack_keys=["image_high"],
                 task_film_keys=["language_instruction"],
                 encoder=encoder,
             ),

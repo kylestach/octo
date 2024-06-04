@@ -47,6 +47,7 @@ OXE_DATASET_CONFIGS = {
     "fractal20220817_data": {
         "image_obs_keys": {
             "primary": "image",
+            "high": None,
             "nav": None,
             "left_wrist": None,
             "right_wrist": None,
@@ -60,6 +61,7 @@ OXE_DATASET_CONFIGS = {
     "kuka": {
         "image_obs_keys": {
             "primary": "image",
+            "high": None,
             "nav": None,
             "left_wrist": None,
             "right_wrist": None,
@@ -75,6 +77,7 @@ OXE_DATASET_CONFIGS = {
     "bridge_dataset": {
         "image_obs_keys": {
             "primary": "image_0",
+            "high": None,
             "nav": None,
             "left_wrist": None,
             "right_wrist": None,
@@ -88,6 +91,7 @@ OXE_DATASET_CONFIGS = {
     "taco_play": {
         "image_obs_keys": {
             "primary": "rgb_static",
+            "high": None,
             "nav": None,
             # "left_wrist": "rgb_gripper",
             # "right_wrist": "rgb_gripper",
@@ -107,6 +111,7 @@ OXE_DATASET_CONFIGS = {
     "taco_extra": {
         "image_obs_keys": {
             "primary": "rgb_static",
+            "high": None,
             "nav": None,
             # "left_wrist": "rgb_gripper",
             # "right_wrist": "rgb_gripper",
@@ -122,6 +127,7 @@ OXE_DATASET_CONFIGS = {
     "jaco_play": {
         "image_obs_keys": {
             "primary": "image",
+            "high": None,
             "nav": None,
             # "left_wrist": "image_wrist",
             # "right_wrist": "image_wrist",
@@ -137,6 +143,7 @@ OXE_DATASET_CONFIGS = {
     "berkeley_cable_routing": {
         "image_obs_keys": {
             "primary": "image",
+            "high": None,
             "nav": None,
             # "left_wrist": "wrist45_image",
             # "right_wrist": "wrist45_image",
@@ -152,6 +159,7 @@ OXE_DATASET_CONFIGS = {
     "roboturk": {
         "image_obs_keys": {
             "primary": "front_rgb",
+            "high": None,
             "nav": None,
             "left_wrist": None,
             "right_wrist": None,
@@ -165,6 +173,7 @@ OXE_DATASET_CONFIGS = {
     "nyu_door_opening_surprising_effectiveness": {
         "image_obs_keys": {
             "primary": None,
+            "high": None,
             "nav": None,
             "left_wrist": "image",
             "right_wrist": "image",
@@ -178,6 +187,7 @@ OXE_DATASET_CONFIGS = {
     "viola": {
         "image_obs_keys": {
             "primary": "agentview_rgb",
+            "high": None,
             "nav": None,
             # "left_wrist": "eye_in_hand_rgb",
             # "right_wrist": "eye_in_hand_rgb",
@@ -193,6 +203,7 @@ OXE_DATASET_CONFIGS = {
     "berkeley_autolab_ur5": {
         "image_obs_keys": {
             "primary": "image",
+            "high": None,
             "nav": None,
             # "left_wrist": "hand_image",
             # "right_wrist": "hand_image",
@@ -208,6 +219,7 @@ OXE_DATASET_CONFIGS = {
     "toto": {
         "image_obs_keys": {
             "primary": "image",
+            "high": None,
             "nav": None,
             "left_wrist": None,
             "right_wrist": None,
@@ -221,6 +233,7 @@ OXE_DATASET_CONFIGS = {
     "language_table": {
         "image_obs_keys": {
             "primary": "rgb",
+            "high": None,
             "nav": None,
             "left_wrist": None,
             "right_wrist": None,
@@ -256,6 +269,7 @@ OXE_DATASET_CONFIGS = {
     "stanford_hydra_dataset_converted_externally_to_rlds": {
         "image_obs_keys": {
             "primary": "image",
+            "high": None,
             "nav": None,
             # "left_wrist": "wrist_image",
             # "right_wrist": "wrist_image",
@@ -271,6 +285,7 @@ OXE_DATASET_CONFIGS = {
     "austin_buds_dataset_converted_externally_to_rlds": {
         "image_obs_keys": {
             "primary": "image",
+            "high": None,
             "nav": None,
             # "left_wrist": "wrist_image",
             # "right_wrist": "wrist_image",
@@ -286,6 +301,7 @@ OXE_DATASET_CONFIGS = {
     "nyu_franka_play_dataset_converted_externally_to_rlds": {
         "image_obs_keys": {
             "primary": "image",
+            "high": None,
             "nav": None,
             "left_wrist": None,
             "right_wrist": None,
@@ -317,6 +333,7 @@ OXE_DATASET_CONFIGS = {
     "furniture_bench_dataset_converted_externally_to_rlds": {
         "image_obs_keys": {
             "primary": "image",
+            "high": None,
             "nav": None,
             # "left_wrist": "wrist_image",
             # "right_wrist": "wrist_image",
@@ -355,6 +372,7 @@ OXE_DATASET_CONFIGS = {
         "image_obs_keys": {
             "primary": "image",
             "nav": None,
+            "high": None,
             # "left_wrist": "wrist_image",
             # "right_wrist": "wrist_image",
             "left_wrist": None,
@@ -370,6 +388,7 @@ OXE_DATASET_CONFIGS = {
         "image_obs_keys": {
             "primary": "image",
             "nav": None,
+            "high": None,
             # "left_wrist": "wrist_image",
             # "right_wrist": "wrist_image",
             "left_wrist": None,
@@ -384,6 +403,7 @@ OXE_DATASET_CONFIGS = {
     "bc_z": {
         "image_obs_keys": {
             "primary": "image",
+            "high": None,
             "nav": None,
             "left_wrist": None,
             "right_wrist": None,
@@ -473,6 +493,7 @@ OXE_DATASET_CONFIGS = {
     "dlr_edan_shared_control_converted_externally_to_rlds": {
         "image_obs_keys": {
             "primary": "image",
+            "high": None,
             "nav": None,
             "left_wrist": None,
             "right_wrist": None,
@@ -508,6 +529,7 @@ OXE_DATASET_CONFIGS = {
     "iamlab_cmu_pickup_insert_converted_externally_to_rlds": {
         "image_obs_keys": {
             "primary": "image",
+            "high": None,
             "nav": None,
             # "left_wrist": "wrist_image",
             # "right_wrist": "wrist_image",
@@ -529,6 +551,7 @@ OXE_DATASET_CONFIGS = {
     "utaustin_mutex": {
         "image_obs_keys": {
             "primary": "image",
+            "high": None,
             "nav": None,
             # "left_wrist": "wrist_image",
             # "right_wrist": "wrist_image",
@@ -544,6 +567,7 @@ OXE_DATASET_CONFIGS = {
     "berkeley_fanuc_manipulation": {
         "image_obs_keys": {
             "primary": "image",
+            "high": None,
             "nav": None,
             # "left_wrist": "wrist_image",
             # "right_wrist": "wrist_image",
@@ -575,6 +599,7 @@ OXE_DATASET_CONFIGS = {
     "cmu_stretch": {
         "image_obs_keys": {
             "primary": "image",
+            "high": None,
             "nav": None,
             "left_wrist": None,
             "right_wrist": None,
@@ -588,6 +613,7 @@ OXE_DATASET_CONFIGS = {
     "omnimimic_gnm_dataset": {
         "image_obs_keys": {
             "primary": None,
+            "high": None,
             "nav": "image",
             "left_wrist": None,
             "right_wrist": None,
@@ -675,6 +701,7 @@ OXE_DATASET_CONFIGS = {
     "go1": {
         "image_obs_keys": {
             "primary": None,
+            "high": None,
             "nav": None,
             "left_wrist": None,
             "right_wrist": None,
@@ -690,7 +717,8 @@ OXE_DATASET_CONFIGS = {
     },
     "aloha_pen_uncap_diverse_dataset": {
         "image_obs_keys": {
-            "primary": "cam_high",
+            "primary": None,
+            "high": "cam_high",
             "nav": None,
             "left_wrist": "cam_left_wrist",
             "right_wrist": "cam_right_wrist",
@@ -703,7 +731,8 @@ OXE_DATASET_CONFIGS = {
     },
     "aloha_dough_cut_dataset": {
         "image_obs_keys": {
-            "primary": "cam_high",
+            "primary": None,
+            "high": "cam_high",
             "nav": None,
             "left_wrist": "cam_left_wrist",
             "right_wrist": "cam_right_wrist",
@@ -716,7 +745,8 @@ OXE_DATASET_CONFIGS = {
     },
     "aloha_lucy_dataset": {
         "image_obs_keys": {
-            "primary": "cam_high",
+            "primary": None,
+            "high": "cam_high",
             "nav": None,
             "left_wrist": "cam_left_wrist",
             "right_wrist": "cam_right_wrist",
@@ -729,7 +759,8 @@ OXE_DATASET_CONFIGS = {
     },
     "aloha_drawer_dataset": {
         "image_obs_keys": {
-            "primary": "cam_high",
+            "primary": None,
+            "high": "cam_high",
             "nav": None,
             "left_wrist": "cam_left_wrist",
             "right_wrist": "cam_right_wrist",
@@ -742,7 +773,8 @@ OXE_DATASET_CONFIGS = {
     },
     "aloha_pick_place_dataset": {
         "image_obs_keys": {
-            "primary": "cam_high",
+            "primary": None,
+            "high": "cam_high",
             "nav": None,
             "left_wrist": "cam_left_wrist",
             "right_wrist": "cam_right_wrist",
@@ -755,7 +787,8 @@ OXE_DATASET_CONFIGS = {
     },
     "aloha_static_dataset": {
         "image_obs_keys": {
-            "primary": "cam_high",
+            "primary": None,
+            "high": "cam_high",
             "nav": None,
             "left_wrist": "cam_left_wrist",
             "right_wrist": "cam_right_wrist",
@@ -768,7 +801,8 @@ OXE_DATASET_CONFIGS = {
     },
     "aloha_sushi_cut_full_dataset": {
         "image_obs_keys": {
-            "primary": "cam_high",
+            "primary": None,
+            "high": "cam_high",
             "nav": None,
             "left_wrist": "cam_left_wrist",
             "right_wrist": "cam_right_wrist",
@@ -782,6 +816,7 @@ OXE_DATASET_CONFIGS = {
     "droid": {
         "image_obs_keys": {
             "primary": "exterior_image_1_left",
+            "high": None,
             "nav": None,
             # "left_wrist": "wrist_image_left",
             # "right_wrist": "wrist_image_left",
@@ -802,6 +837,7 @@ OXE_DATASET_CONFIGS = {
     "droid_wipe": {
         "image_obs_keys": {
             "primary": "exterior_image_2_left",
+            "high": None,
             "nav": None,
             # "left_wrist": "wrist_image_left",
             # "right_wrist": "wrist_image_left",
