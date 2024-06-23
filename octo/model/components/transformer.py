@@ -251,8 +251,9 @@ def common_transformer_sizes(transformer_size: str) -> (int, dict):
         "vit_l",
         "vit_h",
         "vint",
-        "vit_t_repeat", 
+        "vit_t_repeat",
         "vit_s_repeat",
+        "detr_big",
     ]
     default_params = {
         "attention_dropout_rate": 0.0,
@@ -277,6 +278,13 @@ def common_transformer_sizes(transformer_size: str) -> (int, dict):
             num_layers=12,  # techincally detr uses 6 enc + 6 dec
             mlp_dim=2048,
             num_attention_heads=8,
+            dropout_rate=0.1,
+            repeat_pos_enc=True,
+        ),
+        "detr_big": dict(
+            num_layers=12,  # techincally detr uses 6 enc + 6 dec
+            mlp_dim=4096,
+            num_attention_heads=16,
             dropout_rate=0.1,
             repeat_pos_enc=True,
         ),
@@ -341,6 +349,7 @@ def common_transformer_sizes(transformer_size: str) -> (int, dict):
         "dummy": 256,
         "vanilla": 256,
         "detr": 512,
+        "detr_big": 1024,
         "vit_t": 192,
         "vit_s": 384,
         "vit_b": 768,
