@@ -266,6 +266,11 @@ CROSS_EMBODIMENT = [
 ] + [(name, weight * 0.85) for name, weight in CROSS_EMBODIMENT_TARGET]
 
 
+HIGHER_OXE_CROSS_EMBODIMENT = [
+    (name, weight * 0.3) for name, weight in OXE_MAGIC_SOUP_BALANCED
+] + [(name, weight * 0.7) for name, weight in CROSS_EMBODIMENT_TARGET]
+
+
 OXE_NAMED_MIXES = {
     "bridge": BRIDGE_MIX,
     "rtx": RT_X_MIX,
@@ -276,4 +281,5 @@ OXE_NAMED_MIXES = {
     "cross_embodiment_target": CROSS_EMBODIMENT_TARGET,
     "aloha_mix": ALOHA_MIX,
     "cross_embodiment": CROSS_EMBODIMENT,
+    "higher_oxe_cross_embodiment": HIGHER_OXE_CROSS_EMBODIMENT,
 }
