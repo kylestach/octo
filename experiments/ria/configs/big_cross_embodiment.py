@@ -106,7 +106,7 @@ def get_config():
         dict(
             seed=42,
             num_steps=300000,
-            save_dir="gs://rail-tpus-homer-v4/log",
+            save_dir="gs://multi-robot-bucket2/runs/",
             model=get_model_config("detr_big"),
             window_size=window_size,
             dataset_kwargs=get_dataset_config("multi", window_size, 100),
@@ -165,7 +165,7 @@ def get_dataset_config(task_cond, window_size, action_horizon):
         task_cond, window_size, action_horizon
     )
 
-    mix = "cross_embodiment"
+    mix = "higher_cross_embodiment"
     assert all(
         [
             any([name in datasets for datasets in HEAD_TO_DATASET.values()])

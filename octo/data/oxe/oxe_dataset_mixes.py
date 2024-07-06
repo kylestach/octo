@@ -238,17 +238,17 @@ OXE_FULL_MIX = [
 
 CROSS_EMBODIMENT_TARGET = [
     ("aloha_pen_uncap_diverse_dataset", 0.1),
-    ("aloha_dough_cut_dataset", 1 / 60),
-    ("aloha_lucy_dataset", 1 / 60),
-    ("aloha_drawer_dataset", 1 / 60),
-    ("aloha_pick_place_dataset", 1 / 60),
-    ("aloha_static_dataset", 1 / 60),
-    ("aloha_sushi_cut_full_dataset", 1 / 60),
+    ("aloha_sushi_cut_full_dataset", 0.1),
     ("bridge_dataset", 0.2),
     ("go1", 0.1),
     ("droid_wipe", 0.1),
     ("omnimimic_gnm_dataset", 0.2),
     ("fractal20220817_data", 0.2),
+    # ("aloha_dough_cut_dataset", 1 / 60),
+    # ("aloha_lucy_dataset", 1 / 60),
+    # ("aloha_drawer_dataset", 1 / 60),
+    # ("aloha_pick_place_dataset", 1 / 60),
+    # ("aloha_static_dataset", 1 / 60),
 ]
 
 ALOHA_MIX = [
@@ -267,8 +267,8 @@ CROSS_EMBODIMENT = [
 
 
 HIGHER_OXE_CROSS_EMBODIMENT = [
-    (name, weight * 0.3) for name, weight in OXE_MAGIC_SOUP_BALANCED
-] + [(name, weight * 0.7) for name, weight in CROSS_EMBODIMENT_TARGET]
+    (name, weight * 0.25) for name, weight in OXE_MAGIC_SOUP_BALANCED
+] + [(name, weight * 0.75) for name, weight in CROSS_EMBODIMENT_TARGET]
 
 
 OXE_NAMED_MIXES = {
