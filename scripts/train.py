@@ -15,6 +15,7 @@ from jax.experimental import multihost_utils
 from jax.sharding import Mesh, NamedSharding, PartitionSpec
 from ml_collections import config_flags
 import optax
+from tpu_utils import prevent_cross_region
 import tqdm
 import wandb
 
@@ -56,6 +57,10 @@ config_flags.DEFINE_config_file(
 
 def main(_):
     jax_utils.initialize_compilation_cache()
+
+    prevent_cross_region(
+        FLAGS.config.dataset_kwargs.oxe_kwargs.data_dir, FLAGS.config.save_dir
+    )
 
     assert FLAGS.config.dataset_kwargs.batch_size % jax.device_count() == 0
     assert FLAGS.config.dataset_kwargs.batch_size % jax.process_count() == 0

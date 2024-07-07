@@ -165,7 +165,7 @@ def get_dataset_config(task_cond, window_size, action_horizon):
         task_cond, window_size, action_horizon
     )
 
-    mix = "higher_cross_embodiment"
+    mix = "higher_oxe_cross_embodiment"
     assert all(
         [
             any([name in datasets for datasets in HEAD_TO_DATASET.values()])

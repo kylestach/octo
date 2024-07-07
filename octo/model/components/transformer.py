@@ -282,7 +282,7 @@ def common_transformer_sizes(transformer_size: str) -> (int, dict):
             repeat_pos_enc=True,
         ),
         "detr_big": dict(
-            num_layers=12,  # techincally detr uses 6 enc + 6 dec
+            num_layers=24,  # techincally detr uses 6 enc + 6 dec
             mlp_dim=4096,
             num_attention_heads=16,
             dropout_rate=0.1,
