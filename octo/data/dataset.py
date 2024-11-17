@@ -346,7 +346,6 @@ def make_dataset_from_rlds(
         # apply a standardization function, if provided
         if standardize_fn is not None:
             traj = ModuleSpec.instantiate(standardize_fn)(traj)
-
         if not all(k in traj for k in REQUIRED_KEYS):
             raise ValueError(
                 f"Trajectory is missing keys: {REQUIRED_KEYS - set(traj.keys())}. "
@@ -396,6 +395,8 @@ def make_dataset_from_rlds(
             "task": task,
             "action": tf.cast(traj["action"], tf.float32),
             "dataset_name": tf.repeat(name, traj_len),
+            "traj_idx": traj["_traj_index"],
+            "frame_idx": traj["_frame_index"]
         }
 
         return traj
@@ -572,7 +573,7 @@ def make_interleaved_dataset(
     dataset_sizes = []
     all_dataset_statistics = {}
     for dataset_kwargs in dataset_kwargs_list:
-        _, dataset_statistics = make_dataset_from_rlds(**dataset_kwargs, train=train)
+        _, dataset_statistics = make_dataset_from_rlds(**dataset_kwargs, train=train, shuffle=False)
         dataset_sizes.append(dataset_statistics["num_transitions"])
         assert (
             dataset_kwargs["name"] not in all_dataset_statistics
@@ -611,6 +612,7 @@ def make_interleaved_dataset(
             num_parallel_calls=threads,
             num_parallel_reads=reads,
             dataset_statistics=all_dataset_statistics[dataset_kwargs["name"]],
+            shuffle=False,
         )
         dataset = apply_trajectory_transforms(
             dataset.repeat(),
