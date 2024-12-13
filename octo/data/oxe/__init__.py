@@ -18,6 +18,7 @@ def make_oxe_dataset_kwargs(
     load_language: bool = True,
     force_recompute_dataset_statistics: bool = False,
     action_proprio_normalization_type: NormalizationType = NormalizationType.NORMAL,
+    cot_data_path:str = None,
 ) -> Dict[str, Any]:
     """Generates dataset kwargs for a given dataset from Open X-Embodiment. The returned kwargs can be passed
     directly into `octo.data.dataset.make_dataset_from_rlds`.
@@ -31,6 +32,7 @@ def make_oxe_dataset_kwargs(
         load_language: If True, loads language instructions.
         force_recompute_dataset_statistics: If True, recompute dataset statistics.
         action_proprio_normalization_type: Normalization type to use for proprioceptive actions.
+        cot_data_path: If not none, loads chain of thought data from this path. 
     """
     dataset_kwargs = copy.deepcopy(OXE_DATASET_CONFIGS[name])
 
@@ -104,6 +106,11 @@ def make_oxe_dataset_kwargs(
     if force_recompute_dataset_statistics:
         dataset_kwargs["force_recompute_dataset_statistics"] = True
 
+    if cot_data_path:
+        dataset_kwargs['cot_data_path'] = f'{cot_data_path}/{name}'
+    else:
+        dataset_kwargs['cot_data_path'] = None
+
     return {"name": name, "data_dir": data_dir, **dataset_kwargs}
 
 
@@ -116,6 +123,7 @@ def make_oxe_dataset_kwargs_and_weights(
     load_language: bool = True,
     force_recompute_dataset_statistics: bool = False,
     action_proprio_normalization_type: NormalizationType = NormalizationType.NORMAL,
+    cot_data_path: str = None,
 ) -> Tuple[Dict[str, Any], List[float]]:
     """
     Generates dataset kwargs for a given dataset mix from the Open X-Embodiment dataset. The returned kwargs
@@ -159,6 +167,7 @@ def make_oxe_dataset_kwargs_and_weights(
                     load_language,
                     force_recompute_dataset_statistics,
                     action_proprio_normalization_type,
+                    cot_data_path,
                 )
             )
             weights.append(weight)

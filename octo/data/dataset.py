@@ -10,6 +10,7 @@ import tensorflow_datasets as tfds
 
 from octo.data import obs_transforms, traj_transforms
 from octo.data.utils import goal_relabeling, task_augmentation
+from octo.data.utils.cot_utils import get_cot_database_keys, get_cot_tags_list
 from octo.data.utils.data_utils import (
     allocate_threads,
     get_dataset_statistics,
@@ -20,6 +21,8 @@ from octo.data.utils.data_utils import (
     tree_map,
 )
 from octo.utils.spec import ModuleSpec
+
+import os
 
 
 def apply_trajectory_transforms(
@@ -272,6 +275,7 @@ def make_dataset_from_rlds(
     ignore_errors: bool = False,
     num_parallel_reads: int = tf.data.AUTOTUNE,
     num_parallel_calls: int = tf.data.AUTOTUNE,
+    cot_data_path: Optional[str] = None,
     **kwargs,
 ) -> Tuple[dl.DLataset, dict]:
     """This function is responsible for loading a specific RLDS dataset from storage and getting it into a
@@ -396,13 +400,86 @@ def make_dataset_from_rlds(
             "action": tf.cast(traj["action"], tf.float32),
             "dataset_name": tf.repeat(name, traj_len),
             "traj_idx": traj["_traj_index"],
-            "frame_idx": traj["_frame_index"]
+            "frame_idx": traj["_frame_index"],
         }
+
+        # this means any trajectory without a language label will just have traj['reasonings']: None....
+        if cot_data_path: 
+            indices = tf.as_string(tf.range(traj_len))
+            reasonings = cot_lookup_table.lookup(tf.strings.as_string(traj['traj_idx'][0]) + "_" + indices)
+            traj['reasonings'] = reasonings
 
         return traj
 
+    def make_tf_lookup_table(cot_data):
+        print("building the reasoning dict...")
+        keys = []
+        values = []
+
+        def reasoning_dict_to_str(d):
+            tags = get_cot_tags_list() #[:-1]  # exclude ACTION
+            database_keys = get_cot_database_keys()
+            reasoning_parts = [(tag, d[database_keys[tag]]) for tag in tags]
+
+            return "@".join(f"{tag}@{part}" for tag, part in reasoning_parts)
+
+        has_reasoning = [0, 0]
+
+        for traj_id in cot_data.keys():
+            if not cot_data[f'{traj_id}']: # entries without language conditioning are an empty dict
+                has_reasoning[0] += 1
+                continue
+            else:
+                has_reasoning[1] += 1
+
+            traj_data = cot_data[f'{traj_id}']
+            traj_len = len(traj_data['gripper_centroids'])
+
+            for step in range(traj_len):
+                keys.append(f"{traj_id}_{step}")
+
+                step_reasoning_dict = {}
+            
+                gripper_lookahead_n = 5  # list this many future positions of the gripper
+                
+                future_positions = []
+                for j in range(gripper_lookahead_n):
+                    if step + j < len(traj_data["gripper_centroids"]):
+                        if traj_data["gripper_centroids"][f"{step + j}"] is not None:
+                            future_positions += traj_data["gripper_centroids"][f"{step + j}"] 
+                        else:
+                            future_positions += (None, None) # ria q: is this the right way to store values where we don't have a value? 
+                    else:
+                        future_positions += future_positions[-2:]
+
+                step_reasoning_dict["gripper"] = str(future_positions) # i think i should be adding a separator btwn different gripper centroids? rn. it'll just concatenate (14, 15) (16,17) into 1,4,1,5,1,6,1,7...
+
+                values.append(reasoning_dict_to_str(step_reasoning_dict))
+
+        print("Example reasoning:", keys[0], values[0])
+        print("Reasoning presence statistics [# has not, # has]:", has_reasoning)
+
+        return tf.lookup.StaticHashTable(tf.lookup.KeyValueTensorInitializer(keys, values), default_value="")
+
     def is_nonzero_length(traj):
         return tf.shape(traj["action"])[0] > 0
+
+    # loading cot data
+    if cot_data_path:
+        print("loading cot data")
+        cot_data_json_path = f'{cot_data_path}/jsons'
+        cot_data = {}
+        for file_name in os.listdir(cot_data_json_path):
+            with open(f'{cot_data_json_path}/{file_name}', 'r') as f:
+                batch_data = json.load(f)
+                # Check for key conflicts
+                conflicts = set(cot_data.keys()) & set(batch_data.keys())
+                assert not conflicts, f"Found duplicate keys when loading CoT data: {file_name}: {conflicts}"
+                cot_data.update(batch_data)
+        
+        print("loaded cot data!")
+
+        cot_lookup_table = make_tf_lookup_table(cot_data)
 
     builder = tfds.builder(name, data_dir=data_dir)
 
@@ -468,9 +545,7 @@ def make_dataset_from_rlds(
     if ignore_errors:
         dataset = dataset.ignore_errors()
 
-    dataset = dataset.traj_map(restructure, num_parallel_calls).filter(
-        is_nonzero_length
-    )
+    dataset = dataset.traj_map(restructure, num_parallel_calls).filter(is_nonzero_length)
 
     if not skip_norm:
         non_padding_proprio_keys = (
@@ -570,6 +645,7 @@ def make_interleaved_dataset(
         )
 
     # go through datasets once to get sizes
+    print("getting dataset sizes")
     dataset_sizes = []
     all_dataset_statistics = {}
     for dataset_kwargs in dataset_kwargs_list:
@@ -579,6 +655,7 @@ def make_interleaved_dataset(
             dataset_kwargs["name"] not in all_dataset_statistics
         ), f"Duplicate name {dataset_kwargs['name']}"
         all_dataset_statistics[dataset_kwargs["name"]] = dataset_statistics
+    print("done getting dataset sizes")
 
     # balance and normalize weights
     if balance_weights:
