@@ -10,7 +10,6 @@ import tensorflow_datasets as tfds
 
 from octo.data import obs_transforms, traj_transforms
 from octo.data.utils import goal_relabeling, task_augmentation
-from octo.data.utils.cot_utils import get_cot_database_keys, get_cot_tags_list
 from octo.data.utils.data_utils import (
     allocate_threads,
     get_dataset_statistics,
@@ -275,6 +274,7 @@ def make_dataset_from_rlds(
     ignore_errors: bool = False,
     num_parallel_reads: int = tf.data.AUTOTUNE,
     num_parallel_calls: int = tf.data.AUTOTUNE,
+    use_cot: bool = False,
     cot_data_path: Optional[str] = None,
     **kwargs,
 ) -> Tuple[dl.DLataset, dict]:
@@ -404,7 +404,7 @@ def make_dataset_from_rlds(
         }
 
         # this means any trajectory without a language label will just have traj['reasonings']: None....
-        if cot_data_path: 
+        if use_cot: 
             indices = tf.as_string(tf.range(traj_len))
             reasonings = cot_lookup_table.lookup(tf.strings.as_string(traj['traj_idx'][0]) + "_" + indices)
             traj['reasonings'] = reasonings
@@ -415,13 +415,18 @@ def make_dataset_from_rlds(
         print("building the reasoning dict...")
         keys = []
         values = []
+        plan_horizon = 5 # ria todo: make this hyperparam
 
-        def reasoning_dict_to_str(d):
-            tags = get_cot_tags_list() #[:-1]  # exclude ACTION
-            database_keys = get_cot_database_keys()
-            reasoning_parts = [(tag, d[database_keys[tag]]) for tag in tags]
-
-            return "@".join(f"{tag}@{part}" for tag, part in reasoning_parts)
+        def reasoning_dict_to_str(dct):
+            final_str = ""
+            
+            for step in range(plan_horizon):
+                gripper_pos_tokens = dct['gripper'][step]
+                final_str += f"gripper {gripper_pos_tokens}; "
+                for obj, traj_mask_tokens in dct['obj_masks'].items():
+                    final_str+= f"{obj.lower()} {traj_mask_tokens[step]}; "
+            
+            return final_str
 
         has_reasoning = [0, 0]
 
@@ -439,20 +444,24 @@ def make_dataset_from_rlds(
                 keys.append(f"{traj_id}_{step}")
 
                 step_reasoning_dict = {}
-            
-                gripper_lookahead_n = 5  # list this many future positions of the gripper
-                
-                future_positions = []
-                for j in range(gripper_lookahead_n):
+                        
+                # gripper
+                step_reasoning_dict["gripper"] = []
+                for j in range(plan_horizon):
                     if step + j < len(traj_data["gripper_centroids"]):
-                        if traj_data["gripper_centroids"][f"{step + j}"] is not None:
-                            future_positions += traj_data["gripper_centroids"][f"{step + j}"] 
-                        else:
-                            future_positions += (None, None) # ria q: is this the right way to store values where we don't have a value? 
+                        step_reasoning_dict["gripper"].append(traj_data["gripper_centroids"][f"{step + j}"])
                     else:
-                        future_positions += future_positions[-2:]
+                        step_reasoning_dict["gripper"].append("")
 
-                step_reasoning_dict["gripper"] = str(future_positions) # i think i should be adding a separator btwn different gripper centroids? rn. it'll just concatenate (14, 15) (16,17) into 1,4,1,5,1,6,1,7...
+                # object seg masks
+                step_reasoning_dict["obj_masks"] = {}
+                for obj_id, name in traj_data['obj_id_to_name'].items():
+                    step_reasoning_dict["obj_masks"][name] = []
+                    for j in range(plan_horizon):
+                        if step + j < len(traj_data["obj_masks"][obj_id]):
+                            step_reasoning_dict["obj_masks"][name].append(traj_data["obj_masks"][obj_id][f"{step + j}"])
+                        else:
+                            step_reasoning_dict["obj_masks"][name].append("")
 
                 values.append(reasoning_dict_to_str(step_reasoning_dict))
 
@@ -465,20 +474,12 @@ def make_dataset_from_rlds(
         return tf.shape(traj["action"])[0] > 0
 
     # loading cot data
-    if cot_data_path:
+    if use_cot:
         print("loading cot data")
-        cot_data_json_path = f'{cot_data_path}/jsons'
-        cot_data = {}
-        for file_name in os.listdir(cot_data_json_path):
-            with open(f'{cot_data_json_path}/{file_name}', 'r') as f:
-                batch_data = json.load(f)
-                # Check for key conflicts
-                conflicts = set(cot_data.keys()) & set(batch_data.keys())
-                assert not conflicts, f"Found duplicate keys when loading CoT data: {file_name}: {conflicts}"
-                cot_data.update(batch_data)
-        
+        cot_data_json_path = f'{cot_data_path}/{name}_reasonings.json'
+        with tf.io.gfile.GFile(cot_data_json_path, 'r') as file:
+            cot_data = json.load(file)
         print("loaded cot data!")
-
         cot_lookup_table = make_tf_lookup_table(cot_data)
 
     builder = tfds.builder(name, data_dir=data_dir)

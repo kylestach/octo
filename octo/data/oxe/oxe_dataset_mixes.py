@@ -4,6 +4,11 @@ BRIDGE_MIX = [
     ("bridge_dataset", 1.0),
 ]
 
+BRIDGE_FRACTAL_MIX = [
+    ("bridge_dataset", 1.0),
+    ("fractal20220817_data", 1.0),
+]
+
 RT_X_MIX = [
     ("fractal20220817_data", 0.54087122203),
     ("kuka", 0.8341046294),
@@ -273,6 +278,7 @@ HIGHER_OXE_CROSS_EMBODIMENT = [
 
 OXE_NAMED_MIXES = {
     "bridge": BRIDGE_MIX,
+    "bridge_fractal": BRIDGE_FRACTAL_MIX,
     "rtx": RT_X_MIX,
     "rtx_franka": RT_X_MIX + OXE_FRANKA_MIX,
     "oxe_magic_soup": OXE_MAGIC_SOUP,
