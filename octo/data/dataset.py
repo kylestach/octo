@@ -427,6 +427,11 @@ def make_dataset_from_rlds(
                     final_str+= f"{obj.lower()} {traj_mask_tokens[step]}; "
             
             return final_str
+        
+        def mask_to_bbox(mask_string):
+            if not mask_string:
+                return ""
+            return mask_string.split("<seg")[0]
 
         has_reasoning = [0, 0]
 
@@ -457,9 +462,12 @@ def make_dataset_from_rlds(
                 step_reasoning_dict["obj_masks"] = {}
                 for obj_id, name in traj_data['obj_id_to_name'].items():
                     step_reasoning_dict["obj_masks"][name] = []
-                    for j in range(plan_horizon):
+                    step_reasoning_dict["obj_masks"][name].append(traj_data["obj_masks"][obj_id][f"{step}"]) # add mask for current step
+                    for j in range(1, plan_horizon):
+                        # ria todo: just adding bounding boxes for future plan for now
                         if step + j < len(traj_data["obj_masks"][obj_id]):
-                            step_reasoning_dict["obj_masks"][name].append(traj_data["obj_masks"][obj_id][f"{step + j}"])
+                            mask_str = traj_data["obj_masks"][obj_id][f"{step + j}"]
+                            step_reasoning_dict["obj_masks"][name].append(mask_to_bbox(mask_str))
                         else:
                             step_reasoning_dict["obj_masks"][name].append("")
 
@@ -701,6 +709,7 @@ def make_interleaved_dataset(
         datasets.append(dataset)
 
     # interleave at the frame level and then shuffle
+    print("shuffling!")
     dataset: dl.DLataset = dl.DLataset.sample_from_datasets(
         datasets, sample_weights
     ).shuffle(shuffle_buffer_size)
