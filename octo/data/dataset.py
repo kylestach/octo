@@ -266,16 +266,29 @@ def add_parl_action_cache(dataset: dl.DLataset, glob_pattern: str) -> dl.DLatase
         with open(f, "rb") as file:
             action_cache.update(pickle.load(file))
 
-    # StaticHashTable only works with scalar values
-    # Instead, use tf.equal to find the matching key, then argmax to find the index
+    # Prepare keys and values
+    keys = list(action_cache.keys())
+    values = list(action_cache.values())
 
-    keys = tf.constant(list(action_cache.keys()), dtype=tf.string)
-    values = tf.constant(list(action_cache.values()), dtype=tf.float32)
+    # Create a range of indices for values
+    indices = tf.range(len(values), dtype=tf.int32)
+    values_tensor = tf.constant(values, dtype=tf.float32)
+
+    # Create the StaticHashTable mapping keys to indices
+    keys_tensor = tf.constant(keys, dtype=tf.string)
+    initializer = tf.lookup.KeyValueTensorInitializer(keys_tensor, indices)
+    table = tf.lookup.StaticHashTable(initializer, default_value=-1)
 
     def add_parl_action(frame: dict) -> dict:
         key = frame["frame_key"]
-        idx = tf.argmax(tf.cast(tf.equal(keys, key), tf.int32))
-        frame["counterfactual_next_actions"] = values[idx]
+        idx = table.lookup(key)
+
+        # Check if the key exists in the hash table
+        valid_idx = tf.greater_equal(idx, 0)
+        default_value = tf.zeros_like(values_tensor[0])
+        frame["counterfactual_next_actions"] = tf.cond(
+            valid_idx, lambda: values_tensor[idx], lambda: default_value
+        )
         return frame
 
     return dataset.frame_map(add_parl_action)
