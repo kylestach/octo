@@ -159,7 +159,7 @@ def apply_trajectory_transforms(
         indices = tf.minimum(tf.range(traj_len) + 1, traj_len - 1)
 
         traj["next_action"] = tf.gather(traj["action"], indices)
-        
+
         traj["next_observation"] = tf.nest.map_structure(
             lambda x: tf.gather(x, indices), traj["observation"]
         )
@@ -248,6 +248,37 @@ def apply_frame_transforms(
         dataset = dataset.frame_map(aug_and_dropout, num_parallel_calls)
 
     return dataset
+
+
+def add_parl_action_cache(dataset: dl.DLataset, glob_pattern: str) -> dl.DLataset:
+    """Add cached actions to the dataset.
+
+    Args:
+        dataset (dl.DLataset): The dataset to transform.
+        glob_pattern (str): The glob pattern to match the action cache files.
+    """
+    import pickle
+    from glob import glob
+
+    action_cache_files = glob(glob_pattern)
+    action_cache = {}
+    for f in action_cache_files:
+        with open(f, "rb") as file:
+            action_cache.update(pickle.load(file))
+
+    # StaticHashTable only works with scalar values
+    # Instead, use tf.equal to find the matching key, then argmax to find the index
+
+    keys = tf.constant(list(action_cache.keys()), dtype=tf.string)
+    values = tf.constant(list(action_cache.values()), dtype=tf.float32)
+
+    def add_parl_action(frame: dict) -> dict:
+        key = frame["frame_key"]
+        idx = tf.argmax(tf.cast(tf.equal(keys, key), tf.int32))
+        frame["counterfactual_next_actions"] = values[idx]
+        return frame
+
+    return dataset.frame_map(add_parl_action)
 
 
 def make_dataset_from_rlds(
@@ -386,32 +417,44 @@ def make_dataset_from_rlds(
         num_pos = tf.minimum(num_final_repeat, traj_len)
         reward = tf.concat(
             # [-tf.ones(traj_len - num_pos, dtype=tf.float32), tf.zeros(num_pos, dtype=tf.float32)], axis=0
-             [tf.zeros(traj_len - num_pos, dtype=tf.float32), tf.ones(num_pos, dtype=tf.float32)], axis=0
+            [
+                tf.zeros(traj_len - num_pos, dtype=tf.float32),
+                tf.ones(num_pos, dtype=tf.float32),
+            ],
+            axis=0,
         )
         mask = tf.concat(
-            [tf.ones(traj_len - num_pos, dtype=tf.float32), tf.zeros(num_pos, dtype=tf.float32)], axis=0
+            [
+                tf.ones(traj_len - num_pos, dtype=tf.float32),
+                tf.zeros(num_pos, dtype=tf.float32),
+            ],
+            axis=0,
         )
         mc_return = tf.scan(
             lambda prev_return, x: x[0] + mc_discount * prev_return * x[1],
             [reward, mask],
             initializer=0.0,
-            reverse=True
+            reverse=True,
         )
-        
+
         # # repeat last action
         # next_action = tf.concat([traj["action"][1:, ...], traj["action"][-1:, ...]], axis=0)
         # import pdb; pdb.set_trace()
         # next_obs = {k: tf.concat([v[1:, ...], v[-1:, ...]], axis=0) for k, v in new_obs.items()}
 
         # This only works for bridge, since the dataset includes this metadata.
-        frame_key = tf.strings.join([
-            tf.repeat(name, traj_len),
-            traj["traj_metadata"]["episode_metadata"]["file_path"],
-            tf.repeat(tf.constant("#"), traj_len),
-            tf.strings.as_string(traj["traj_metadata"]["episode_metadata"]["episode_id"]),
-            tf.repeat(tf.constant(":"), traj_len),
-            tf.strings.as_string(tf.range(traj_len)),
-        ])
+        frame_key = tf.strings.join(
+            [
+                tf.repeat(name, traj_len),
+                traj["traj_metadata"]["episode_metadata"]["file_path"],
+                tf.repeat(tf.constant("#"), traj_len),
+                tf.strings.as_string(
+                    traj["traj_metadata"]["episode_metadata"]["episode_id"]
+                ),
+                tf.repeat(tf.constant(":"), traj_len),
+                tf.strings.as_string(tf.range(traj_len)),
+            ]
+        )
 
         traj = {
             "observation": new_obs,
@@ -450,9 +493,11 @@ def make_dataset_from_rlds(
             hash_dependencies=(
                 str(builder.info),
                 str(proprio_obs_key),
-                ModuleSpec.to_string(standardize_fn)
-                if standardize_fn is not None
-                else "",
+                (
+                    ModuleSpec.to_string(standardize_fn)
+                    if standardize_fn is not None
+                    else ""
+                ),
                 *map(ModuleSpec.to_string, filter_functions),
             ),
             save_dir=builder.data_dir,
@@ -489,7 +534,6 @@ def make_dataset_from_rlds(
     dataset = dataset.traj_map(restructure, num_parallel_calls).filter(
         is_nonzero_length
     )
-
 
     action_proprio_normalization_type = NormalizationType.BOUNDS
     if not skip_norm:
@@ -551,6 +595,7 @@ def make_interleaved_dataset(
     balance_weights: bool = False,
     traj_transform_threads: Optional[int] = None,
     traj_read_threads: Optional[int] = None,
+    parl_action_cache_glob_pattern: Optional[str] = None,
 ) -> dl.DLataset:
     """Creates an interleaved dataset from list of dataset kwargs. Returns a dataset of batched frames.
 
@@ -635,6 +680,9 @@ def make_interleaved_dataset(
 
     # apply frame transforms
     dataset = apply_frame_transforms(dataset, **frame_transform_kwargs, train=train)
+
+    if parl_action_cache_glob_pattern is not None:
+        dataset = add_parl_action_cache(dataset, parl_action_cache_glob_pattern)
 
     # sequential batch (parallel batch seems to use much more memory)
     if batch_size is not None:
