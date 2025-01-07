@@ -241,12 +241,15 @@ def combine_dataset_statistics(
 
 
 def normalize_action_and_proprio(
-    traj: dict, metadata: dict, normalization_type: NormalizationType
+    traj: dict,
+    metadata: dict,
+    normalization_type: NormalizationType,
+    action_key: str = "action",
 ):
     """Normalizes the action and proprio fields of a trajectory using the given metadata."""
-    # maps keys of `metadata` to corresponding keys in `traj`
+    # keys_to_normalize maps keys of `metadata` to corresponding keys in `traj`
     keys_to_normalize = {
-        "action": "action",
+        "action": action_key,
     }
     # import pdb; pdb.set_trace()
     # if "proprio" in traj["observation"]:

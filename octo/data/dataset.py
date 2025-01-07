@@ -250,7 +250,13 @@ def apply_frame_transforms(
     return dataset
 
 
-def add_parl_action_cache(dataset: dl.DLataset, glob_pattern: str) -> dl.DLataset:
+def add_parl_action_cache(
+    dataset: dl.DLataset,
+    glob_pattern: str,
+    skip_norm: bool = False,
+    dataset_statistics: Optional[dict] = None,
+    num_parallel_calls: int = tf.data.AUTOTUNE,
+) -> dl.DLataset:
     """Add cached actions to the dataset.
 
     Args:
@@ -266,32 +272,58 @@ def add_parl_action_cache(dataset: dl.DLataset, glob_pattern: str) -> dl.DLatase
         with open(f, "rb") as file:
             action_cache.update(pickle.load(file))
 
-    # Prepare keys and values
-    keys = list(action_cache.keys())
-    values = list(action_cache.values())
+    # # Prepare keys and values
+    # keys = list(action_cache.keys())
+    # values = list(action_cache.values())
 
-    # Create a range of indices for values
-    indices = tf.range(len(values), dtype=tf.int32)
-    values_tensor = tf.constant(values, dtype=tf.float32)
+    # # Create a range of indices for values
+    # indices = tf.range(len(values), dtype=tf.int32)
+    # values_tensor = tf.constant(values, dtype=tf.float32)
 
-    # Create the StaticHashTable mapping keys to indices
-    keys_tensor = tf.constant(keys, dtype=tf.string)
-    initializer = tf.lookup.KeyValueTensorInitializer(keys_tensor, indices)
-    table = tf.lookup.StaticHashTable(initializer, default_value=-1)
+    # # Create the StaticHashTable mapping keys to indices
+    # keys_tensor = tf.constant(keys, dtype=tf.string)
+    # initializer = tf.lookup.KeyValueTensorInitializer(keys_tensor, indices)
+    # table = tf.lookup.StaticHashTable(initializer, default_value=-1)
+
+    # def add_parl_action(frame: dict) -> dict:
+    #     key = frame["frame_key"]
+    #     idx = table.lookup(key)
+
+    #     # Check if the key exists in the hash table
+    #     valid_idx = tf.greater_equal(idx, 0)
+    #     default_value = tf.zeros_like(values_tensor[0])
+    #     frame["counterfactual_next_actions"] = tf.cond(
+    #         valid_idx, lambda: values_tensor[idx], lambda: default_value
+    #     )
+    #     return frame
+
+    # StaticHashTable only works with scalar values
+    # Instead, use tf.equal to find the matching key, then argmax to find the index
+
+    keys = tf.constant(list(action_cache.keys()), dtype=tf.string)
+    values = tf.constant(list(action_cache.values()), dtype=tf.float32)
 
     def add_parl_action(frame: dict) -> dict:
         key = frame["frame_key"]
-        idx = table.lookup(key)
-
-        # Check if the key exists in the hash table
-        valid_idx = tf.greater_equal(idx, 0)
-        default_value = tf.zeros_like(values_tensor[0])
-        frame["counterfactual_next_actions"] = tf.cond(
-            valid_idx, lambda: values_tensor[idx], lambda: default_value
-        )
+        idx = tf.argmax(tf.cast(tf.equal(keys, key), tf.int32))
+        frame["counterfactual_next_actions"] = values[idx]
         return frame
 
-    return dataset.frame_map(add_parl_action)
+    dataset = dataset.frame_map(add_parl_action)
+    if not skip_norm:
+        # Normalize counterfactual actions
+        dataset = dataset.traj_map(
+            partial(
+                normalize_action_and_proprio,
+                metadata=dataset_statistics,
+                normalization_type=NormalizationType.BOUNDS,
+                # Maps from key in dataset_statistics to key in frame
+                action_key="counterfactual_next_actions",
+            ),
+            num_parallel_calls,
+        )
+
+    return dataset
 
 
 def make_dataset_from_rlds(
@@ -683,7 +715,16 @@ def make_interleaved_dataset(
             **traj_transform_kwargs,
             num_parallel_calls=threads,
             train=train,
-        ).flatten(num_parallel_calls=threads)
+        )
+        if parl_action_cache_glob_pattern is not None:
+            dataset = add_parl_action_cache(
+                dataset,
+                parl_action_cache_glob_pattern,
+                skip_norm=dataset_kwargs.get("skip_norm", False),
+                dataset_statistics=all_dataset_statistics[dataset_kwargs["name"]],
+                num_parallel_calls=threads,
+            )
+        dataset = dataset.flatten(num_parallel_calls=threads)
         datasets.append(dataset)
 
     # interleave at the frame level and then shuffle
@@ -693,9 +734,6 @@ def make_interleaved_dataset(
 
     # apply frame transforms
     dataset = apply_frame_transforms(dataset, **frame_transform_kwargs, train=train)
-
-    if parl_action_cache_glob_pattern is not None:
-        dataset = add_parl_action_cache(dataset, parl_action_cache_glob_pattern)
 
     # sequential batch (parallel batch seems to use much more memory)
     if batch_size is not None:
