@@ -415,6 +415,8 @@ def make_dataset_from_rlds(
     """
     REQUIRED_KEYS = {"observation", "action"}
 
+    traj_counter = tf.Variable(0, dtype=tf.int32)
+
     def restructure(traj):
         # apply a standardization function, if provided
         if standardize_fn is not None:
@@ -457,7 +459,20 @@ def make_dataset_from_rlds(
                     f"Language key {language_key} has dtype {task['language_instruction'].dtype}, "
                     "but it must be tf.string."
                 )
-        # add reward and mask
+
+        frame_key = tf.strings.join(
+            [
+                tf.repeat(name, traj_len),
+                tf.repeat(tf.constant("/"), traj_len),
+                tf.repeat(tf.strings.as_string(traj_counter), traj_len),
+                tf.repeat(tf.constant("/"), traj_len),
+                tf.strings.as_string(tf.range(traj_len)),
+            ]
+        )
+
+        traj_counter.assign_add(1)
+
+        # Add reward and mask
         num_final_repeat = 1
         num_pos = tf.minimum(num_final_repeat, traj_len)
         reward = tf.concat(
@@ -480,25 +495,6 @@ def make_dataset_from_rlds(
             [reward, mask],
             initializer=0.0,
             reverse=True,
-        )
-
-        # # repeat last action
-        # next_action = tf.concat([traj["action"][1:, ...], traj["action"][-1:, ...]], axis=0)
-        # import pdb; pdb.set_trace()
-        # next_obs = {k: tf.concat([v[1:, ...], v[-1:, ...]], axis=0) for k, v in new_obs.items()}
-
-        # This only works for bridge, since the dataset includes this metadata.
-        frame_key = tf.strings.join(
-            [
-                tf.repeat(name, traj_len),
-                traj["traj_metadata"]["episode_metadata"]["file_path"],
-                tf.repeat(tf.constant("#"), traj_len),
-                tf.strings.as_string(
-                    traj["traj_metadata"]["episode_metadata"]["episode_id"]
-                ),
-                tf.repeat(tf.constant(":"), traj_len),
-                tf.strings.as_string(tf.range(traj_len)),
-            ]
         )
 
         traj = {
