@@ -415,7 +415,7 @@ def make_dataset_from_rlds(
         print("building the reasoning dict...")
         keys = []
         values = []
-        plan_horizon = 5 # ria todo: make this hyperparam
+        plan_horizon = 1 # ria todo: make this hyperparam
 
         def reasoning_dict_to_str(dct):
             final_str = ""
@@ -462,8 +462,8 @@ def make_dataset_from_rlds(
                 step_reasoning_dict["obj_masks"] = {}
                 for obj_id, name in traj_data['obj_id_to_name'].items():
                     step_reasoning_dict["obj_masks"][name] = []
-                    step_reasoning_dict["obj_masks"][name].append(traj_data["obj_masks"][obj_id][f"{step}"]) # add mask for current step
-                    for j in range(1, plan_horizon):
+                    # step_reasoning_dict["obj_masks"][name].append(traj_data["obj_masks"][obj_id][f"{step}"]) # add mask for current step
+                    for j in range(0, plan_horizon):
                         # ria todo: just adding bounding boxes for future plan for now
                         if step + j < len(traj_data["obj_masks"][obj_id]):
                             mask_str = traj_data["obj_masks"][obj_id][f"{step + j}"]
