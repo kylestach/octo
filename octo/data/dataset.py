@@ -422,9 +422,9 @@ def make_dataset_from_rlds(
             
             for step in range(plan_horizon):
                 gripper_pos_tokens = dct['gripper'][step]
-                final_str += f"gripper {gripper_pos_tokens}; "
+                final_str += f"gripper{gripper_pos_tokens};"
                 for obj, traj_mask_tokens in dct['obj_masks'].items():
-                    final_str+= f"{obj.lower()} {traj_mask_tokens[step]}; "
+                    final_str+= f"{obj.lower()}{traj_mask_tokens[step]};"
             
             return final_str
         
