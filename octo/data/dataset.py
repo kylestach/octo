@@ -1,8 +1,10 @@
 from functools import partial
 import json
+import re
 from typing import Callable, Mapping, Optional, Sequence, Tuple, Union
 
 from absl import logging
+import tqdm
 import dlimp as dl
 import numpy as np
 import tensorflow as tf
@@ -415,27 +417,12 @@ def make_dataset_from_rlds(
         print("building the reasoning dict...")
         keys = []
         values = []
-        plan_horizon = 5 # ria todo: make this hyperparam
-
-        def reasoning_dict_to_str(dct):
-            final_str = ""
-            
-            for step in range(plan_horizon):
-                gripper_pos_tokens = dct['gripper'][step]
-                final_str += f"gripper{gripper_pos_tokens};"
-                for obj, traj_mask_tokens in dct['obj_masks'].items():
-                    final_str+= f"{obj.lower()}{traj_mask_tokens[step]};"
-            
-            return final_str
-        
-        def mask_to_bbox(mask_string):
-            if not mask_string:
-                return ""
-            return mask_string.split("<seg")[0]
+        plan_horizon = 50
+        plan_stride = 4
 
         has_reasoning = [0, 0]
 
-        for traj_id in cot_data.keys():
+        for traj_id in tqdm.tqdm(cot_data.keys(), desc="reasoning dict"):
             if not cot_data[f'{traj_id}']: # entries without language conditioning are an empty dict
                 has_reasoning[0] += 1
                 continue
@@ -445,36 +432,78 @@ def make_dataset_from_rlds(
             traj_data = cot_data[f'{traj_id}']
             traj_len = len(traj_data['gripper_centroids'])
 
+            # parse object trajectories
+            objects = {}
+
+            # gripper
+            objects['gripper'] = []
+            for j in range(0, traj_len):
+                gripper_str = traj_data['gripper_centroids'][f"{j}"]
+                gripper_tokens = re.findall(r'<loc(\d+)>', gripper_str)[:2]
+                gripper_tokens = [int(token) for token in gripper_tokens]
+                if len(gripper_tokens) == 2:
+                    objects['gripper'].append(np.array(gripper_tokens))
+                else:
+                    objects['gripper'].append(None)
+
+            # other objects
+            for obj_id, name in traj_data['obj_id_to_name'].items():
+                objects[obj_id] = []
+                for j in range(0, traj_len):
+                    mask_string = traj_data["obj_masks"][obj_id][f"{j}"]
+
+                    if mask_string == "":
+                        objects[obj_id].append(None)
+                        continue
+
+                    bbox_tokens = re.findall(r'<loc(\d+)>', mask_string)[:4]
+                    # Cast bbox_tokens to integers
+                    bbox_tokens = [int(token) for token in bbox_tokens]
+                    objects[obj_id].append(np.array(bbox_tokens))
+
+            obj_names = traj_data['obj_id_to_name'].copy()
+            obj_names["gripper"] = "gripper"
+
+            BBOX_EPS = 100
+
             for step in range(traj_len):
                 keys.append(f"{traj_id}_{step}")
 
-                step_reasoning_dict = {}
-                        
-                # gripper
-                step_reasoning_dict["gripper"] = []
-                for j in range(plan_horizon):
-                    if step + j < len(traj_data["gripper_centroids"]):
-                        step_reasoning_dict["gripper"].append(traj_data["gripper_centroids"][f"{step + j}"])
-                    else:
-                        step_reasoning_dict["gripper"].append("")
+                cot_steps = []
 
-                # object seg masks
-                step_reasoning_dict["obj_masks"] = {}
-                for obj_id, name in traj_data['obj_id_to_name'].items():
-                    step_reasoning_dict["obj_masks"][name] = []
-                    step_reasoning_dict["obj_masks"][name].append(traj_data["obj_masks"][obj_id][f"{step}"]) # add mask for current step
-                    for j in range(1, plan_horizon):
-                        # ria todo: just adding bounding boxes for future plan for now
-                        if step + j < len(traj_data["obj_masks"][obj_id]):
-                            mask_str = traj_data["obj_masks"][obj_id][f"{step + j}"]
-                            step_reasoning_dict["obj_masks"][name].append(mask_to_bbox(mask_str))
+                last_object_positions = {}
+                for future_step in range(step, min(step + plan_horizon, traj_len), plan_stride):
+                    current_objects = {
+                        name: object_traj[future_step]
+                        for name, object_traj in objects.items()
+                        if object_traj[future_step] is not None
+                    }
+
+                    for object_name, bbox in current_objects.items():
+                        if object_name not in last_object_positions:
+                            cot_steps.append((object_name, bbox))
+                            last_object_positions[object_name] = bbox
                         else:
-                            step_reasoning_dict["obj_masks"][name].append("")
+                            bbox_diff = np.sum(np.abs(last_object_positions[object_name] - bbox))
+                            if bbox_diff > BBOX_EPS:
+                                cot_steps.append((object_name, bbox))
+                                last_object_positions[object_name] = bbox
 
-                values.append(reasoning_dict_to_str(step_reasoning_dict))
+                cot_steps_str = "".join([
+                    "".join([
+                        obj_names[object_name],
+                    ] + [
+                        f"<loc{b:04d}>" for b in bbox
+                    ]) + ";"
+                    for object_name, bbox in cot_steps
+                ])
+                values.append(cot_steps_str)
 
         print("Example reasoning:", keys[0], values[0])
         print("Reasoning presence statistics [# has not, # has]:", has_reasoning)
+
+        reasoning_lengths = np.array([len(v) for v in values])
+        print("Reasoning lengths: mean {}, min {}, max {}, p99 {}, p99.9 {}".format(np.mean(reasoning_lengths), np.min(reasoning_lengths), np.max(reasoning_lengths), np.percentile(reasoning_lengths, 99), np.percentile(reasoning_lengths, 99.9)))
 
         return tf.lookup.StaticHashTable(tf.lookup.KeyValueTensorInitializer(keys, values), default_value="")
 
