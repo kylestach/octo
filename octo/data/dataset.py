@@ -304,9 +304,18 @@ def add_parl_action_cache(
     values = tf.constant(list(action_cache.values()), dtype=tf.float32)
 
     def add_parl_action(frame: dict) -> dict:
+        default_value = (
+            tf.ones_like(values[0]) * -2
+        )  # to make it clear that this should not happen.
         key = frame["frame_key"]
-        idx = tf.argmax(tf.cast(tf.equal(keys, key), tf.int32))
-        frame["counterfactual_next_actions"] = values[idx]
+        equality = tf.equal(keys, key)
+        is_key_in_keys = tf.reduce_any(equality)
+        idx = tf.argmax(tf.cast(equality, tf.int32))
+        frame["counterfactual_next_actions"] = tf.cond(
+            is_key_in_keys,
+            lambda: values[idx],
+            lambda: default_value,
+        )
         return frame
 
     dataset = dataset.frame_map(add_parl_action)
@@ -463,6 +472,9 @@ def make_dataset_from_rlds(
         frame_key = tf.strings.join(
             [
                 tf.repeat(name, traj_len),
+                tf.repeat(tf.constant("/"), traj_len),
+                # train/val
+                tf.repeat(tf.constant("train" if train else "val"), traj_len),
                 tf.repeat(tf.constant("/"), traj_len),
                 tf.repeat(tf.strings.as_string(traj_counter), traj_len),
                 tf.repeat(tf.constant("/"), traj_len),
