@@ -253,6 +253,7 @@ def apply_frame_transforms(
 def add_parl_action_cache(
     dataset: dl.DLataset,
     glob_pattern: str,
+    normalization_type,
     skip_norm: bool = False,
     dataset_statistics: Optional[dict] = None,
     num_parallel_calls: int = tf.data.AUTOTUNE,
@@ -268,40 +269,30 @@ def add_parl_action_cache(
 
     action_cache_files = glob(glob_pattern)
     action_cache = {}
+    none_keys = []  # List to keep track of keys with None values
     for f in action_cache_files:
         with open(f, "rb") as file:
-            action_cache.update(pickle.load(file))
+            for key, value in pickle.load(file).items():
+                if value is None:
+                    none_keys.append(key)  # Track keys with None values
+                else:
+                    action_cache[key] = value
 
-    # # Prepare keys and values
-    # keys = list(action_cache.keys())
-    # values = list(action_cache.values())
+    assert len(none_keys) < 25, "Suspicious"
 
-    # # Create a range of indices for values
-    # indices = tf.range(len(values), dtype=tf.int32)
-    # values_tensor = tf.constant(values, dtype=tf.float32)
-
-    # # Create the StaticHashTable mapping keys to indices
-    # keys_tensor = tf.constant(keys, dtype=tf.string)
-    # initializer = tf.lookup.KeyValueTensorInitializer(keys_tensor, indices)
-    # table = tf.lookup.StaticHashTable(initializer, default_value=-1)
-
-    # def add_parl_action(frame: dict) -> dict:
-    #     key = frame["frame_key"]
-    #     idx = table.lookup(key)
-
-    #     # Check if the key exists in the hash table
-    #     valid_idx = tf.greater_equal(idx, 0)
-    #     default_value = tf.zeros_like(values_tensor[0])
-    #     frame["counterfactual_next_actions"] = tf.cond(
-    #         valid_idx, lambda: values_tensor[idx], lambda: default_value
-    #     )
-    #     return frame
-
-    # StaticHashTable only works with scalar values
-    # Instead, use tf.equal to find the matching key, then argmax to find the index
-
+    # Convert keys and values to tensors
     keys = tf.constant(list(action_cache.keys()), dtype=tf.string)
     values = tf.constant(list(action_cache.values()), dtype=tf.float32)
+    none_keys = tf.constant(none_keys, dtype=tf.string)
+
+    # Filter the dataset to remove frames with frame_key in none_keys
+    dataset = dataset.filter(
+        lambda frame: tf.reduce_all(
+            tf.not_equal(
+                tf.reshape(frame["frame_key"], (-1, 1)), tf.reshape(none_keys, (1, -1))
+            )
+        )
+    )
 
     def add_parl_action(frame: dict) -> dict:
         default_value = (
@@ -325,7 +316,7 @@ def add_parl_action_cache(
             partial(
                 normalize_action_and_proprio,
                 metadata=dataset_statistics,
-                normalization_type=NormalizationType.BOUNDS,
+                normalization_type=normalization_type,
                 # Maps from key in dataset_statistics to key in frame
                 action_key="counterfactual_next_actions",
             ),
@@ -469,18 +460,31 @@ def make_dataset_from_rlds(
                     "but it must be tf.string."
                 )
 
-        frame_key = tf.strings.join(
+        # frame_key = tf.strings.join(
+        #     [
+        #         tf.repeat(name, traj_len),
+        #         tf.repeat(tf.constant("/"), traj_len),
+        #         # train/val
+        #         tf.repeat(tf.constant("train" if train else "val"), traj_len),
+        #         tf.repeat(tf.constant("/"), traj_len),
+        #         tf.repeat(tf.strings.as_string(traj_counter), traj_len),
+        #         tf.repeat(tf.constant("/"), traj_len),
+        #         tf.strings.as_string(tf.range(traj_len)),
+        #     ]
+        # )
+        bridge_specific_key = tf.strings.join(
             [
                 tf.repeat(name, traj_len),
-                tf.repeat(tf.constant("/"), traj_len),
-                # train/val
-                tf.repeat(tf.constant("train" if train else "val"), traj_len),
-                tf.repeat(tf.constant("/"), traj_len),
-                tf.repeat(tf.strings.as_string(traj_counter), traj_len),
-                tf.repeat(tf.constant("/"), traj_len),
+                traj["traj_metadata"]["episode_metadata"]["file_path"],
+                tf.repeat(tf.constant("#"), traj_len),
+                tf.strings.as_string(
+                    traj["traj_metadata"]["episode_metadata"]["episode_id"]
+                ),
+                tf.repeat(tf.constant(":"), traj_len),
                 tf.strings.as_string(tf.range(traj_len)),
             ]
         )
+        frame_key = bridge_specific_key
 
         traj_counter.assign_add(1)
 
@@ -515,6 +519,7 @@ def make_dataset_from_rlds(
             "action": tf.cast(traj["action"], tf.float32),
             "dataset_name": tf.repeat(name, traj_len),
             "frame_key": frame_key,
+            "bridge_specific_key": bridge_specific_key,
             "reward": reward,
             "td_mask": mask,
             "mc_return": mc_return,
@@ -588,7 +593,7 @@ def make_dataset_from_rlds(
         is_nonzero_length
     )
 
-    action_proprio_normalization_type = NormalizationType.BOUNDS
+    # action_proprio_normalization_type = NormalizationType.BOUNDS
     if not skip_norm:
         dataset = dataset.traj_map(
             partial(
@@ -728,6 +733,7 @@ def make_interleaved_dataset(
             dataset = add_parl_action_cache(
                 dataset,
                 parl_action_cache_glob_pattern,
+                normalization_type=dataset_kwargs["action_proprio_normalization_type"],
                 skip_norm=dataset_kwargs.get("skip_norm", False),
                 dataset_statistics=all_dataset_statistics[dataset_kwargs["name"]],
                 num_parallel_calls=threads,
