@@ -617,6 +617,7 @@ def make_single_dataset(
     train: bool,
     traj_transform_kwargs: dict = {},
     frame_transform_kwargs: dict = {},
+    parl_action_cache_glob_pattern: Optional[str] = None,
 ) -> dl.DLataset:
     """Creates a single dataset from kwargs. Returns a dataset of trajectories.
 
@@ -631,6 +632,15 @@ def make_single_dataset(
         train=train,
     )
     dataset = apply_trajectory_transforms(dataset, **traj_transform_kwargs, train=train)
+    if parl_action_cache_glob_pattern is not None:
+        dataset = add_parl_action_cache(
+            dataset,
+            parl_action_cache_glob_pattern,
+            normalization_type=dataset_kwargs["action_proprio_normalization_type"],
+            skip_norm=dataset_kwargs.get("skip_norm", False),
+            dataset_statistics=dataset_statistics,
+            num_parallel_calls=None,
+        )
     dataset = apply_frame_transforms(dataset, **frame_transform_kwargs, train=train)
 
     # this seems to reduce memory usage without affecting speed
