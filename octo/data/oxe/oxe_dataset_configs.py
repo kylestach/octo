@@ -717,8 +717,8 @@ OXE_DATASET_CONFIGS = {
     },
     "aloha_pen_uncap_diverse_dataset": {
         "image_obs_keys": {
-            "primary": None,
-            "high": "cam_high",
+            "primary": "cam_high",
+            "high": None,
             "nav": None,
             "left_wrist": "cam_left_wrist",
             "right_wrist": "cam_right_wrist",
@@ -731,8 +731,8 @@ OXE_DATASET_CONFIGS = {
     },
     "aloha_dough_cut_dataset": {
         "image_obs_keys": {
-            "primary": None,
-            "high": "cam_high",
+            "primary": "cam_high",
+            "high": None,
             "nav": None,
             "left_wrist": "cam_left_wrist",
             "right_wrist": "cam_right_wrist",
@@ -745,8 +745,8 @@ OXE_DATASET_CONFIGS = {
     },
     "aloha_lucy_dataset": {
         "image_obs_keys": {
-            "primary": None,
-            "high": "cam_high",
+            "primary": "cam_high",
+            "high": None,
             "nav": None,
             "left_wrist": "cam_left_wrist",
             "right_wrist": "cam_right_wrist",
@@ -759,8 +759,8 @@ OXE_DATASET_CONFIGS = {
     },
     "aloha_drawer_dataset": {
         "image_obs_keys": {
-            "primary": None,
-            "high": "cam_high",
+            "primary": "cam_high",
+            "high": None,
             "nav": None,
             "left_wrist": "cam_left_wrist",
             "right_wrist": "cam_right_wrist",
@@ -773,8 +773,8 @@ OXE_DATASET_CONFIGS = {
     },
     "aloha_pick_place_dataset": {
         "image_obs_keys": {
-            "primary": None,
-            "high": "cam_high",
+            "primary": "cam_high",
+            "high": None,
             "nav": None,
             "left_wrist": "cam_left_wrist",
             "right_wrist": "cam_right_wrist",
@@ -787,8 +787,8 @@ OXE_DATASET_CONFIGS = {
     },
     "aloha_static_dataset": {
         "image_obs_keys": {
-            "primary": None,
-            "high": "cam_high",
+            "primary": "cam_high",
+            "high": None,
             "nav": None,
             "left_wrist": "cam_left_wrist",
             "right_wrist": "cam_right_wrist",
@@ -801,8 +801,8 @@ OXE_DATASET_CONFIGS = {
     },
     "aloha_sushi_cut_full_dataset": {
         "image_obs_keys": {
-            "primary": None,
-            "high": "cam_high",
+            "primary": "cam_high",
+            "high": None,
             "nav": None,
             "left_wrist": "cam_left_wrist",
             "right_wrist": "cam_right_wrist",
