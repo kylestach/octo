@@ -13,6 +13,11 @@ BRIDGE_FRACTAL_MIX = [
     ("fractal20220817_data", 1.0),
 ]
 
+BRIDGE_ALOHA_PICKPLACE = [
+    ("bridge_dataset", 1.0),
+    ("aloha_pick_place_dataset", 1.0),
+]
+
 RT_X_MIX = [
     ("fractal20220817_data", 0.54087122203),
     ("kuka", 0.8341046294),
@@ -293,4 +298,5 @@ OXE_NAMED_MIXES = {
     "aloha_mix": ALOHA_MIX,
     "cross_embodiment": CROSS_EMBODIMENT,
     "higher_oxe_cross_embodiment": HIGHER_OXE_CROSS_EMBODIMENT,
+    "bridge_aloha_pickplace": BRIDGE_ALOHA_PICKPLACE,
 }

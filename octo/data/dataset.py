@@ -435,16 +435,28 @@ def make_dataset_from_rlds(
             # parse object trajectories
             objects = {}
 
-            # gripper
-            objects['gripper'] = []
+            # right gripper
+            objects['right_gripper'] = []
             for j in range(0, traj_len):
-                gripper_str = traj_data['gripper_centroids'][f"{j}"]
+                gripper_str = traj_data['gripper_centroids']['right_gripper'][f"{j}"]
                 gripper_tokens = re.findall(r'<loc(\d+)>', gripper_str)[:2]
                 gripper_tokens = [int(token) for token in gripper_tokens]
                 if len(gripper_tokens) == 2:
-                    objects['gripper'].append(np.array(gripper_tokens))
+                    objects['right_gripper'].append(np.array(gripper_tokens))
                 else:
-                    objects['gripper'].append(None)
+                    objects['right_gripper'].append(None)
+
+            # left gripper
+            if traj_data['gripper_centroids']['left_gripper']:
+                objects['left_gripper'] = []
+                for j in range(0, traj_len):
+                    gripper_str = traj_data['gripper_centroids']['left_gripper'][f"{j}"]
+                    gripper_tokens = re.findall(r'<loc(\d+)>', gripper_str)[:2]
+                    gripper_tokens = [int(token) for token in gripper_tokens]
+                    if len(gripper_tokens) == 2:
+                        objects['left_gripper'].append(np.array(gripper_tokens))
+                    else:
+                        objects['left_gripper'].append(None)
 
             # other objects
             for obj_id, name in traj_data['obj_id_to_name'].items():
@@ -462,7 +474,9 @@ def make_dataset_from_rlds(
                     objects[obj_id].append(np.array(bbox_tokens))
 
             obj_names = traj_data['obj_id_to_name'].copy()
-            obj_names["gripper"] = "gripper"
+            obj_names["right_gripper"] = "right-gripper"
+            if 'left_gripper' in objects:
+                obj_names["left_gripper"] = "left-gripper"
 
             BBOX_EPS = 100
 
