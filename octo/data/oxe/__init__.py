@@ -52,6 +52,12 @@ def make_oxe_dataset_kwargs(
     elif dataset_kwargs["action_encoding"] is ActionEncoding.NAV_2D:
         # with NAV_2D actions, all dimensions are deltas
         dataset_kwargs["action_normalization_mask"] = [True] * 2
+    elif dataset_kwargs["action_encoding"] is ActionEncoding.BIMANUAL_HUMAN_DEPTH:
+        # two hands x,y and depth
+         dataset_kwargs["action_normalization_mask"] = [True] * 6
+    elif dataset_kwargs["action_encoding"] is ActionEncoding.BIMANUAL_HUMAN:
+        # two hands x,y
+        dataset_kwargs["action_normalization_mask"] = [True] * 4
     elif dataset_kwargs["action_encoding"] is ActionEncoding.JOINT_POS_BIMANUAL_NAV:
         # with JOINT_POS_BIMANUAL_NAV actions, 7th and 14th dimension are gripper
         dataset_kwargs["action_normalization_mask"] = (

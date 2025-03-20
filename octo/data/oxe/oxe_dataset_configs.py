@@ -41,6 +41,8 @@ class ActionEncoding(IntEnum):
         5  # 2 x [6 x joint pos + gripper] + linear base vel + angular base vel
     )
     QUADRUPED = 6
+    BIMANUAL_HUMAN_DEPTH = 6
+    BIMANUAL_HUMAN = 7
 
 
 OXE_DATASET_CONFIGS = {
@@ -85,6 +87,50 @@ OXE_DATASET_CONFIGS = {
         "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
         "proprio_obs_keys": {"bimanual": None},
         "proprio_obs_dims": {"bimanual": 14},
+        "proprio_encoding": ProprioEncoding.POS_EULER,
+        "action_encoding": ActionEncoding.EEF_POS,
+    },
+    "hand_epic_dataset": {
+        "image_obs_keys": {"primary": "image_0", "secondary": None, "wrist": None},
+        "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
+        "proprio_obs_keys": {"bimanual": None},
+        "proprio_obs_dims": {"bimanual": 14},
+        "proprio_encoding": ProprioEncoding.NONE,
+        "action_encoding": ActionEncoding.EEF_POS,
+    },
+    "ego4d_hamer": {
+        "image_obs_keys": {"primary": "ego_image_1", "secondary": None, "wrist": None},
+        "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
+        "proprio_obs_keys": {"bimanual": None},
+        "proprio_obs_dims": {"bimanual": 14},
+        "state_obs_keys": ["proprio"],
+        "proprio_encoding": ProprioEncoding.POS_EULER,
+        "action_encoding": ActionEncoding.EEF_POS,
+    },
+    "epic_kitchens": {
+        "image_obs_keys": {"primary": "ego_image_1", "secondary": None, "wrist": None},
+        "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
+        "proprio_obs_keys": {"bimanual": None},
+        "proprio_obs_dims": {"bimanual": 14},
+        "state_obs_keys": ["proprio"],
+        "proprio_encoding": ProprioEncoding.POS_EULER,
+        "action_encoding": ActionEncoding.EEF_POS,
+    },
+    "h2_o_dataset": {
+        "image_obs_keys": {"primary": "ego_image_1", "secondary": None, "wrist": None},
+        "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
+        "proprio_obs_keys": {"bimanual": None},
+        "proprio_obs_dims": {"bimanual": 14},
+        "state_obs_keys": ["proprio"],
+        "proprio_encoding": ProprioEncoding.POS_EULER,
+        "action_encoding": ActionEncoding.EEF_POS,
+    },
+    "fpha_dataset": {
+        "image_obs_keys": {"primary": "ego_image_1", "secondary": None, "wrist": None},
+        "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
+        "proprio_obs_keys": {"bimanual": None},
+        "proprio_obs_dims": {"bimanual": 14},
+        "state_obs_keys": ["proprio"],
         "proprio_encoding": ProprioEncoding.POS_EULER,
         "action_encoding": ActionEncoding.EEF_POS,
     },
