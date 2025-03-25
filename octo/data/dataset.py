@@ -403,6 +403,7 @@ def make_dataset_from_rlds(
             "dataset_name": tf.repeat(name, traj_len),
             "traj_idx": traj["_traj_index"],
             "frame_idx": traj["_frame_index"],
+            'metadata': traj['traj_metadata']['episode_metadata']
         }
 
         # this means any trajectory without a language label will just have traj['reasonings']: None....
@@ -430,7 +431,7 @@ def make_dataset_from_rlds(
                 has_reasoning[1] += 1
 
             traj_data = cot_data[f'{traj_id}']
-            traj_len = len(traj_data['gripper_centroids'])
+            traj_len = len(traj_data['gripper_centroids']['right_gripper'])
 
             # parse object trajectories
             objects = {}

@@ -1043,6 +1043,10 @@ def aloha_dough_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
     trajectory["observation"]["proprio"] = trajectory["observation"]["state"]
     return trajectory
 
+def aloha_pick_place_full_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
+    trajectory["observation"]["proprio"] = trajectory["observation"]["state"]
+    return trajectory
+
 
 def droid_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
     trajectory["action"] = tf.concat(
@@ -1127,6 +1131,7 @@ OXE_STANDARDIZATION_TRANSFORMS = {
     "aloha_lucy_dataset": aloha_dough_dataset_transform,
     "aloha_drawer_dataset": aloha_dough_dataset_transform,
     "aloha_pick_place_dataset": aloha_dough_dataset_transform,
+    "aloha_pick_place_full_dataset": aloha_pick_place_full_dataset_transform,
     "aloha_static_dataset": aloha_dough_dataset_transform,
     "aloha_sushi_cut_full_dataset": aloha_dough_dataset_transform,
     "droid": droid_dataset_transform,

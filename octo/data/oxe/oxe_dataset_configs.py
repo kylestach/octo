@@ -785,6 +785,20 @@ OXE_DATASET_CONFIGS = {
         "proprio_encoding": ProprioEncoding.JOINT_BIMANUAL,
         "action_encoding": ActionEncoding.JOINT_POS_BIMANUAL,
     },
+    "aloha_pick_place_full_dataset": {
+        "image_obs_keys": {
+            "primary": "cam_high",
+            "high": None,
+            "nav": None,
+            "left_wrist": "cam_left_wrist",
+            "right_wrist": "cam_right_wrist",
+        },
+        "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
+        "proprio_obs_keys": {"bimanual": "proprio" },
+        "proprio_obs_dims": {"bimanual": 14},
+        "proprio_encoding": ProprioEncoding.JOINT_BIMANUAL,
+        "action_encoding": ActionEncoding.JOINT_POS_BIMANUAL,
+    },
     "aloha_static_dataset": {
         "image_obs_keys": {
             "primary": "cam_high",
