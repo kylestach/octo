@@ -89,6 +89,9 @@ OXE_DATASET_CONFIGS = {
         "proprio_obs_dims": {"bimanual": 14},
         "proprio_encoding": ProprioEncoding.POS_EULER,
         "action_encoding": ActionEncoding.EEF_POS,
+        "action_chunk_size": 4,
+        "cot_plan_horizon": 300,
+        "cot_plan_stride": 25,
     },
     "hand_epic_dataset": {
         "image_obs_keys": {"primary": "image_0", "secondary": None, "wrist": None},
@@ -844,6 +847,9 @@ OXE_DATASET_CONFIGS = {
         "proprio_obs_dims": {"bimanual": 14},
         "proprio_encoding": ProprioEncoding.JOINT_BIMANUAL,
         "action_encoding": ActionEncoding.JOINT_POS_BIMANUAL,
+        "action_chunk_size": 50,
+        "cot_plan_horizon": 300,
+        "cot_plan_stride": 25,
     },
     "aloha_static_dataset": {
         "image_obs_keys": {

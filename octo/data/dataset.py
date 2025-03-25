@@ -278,6 +278,9 @@ def make_dataset_from_rlds(
     num_parallel_calls: int = tf.data.AUTOTUNE,
     use_cot: bool = False,
     cot_data_path: Optional[str] = None,
+    cot_plan_horizon: int = 50,
+    cot_plan_stride: int = 4,
+    action_chunk_size: int = 1,
     **kwargs,
 ) -> Tuple[dl.DLataset, dict]:
     """This function is responsible for loading a specific RLDS dataset from storage and getting it into a
@@ -403,7 +406,8 @@ def make_dataset_from_rlds(
             "dataset_name": tf.repeat(name, traj_len),
             "traj_idx": traj["_traj_index"],
             "frame_idx": traj["_frame_index"],
-            'metadata': traj['traj_metadata']['episode_metadata']
+            "action_chunk_size": action_chunk_size,
+            # 'metadata': traj['traj_metadata']['episode_metadata']
         }
 
         # this means any trajectory without a language label will just have traj['reasonings']: None....
