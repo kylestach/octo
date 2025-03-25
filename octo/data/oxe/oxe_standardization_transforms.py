@@ -48,6 +48,465 @@ def bridge_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
     trajectory["observation"]["proprio"] = trajectory["observation"]["state"]
     return trajectory
 
+def ego4d_hamer_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Ego4D Hamer hand detection data transform.
+    Uses next N keypoint detections as targets & curates the data.
+    Curation steps:
+        1. Filter frames that do not detect the right hand in the current or next N-1 frames.
+        2. Filter frames for which the **summed** delta-keypoint norm of the next N steps
+           is above / below a threshold.
+        3. Filter frames for which the **max** delta-keypoint norm of the next N steps
+           is above a threshold (= usually jumps left-to-right hand).
+    """
+    N = 3  # Number of future steps for action targets
+    DELTA_SUM_MIN = 20  # minimum summed delta-keypoint norm for N steps
+    DELTA_SUM_MAX = 150  # minimum summed delta-keypoint norm for N steps
+    DELTA_MAX = 100  # max delta-keypoint norm for each of the N steps
+    STATE_ACTION_DIM = 7  # Action dimension of the padded actions -- make sure it's > 2*N
+
+    assert STATE_ACTION_DIM >= 2 * N, "Need to choose an action dim that is larger than 2x number of keypoints"
+    right_hand_kp = trajectory["action_dict"]["right"]["hand_center"]
+
+    # Chunk detected keypoints into N step-chunks
+    traj_len = tf.shape(right_hand_kp)[0]
+    kp_chunk_indices = tf.broadcast_to(tf.range(N + 1)[None], [traj_len - N, N + 1]) + tf.broadcast_to(
+        tf.range(traj_len - N)[:, None], [traj_len - N, N + 1]
+    )
+    chunked_kp = tf.gather(right_hand_kp, kp_chunk_indices)
+
+    # Detect any chunk that does not have all keypoints detected (ie some are (0, 0))
+    kp_norm = tf.linalg.norm(chunked_kp, axis=-1)
+    missing_detection_mask = tf.reduce_any(tf.equal(kp_norm, 0.0), axis=1)
+
+    # Compute delta keypoint actions
+    chunked_delta_kp = chunked_kp[:, 1:] - chunked_kp[:, :-1]
+
+    # Detect any chunks who's summed delta norms don't fall within the desired range
+    chunked_delta_kp_norm = tf.linalg.norm(chunked_delta_kp, axis=-1)
+    summed_delta_kp_norms = tf.reduce_sum(chunked_delta_kp_norm, axis=1)
+    small_summed_delta_norm_mask = summed_delta_kp_norms < DELTA_SUM_MIN
+    large_summed_delta_norm_mask = summed_delta_kp_norms > DELTA_SUM_MAX
+
+    # Detect any chunks who's max delta norm is too large
+    max_delta_kp_norms = tf.reduce_max(chunked_delta_kp_norm, axis=1)
+    max_delta_norm_mask = max_delta_kp_norms > DELTA_MAX
+
+    # Put all masks together for final filter
+    total_mask = (
+        ~missing_detection_mask & ~small_summed_delta_norm_mask & ~large_summed_delta_norm_mask & ~max_delta_norm_mask
+    )
+
+    # Don't use last N steps (since we don't have future keypoints for them)
+    total_mask = tf.concat((total_mask, tf.zeros((N,), dtype=tf.bool)), axis=0)
+
+    # Create padded versions of keypoint proprio and actions
+    padded_proprio = tf.pad(right_hand_kp, [[0, 0], [0, STATE_ACTION_DIM - 2]])
+    kp_action = tf.reshape(chunked_delta_kp, (traj_len - N, 2 * N))
+    padded_kp_action = tf.pad(kp_action, [[0, N], [0, STATE_ACTION_DIM - 2 * N]])
+
+    # Gather filtered transitions
+    trajectory["observation"]["ego_image_1"] = tf.boolean_mask(trajectory["observation"]["ego_image_1"], total_mask)
+    trajectory["observation"]["proprio"] = tf.boolean_mask(padded_proprio, total_mask)
+    trajectory["action"] = tf.boolean_mask(padded_kp_action, total_mask)
+    trajectory["language_instruction"] = tf.boolean_mask(trajectory["language_instruction"], total_mask)
+
+    return trajectory
+
+def ego4d_hamer_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Ego4D Hamer hand detection data transform.
+    Uses next N keypoint detections as targets & curates the data.
+    Curation steps:
+        1. Filter frames that do not detect the right hand in the current or next N-1 frames.
+        2. Filter frames for which the **summed** delta-keypoint norm of the next N steps
+           is above / below a threshold.
+        3. Filter frames for which the **max** delta-keypoint norm of the next N steps
+           is above a threshold (= usually jumps left-to-right hand).
+    """
+    N = 3  # Number of future steps for action targets
+    DELTA_SUM_MIN = 20  # minimum summed delta-keypoint norm for N steps
+    DELTA_SUM_MAX = 150  # minimum summed delta-keypoint norm for N steps
+    DELTA_MAX = 100  # max delta-keypoint norm for each of the N steps
+    STATE_ACTION_DIM = 7  # Action dimension of the padded actions -- make sure it's > 2*N
+
+    assert STATE_ACTION_DIM >= 2 * N, "Need to choose an action dim that is larger than 2x number of keypoints"
+    right_hand_kp = trajectory["action_dict"]["right"]["hand_center"]
+
+    # Chunk detected keypoints into N step-chunks
+    traj_len = tf.shape(right_hand_kp)[0]
+    kp_chunk_indices = tf.broadcast_to(tf.range(N + 1)[None], [traj_len - N, N + 1]) + tf.broadcast_to(
+        tf.range(traj_len - N)[:, None], [traj_len - N, N + 1]
+    )
+    chunked_kp = tf.gather(right_hand_kp, kp_chunk_indices)
+
+    # Detect any chunk that does not have all keypoints detected (ie some are (0, 0))
+    kp_norm = tf.linalg.norm(chunked_kp, axis=-1)
+    missing_detection_mask = tf.reduce_any(tf.equal(kp_norm, 0.0), axis=1)
+
+    # Compute delta keypoint actions
+    chunked_delta_kp = chunked_kp[:, 1:] - chunked_kp[:, :-1]
+
+    # Detect any chunks who's summed delta norms don't fall within the desired range
+    chunked_delta_kp_norm = tf.linalg.norm(chunked_delta_kp, axis=-1)
+    summed_delta_kp_norms = tf.reduce_sum(chunked_delta_kp_norm, axis=1)
+    small_summed_delta_norm_mask = summed_delta_kp_norms < DELTA_SUM_MIN
+    large_summed_delta_norm_mask = summed_delta_kp_norms > DELTA_SUM_MAX
+
+    # Detect any chunks who's max delta norm is too large
+    max_delta_kp_norms = tf.reduce_max(chunked_delta_kp_norm, axis=1)
+    max_delta_norm_mask = max_delta_kp_norms > DELTA_MAX
+
+    # Put all masks together for final filter
+    total_mask = (
+        ~missing_detection_mask & ~small_summed_delta_norm_mask & ~large_summed_delta_norm_mask & ~max_delta_norm_mask
+    )
+
+    # Don't use last N steps (since we don't have future keypoints for them)
+    total_mask = tf.concat((total_mask, tf.zeros((N,), dtype=tf.bool)), axis=0)
+
+    # Create padded versions of keypoint proprio and actions
+    padded_proprio = tf.pad(right_hand_kp, [[0, 0], [0, STATE_ACTION_DIM - 2]])
+    kp_action = tf.reshape(chunked_delta_kp, (traj_len - N, 2 * N))
+    padded_kp_action = tf.pad(kp_action, [[0, N], [0, STATE_ACTION_DIM - 2 * N]])
+
+    # Gather filtered transitions
+    trajectory["observation"]["ego_image_1"] = tf.boolean_mask(trajectory["observation"]["ego_image_1"], total_mask)
+    trajectory["observation"]["proprio"] = tf.boolean_mask(padded_proprio, total_mask)
+    trajectory["action"] = tf.boolean_mask(padded_kp_action, total_mask)
+    trajectory["language_instruction"] = tf.boolean_mask(trajectory["language_instruction"], total_mask)
+
+    if "_traj_index" in trajectory:
+        trajectory["_traj_index"] = tf.boolean_mask(trajectory["_traj_index"], total_mask)
+    if "_frame_index" in trajectory:
+        trajectory["_frame_index"] = tf.boolean_mask(trajectory["_frame_index"], total_mask)
+
+    return trajectory
+
+def fpha_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Ego4D Hamer hand detection data transform.
+    Uses next N keypoint detections as targets & curates the data.
+    Curation steps:
+        1. Filter frames that do not detect the right hand in the current or next N-1 frames.
+        2. Filter frames for which the **summed** delta-keypoint norm of the next N steps
+           is above / below a threshold.
+        3. Filter frames for which the **max** delta-keypoint norm of the next N steps
+           is above a threshold (= usually jumps left-to-right hand).
+    """
+    N = 3  # Number of future steps for action targets
+    DELTA_SUM_MIN = 20  # minimum summed delta-keypoint norm for N steps
+    DELTA_SUM_MAX = 150  # minimum summed delta-keypoint norm for N steps
+    DELTA_MAX = 100  # max delta-keypoint norm for each of the N steps
+    STATE_ACTION_DIM = 7  # Action dimension of the padded actions -- make sure it's > 2*N
+
+    assert STATE_ACTION_DIM >= 2 * N, "Need to choose an action dim that is larger than 2x number of keypoints"
+    right_hand_kp = trajectory["action_dict"]["right"]["hand_center"]
+    right_hand_kp *= 256  # Convert from normalized to pixel space
+
+    # Chunk detected keypoints into N step-chunks
+    traj_len = tf.shape(right_hand_kp)[0]
+    if traj_len <= N:
+        tf.print("[[[SKIPPING TRAJECTORY]]] traj_len:", traj_len, "<= N:", N)
+        total_mask = tf.zeros((traj_len,), dtype=tf.bool)
+        padded_kp_action = tf.zeros((traj_len, STATE_ACTION_DIM), dtype=tf.float32)
+    else:
+        kp_chunk_indices = tf.broadcast_to(tf.range(N + 1)[None], [traj_len - N, N + 1]) + tf.broadcast_to(
+            tf.range(traj_len - N)[:, None], [traj_len - N, N + 1]
+        )
+        chunked_kp = tf.gather(right_hand_kp, kp_chunk_indices)
+
+        # Detect any chunk that does not have all keypoints detected (ie some are (0, 0))
+        kp_norm = tf.linalg.norm(chunked_kp, axis=-1)
+        missing_detection_mask = tf.reduce_any(tf.equal(kp_norm, 0.0), axis=1)
+
+        # Compute delta keypoint actions
+        chunked_delta_kp = chunked_kp[:, 1:] - chunked_kp[:, :-1]
+
+        # Detect any chunks who's summed delta norms don't fall within the desired range
+        chunked_delta_kp_norm = tf.linalg.norm(chunked_delta_kp, axis=-1)
+        summed_delta_kp_norms = tf.reduce_sum(chunked_delta_kp_norm, axis=1)
+        small_summed_delta_norm_mask = summed_delta_kp_norms < DELTA_SUM_MIN
+        large_summed_delta_norm_mask = summed_delta_kp_norms > DELTA_SUM_MAX
+
+        # Detect any chunks who's max delta norm is too large
+        max_delta_kp_norms = tf.reduce_max(chunked_delta_kp_norm, axis=1)
+        max_delta_norm_mask = max_delta_kp_norms > DELTA_MAX
+
+        # Put all masks together for final filter
+        total_mask = (
+                ~missing_detection_mask & ~small_summed_delta_norm_mask & ~large_summed_delta_norm_mask & ~max_delta_norm_mask
+        )
+
+        # Don't use last N steps (since we don't have future keypoints for them)
+        total_mask = tf.concat((total_mask, tf.zeros((N,), dtype=tf.bool)), axis=0)
+        kp_action = tf.reshape(chunked_delta_kp, (traj_len - N, 2 * N))
+        padded_kp_action = tf.pad(kp_action, [[0, N], [0, STATE_ACTION_DIM - 2 * N]])
+
+    # Create padded versions of keypoint proprio and actions
+    padded_proprio = tf.pad(right_hand_kp, [[0, 0], [0, STATE_ACTION_DIM - 2]])
+
+    # Gather filtered transitions
+    trajectory["observation"]["ego_image_1"] = tf.boolean_mask(trajectory["observation"]["ego_image_1"], total_mask)
+    trajectory["observation"]["proprio"] = tf.boolean_mask(padded_proprio, total_mask)
+    trajectory["action"] = tf.boolean_mask(padded_kp_action, total_mask)
+    trajectory["language_instruction"] = tf.boolean_mask(trajectory["language_instruction"], total_mask)
+
+    if "_traj_index" in trajectory:
+        trajectory["_traj_index"] = tf.boolean_mask(trajectory["_traj_index"], total_mask)
+    if "_frame_index" in trajectory:
+        trajectory["_frame_index"] = tf.boolean_mask(trajectory["_frame_index"], total_mask)
+
+    return trajectory
+
+def h2o_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Ego4D Hamer hand detection data transform.
+    Uses next N keypoint detections as targets & curates the data.
+    Curation steps:
+        1. Filter frames that do not detect the right hand in the current or next N-1 frames.
+        2. Filter frames for which the **summed** delta-keypoint norm of the next N steps
+           is above / below a threshold.
+        3. Filter frames for which the **max** delta-keypoint norm of the next N steps
+           is above a threshold (= usually jumps left-to-right hand).
+    """
+    N = 3  # Number of future steps for action targets
+    DELTA_SUM_MIN = 20  # minimum summed delta-keypoint norm for N steps
+    DELTA_SUM_MAX = 150  # minimum summed delta-keypoint norm for N steps
+    DELTA_MAX = 100  # max delta-keypoint norm for each of the N steps
+    STATE_ACTION_DIM = 7  # Action dimension of the padded actions -- make sure it's > 2*N
+
+    assert STATE_ACTION_DIM >= 2 * N, "Need to choose an action dim that is larger than 2x number of keypoints"
+    right_hand_kp = trajectory["action_dict"]["right"]["hand_center"]
+    right_hand_kp *= 256  # Convert from normalized to pixel space
+    # Chunk detected keypoints into N step-chunks
+    traj_len = tf.shape(right_hand_kp)[0]
+    kp_chunk_indices = tf.broadcast_to(tf.range(N + 1)[None], [traj_len - N, N + 1]) + tf.broadcast_to(
+        tf.range(traj_len - N)[:, None], [traj_len - N, N + 1]
+    )
+    chunked_kp = tf.gather(right_hand_kp, kp_chunk_indices)
+
+    # Detect any chunk that does not have all keypoints detected (ie some are (0, 0))
+    kp_norm = tf.linalg.norm(chunked_kp, axis=-1)
+    missing_detection_mask = tf.reduce_any(tf.equal(kp_norm, 0.0), axis=1)
+
+    # Compute delta keypoint actions
+    chunked_delta_kp = chunked_kp[:, 1:] - chunked_kp[:, :-1]
+
+    # Detect any chunks who's summed delta norms don't fall within the desired range
+    chunked_delta_kp_norm = tf.linalg.norm(chunked_delta_kp, axis=-1)
+    summed_delta_kp_norms = tf.reduce_sum(chunked_delta_kp_norm, axis=1)
+    small_summed_delta_norm_mask = summed_delta_kp_norms < DELTA_SUM_MIN
+    large_summed_delta_norm_mask = summed_delta_kp_norms > DELTA_SUM_MAX
+
+    # Detect any chunks who's max delta norm is too large
+    max_delta_kp_norms = tf.reduce_max(chunked_delta_kp_norm, axis=1)
+    max_delta_norm_mask = max_delta_kp_norms > DELTA_MAX
+
+    # Put all masks together for final filter
+    total_mask = (
+        ~missing_detection_mask & ~small_summed_delta_norm_mask & ~large_summed_delta_norm_mask & ~max_delta_norm_mask
+    )
+
+    # Don't use last N steps (since we don't have future keypoints for them)
+    total_mask = tf.concat((total_mask, tf.zeros((N,), dtype=tf.bool)), axis=0)
+
+    # Create padded versions of keypoint proprio and actions
+    padded_proprio = tf.pad(right_hand_kp, [[0, 0], [0, STATE_ACTION_DIM - 2]])
+    kp_action = tf.reshape(chunked_delta_kp, (traj_len - N, 2 * N))
+    padded_kp_action = tf.pad(kp_action, [[0, N], [0, STATE_ACTION_DIM - 2 * N]])
+
+    # Gather filtered transitions
+    trajectory["observation"]["ego_image_1"] = tf.boolean_mask(trajectory["observation"]["ego_image_1"], total_mask)
+    trajectory["observation"]["proprio"] = tf.boolean_mask(padded_proprio, total_mask)
+    trajectory["action"] = tf.boolean_mask(padded_kp_action, total_mask)
+    trajectory["language_instruction"] = tf.boolean_mask(trajectory["language_instruction"], total_mask)
+
+    if "_traj_index" in trajectory:
+        trajectory["_traj_index"] = tf.boolean_mask(trajectory["_traj_index"], total_mask)
+    if "_frame_index" in trajectory:
+        trajectory["_frame_index"] = tf.boolean_mask(trajectory["_frame_index"], total_mask)
+
+    return trajectory
+
+def ssv2_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Ego4D Hamer hand detection data transform.
+    Uses next N keypoint detections as targets & curates the data.
+    Curation steps:
+        1. Filter frames that do not detect the right hand in the current or next N-1 frames.
+        2. Filter frames for which the **summed** delta-keypoint norm of the next N steps
+           is above / below a threshold.
+        3. Filter frames for which the **max** delta-keypoint norm of the next N steps
+           is above a threshold (= usually jumps left-to-right hand).
+    """
+    N = 3  # Number of future steps for action targets
+    DELTA_SUM_MIN = 20  # minimum summed delta-keypoint norm for N steps
+    DELTA_SUM_MAX = 150  # minimum summed delta-keypoint norm for N steps
+    DELTA_MAX = 100  # max delta-keypoint norm for each of the N steps
+    STATE_ACTION_DIM = 7  # Action dimension of the padded actions -- make sure it's > 2*N
+
+    assert STATE_ACTION_DIM >= 2 * N, "Need to choose an action dim that is larger than 2x number of keypoints"
+    right_hand_kp = trajectory["action_dict"]["right"]["hand_center"]
+    right_hand_kp *= 256  # Convert from normalized to pixel space
+    # Chunk detected keypoints into N step-chunks
+    traj_len = tf.shape(right_hand_kp)[0]
+    kp_chunk_indices = tf.broadcast_to(tf.range(N + 1)[None], [traj_len - N, N + 1]) + tf.broadcast_to(
+        tf.range(traj_len - N)[:, None], [traj_len - N, N + 1]
+    )
+    chunked_kp = tf.gather(right_hand_kp, kp_chunk_indices)
+
+    # Detect any chunk that does not have all keypoints detected (ie some are (0, 0))
+    kp_norm = tf.linalg.norm(chunked_kp, axis=-1)
+    missing_detection_mask = tf.reduce_any(tf.equal(kp_norm, 0.0), axis=1)
+
+    # Compute delta keypoint actions
+    chunked_delta_kp = chunked_kp[:, 1:] - chunked_kp[:, :-1]
+
+    # Detect any chunks who's summed delta norms don't fall within the desired range
+    chunked_delta_kp_norm = tf.linalg.norm(chunked_delta_kp, axis=-1)
+    summed_delta_kp_norms = tf.reduce_sum(chunked_delta_kp_norm, axis=1)
+    small_summed_delta_norm_mask = summed_delta_kp_norms < DELTA_SUM_MIN
+    large_summed_delta_norm_mask = summed_delta_kp_norms > DELTA_SUM_MAX
+
+    # Detect any chunks who's max delta norm is too large
+    max_delta_kp_norms = tf.reduce_max(chunked_delta_kp_norm, axis=1)
+    max_delta_norm_mask = max_delta_kp_norms > DELTA_MAX
+
+    # Put all masks together for final filter
+    total_mask = (
+        ~missing_detection_mask & ~small_summed_delta_norm_mask & ~large_summed_delta_norm_mask & ~max_delta_norm_mask
+    )
+
+    # Don't use last N steps (since we don't have future keypoints for them)
+    total_mask = tf.concat((total_mask, tf.zeros((N,), dtype=tf.bool)), axis=0)
+
+    # Create padded versions of keypoint proprio and actions
+    padded_proprio = tf.pad(right_hand_kp, [[0, 0], [0, STATE_ACTION_DIM - 2]])
+    kp_action = tf.reshape(chunked_delta_kp, (traj_len - N, 2 * N))
+    padded_kp_action = tf.pad(kp_action, [[0, N], [0, STATE_ACTION_DIM - 2 * N]])
+
+    # Gather filtered transitions
+    trajectory["observation"]["ego_image_1"] = tf.boolean_mask(trajectory["observation"]["ego_image_1"], total_mask)
+    trajectory["observation"]["proprio"] = tf.boolean_mask(padded_proprio, total_mask)
+    trajectory["action"] = tf.boolean_mask(padded_kp_action, total_mask)
+    trajectory["language_instruction"] = tf.boolean_mask(trajectory["language_instruction"], total_mask)
+
+    if "_traj_index" in trajectory:
+        trajectory["_traj_index"] = tf.boolean_mask(trajectory["_traj_index"], total_mask)
+    if "_frame_index" in trajectory:
+        trajectory["_frame_index"] = tf.boolean_mask(trajectory["_frame_index"], total_mask)
+
+    return trajectory
+
+def epic_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Ego4D Hamer hand detection data transform.
+    Uses next N keypoint detections as targets & curates the data.
+    Curation steps:
+        1. Filter frames that do not detect the right hand in the current or next N-1 frames.
+        2. Filter frames for which the **summed** delta-keypoint norm of the next N steps
+           is above / below a threshold.
+        3. Filter frames for which the **max** delta-keypoint norm of the next N steps
+           is above a threshold (= usually jumps left-to-right hand).
+    """
+    N = 3  # Number of future steps for action targets
+    DELTA_SUM_MIN = 20  # minimum summed delta-keypoint norm for N steps
+    DELTA_SUM_MAX = 150  # minimum summed delta-keypoint norm for N steps
+    DELTA_MAX = 100  # max delta-keypoint norm for each of the N steps
+    STATE_ACTION_DIM = 7  # Action dimension of the padded actions -- make sure it's > 2*N
+
+    assert STATE_ACTION_DIM >= 2 * N, "Need to choose an action dim that is larger than 2x number of keypoints"
+    right_hand_kp = trajectory["action_dict"]["right"]["hand_center"]
+    right_hand_kp *= 256  # Convert from normalized to pixel space
+
+    # Chunk detected keypoints into N step-chunks
+    traj_len = tf.shape(right_hand_kp)[0]
+    if traj_len <= N:
+        tf.print("[[[SKIPPING TRAJECTORY]]] traj_len:", traj_len, "<= N:", N)
+        total_mask = tf.zeros((traj_len,), dtype=tf.bool)
+        padded_kp_action = tf.zeros((traj_len, STATE_ACTION_DIM), dtype=tf.float32)
+    else:
+      kp_chunk_indices = tf.broadcast_to(tf.range(N + 1)[None], [traj_len - N, N + 1]) + tf.broadcast_to(
+          tf.range(traj_len - N)[:, None], [traj_len - N, N + 1]
+      )
+      chunked_kp = tf.gather(right_hand_kp, kp_chunk_indices)
+
+      # Detect any chunk that does not have all keypoints detected (ie some are (0, 0))
+      kp_norm = tf.linalg.norm(chunked_kp, axis=-1)
+      missing_detection_mask = tf.reduce_any(tf.equal(kp_norm, 0.0), axis=1)
+
+      # Compute delta keypoint actions
+      chunked_delta_kp = chunked_kp[:, 1:] - chunked_kp[:, :-1]
+
+      # Detect any chunks who's summed delta norms don't fall within the desired range
+      chunked_delta_kp_norm = tf.linalg.norm(chunked_delta_kp, axis=-1)
+      summed_delta_kp_norms = tf.reduce_sum(chunked_delta_kp_norm, axis=1)
+      small_summed_delta_norm_mask = summed_delta_kp_norms < DELTA_SUM_MIN
+      large_summed_delta_norm_mask = summed_delta_kp_norms > DELTA_SUM_MAX
+
+      # Detect any chunks who's max delta norm is too large
+      max_delta_kp_norms = tf.reduce_max(chunked_delta_kp_norm, axis=1)
+      max_delta_norm_mask = max_delta_kp_norms > DELTA_MAX
+
+      # Put all masks together for final filter
+      total_mask = (
+          ~missing_detection_mask & ~small_summed_delta_norm_mask & ~large_summed_delta_norm_mask & ~max_delta_norm_mask
+      )
+
+      # Don't use last N steps (since we don't have future keypoints for them)
+      total_mask = tf.concat((total_mask, tf.zeros((N,), dtype=tf.bool)), axis=0)
+      kp_action = tf.reshape(chunked_delta_kp, (traj_len - N, 2 * N))
+      padded_kp_action = tf.pad(kp_action, [[0, N], [0, STATE_ACTION_DIM - 2 * N]])
+
+    # Create padded versions of keypoint proprio and actions
+    padded_proprio = tf.pad(right_hand_kp, [[0, 0], [0, STATE_ACTION_DIM - 2]])
+
+    # Gather filtered transitions
+    trajectory["observation"]["ego_image_1"] = tf.boolean_mask(trajectory["observation"]["ego_image_1"], total_mask)
+    trajectory["observation"]["proprio"] = tf.boolean_mask(padded_proprio, total_mask)
+    trajectory["action"] = tf.boolean_mask(padded_kp_action, total_mask)
+    trajectory["language_instruction"] = tf.boolean_mask(trajectory["language_instruction"], total_mask)
+
+    if "_traj_index" in trajectory:
+        trajectory["_traj_index"] = tf.boolean_mask(trajectory["_traj_index"], total_mask)
+    if "_frame_index" in trajectory:
+        trajectory["_frame_index"] = tf.boolean_mask(trajectory["_frame_index"], total_mask)
+
+    return trajectory
+
+def epic_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
+    # check if the hands are present
+    trajectory["observation"]["tcp_point_3d_left"] = tf.where(
+        trajectory["observation"]["has_hand_left"][:, tf.newaxis],
+        trajectory["observation"]["tcp_point_3d_left"],
+        tf.zeros_like(trajectory["observation"]["tcp_point_3d_left"]),
+    )
+
+    # Use tf.where for right hand as well
+    trajectory["observation"]["tcp_point_3d_right"] = tf.where(
+        trajectory["observation"]["has_hand_right"][:, tf.newaxis],
+        trajectory["observation"]["tcp_point_3d_right"],
+        tf.zeros_like(trajectory["observation"]["tcp_point_3d_right"]),
+    )
+
+    concatenated_tcp = tf.concat(
+        [
+            trajectory["observation"]["tcp_point_3d_left"],
+            trajectory["observation"]["tcp_point_3d_right"],
+        ],
+        axis=1,
+    )
+    # compute relative actions across time dimension
+    relative_actions = tf.experimental.numpy.diff(concatenated_tcp, axis=0)
+    # add zero padding to make the shape consistent
+    zero_padding = tf.zeros_like(relative_actions[0:1])
+    relative_actions = tf.concat([relative_actions, zero_padding], axis=0)
+    # Add an extra zero column to make the shape (timestep, 7), so we can mix with 7-DoF datasets
+    extra_zero_column = tf.zeros_like(relative_actions[:, :1])
+    relative_actions = tf.concat([relative_actions, extra_zero_column], axis=1)
+    trajectory["action"] = relative_actions
+    return trajectory
 
 def rt1_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
     # make gripper action absolute action, +1 = open, 0 = close
@@ -1067,6 +1526,12 @@ def droid_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
 
 
 OXE_STANDARDIZATION_TRANSFORMS = {
+    "hand_epic_dataset": epic_dataset_transform,
+    "ego4d_hamer": ego4d_hamer_transform,
+    "epic_kitchens": epic_transform,
+    "h2_o_dataset": h2o_transform,
+    "fpha_dataset": fpha_transform,
+    "ss_v2_dataset": ssv2_transform,
     "bridge_dataset": bridge_dataset_transform,
     "fractal20220817_data": rt1_dataset_transform,
     "kuka": kuka_dataset_transform,
