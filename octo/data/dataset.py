@@ -406,7 +406,7 @@ def make_dataset_from_rlds(
             "dataset_name": tf.repeat(name, traj_len),
             "traj_idx": traj["_traj_index"],
             "frame_idx": traj["_frame_index"],
-            "action_chunk_size": action_chunk_size,
+            "action_chunk_size": tf.repeat(action_chunk_size, traj_len),
             # 'metadata': traj['traj_metadata']['episode_metadata']
         }
 
@@ -422,8 +422,6 @@ def make_dataset_from_rlds(
         print("building the reasoning dict...")
         keys = []
         values = []
-        plan_horizon = 50
-        plan_stride = 4
 
         has_reasoning = [0, 0]
 
@@ -491,7 +489,7 @@ def make_dataset_from_rlds(
                 cot_steps = []
 
                 last_object_positions = {}
-                for future_step in range(step, min(step + plan_horizon, traj_len), plan_stride):
+                for future_step in range(step, min(step + cot_plan_horizon, traj_len), cot_plan_stride):
                     current_objects = {
                         name: object_traj[future_step]
                         for name, object_traj in objects.items()
