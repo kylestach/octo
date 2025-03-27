@@ -15,7 +15,7 @@ BRIDGE_FRACTAL_MIX = [
 
 BRIDGE_ALOHA_PICKPLACE = [
     ("bridge_dataset", 1.0),
-    ("aloha_pick_place_dataset", 1.0),
+    ("aloha_pick_place_full_dataset", 1.0),
 ]
 
 HUMAN_ONLY_MIX = [
