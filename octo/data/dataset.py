@@ -433,33 +433,33 @@ def make_dataset_from_rlds(
                 has_reasoning[1] += 1
 
             traj_data = cot_data[f'{traj_id}']
-            traj_len = len(traj_data['gripper_centroids']['right_gripper'])
+            traj_len = len(traj_data['end_effector_centroids']['right_end_effector'])
 
             # parse object trajectories
             objects = {}
 
             # right gripper
-            objects['right_gripper'] = []
+            objects['right_end_effector'] = []
             for j in range(0, traj_len):
-                gripper_str = traj_data['gripper_centroids']['right_gripper'][f"{j}"]
+                gripper_str = traj_data['end_effector_centroids']['right_end_effector'][f"{j}"]
                 gripper_tokens = re.findall(r'<loc(\d+)>', gripper_str)[:2]
                 gripper_tokens = [int(token) for token in gripper_tokens]
                 if len(gripper_tokens) == 2:
-                    objects['right_gripper'].append(np.array(gripper_tokens))
+                    objects['right_end_effector'].append(np.array(gripper_tokens))
                 else:
-                    objects['right_gripper'].append(None)
+                    objects['right_end_effector'].append(None)
 
             # left gripper
-            if traj_data['gripper_centroids']['left_gripper']:
-                objects['left_gripper'] = []
+            if traj_data['end_effector_centroids']['left_end_effector']:
+                objects['left_end_effector'] = []
                 for j in range(0, traj_len):
-                    gripper_str = traj_data['gripper_centroids']['left_gripper'][f"{j}"]
+                    gripper_str = traj_data['end_effector_centroids']['left_end_effector'][f"{j}"]
                     gripper_tokens = re.findall(r'<loc(\d+)>', gripper_str)[:2]
                     gripper_tokens = [int(token) for token in gripper_tokens]
                     if len(gripper_tokens) == 2:
-                        objects['left_gripper'].append(np.array(gripper_tokens))
+                        objects['left_end_effector'].append(np.array(gripper_tokens))
                     else:
-                        objects['left_gripper'].append(None)
+                        objects['left_end_effector'].append(None)
 
             # other objects
             for obj_id, name in traj_data['obj_id_to_name'].items():
@@ -477,11 +477,11 @@ def make_dataset_from_rlds(
                     objects[obj_id].append(np.array(bbox_tokens))
 
             obj_names = traj_data['obj_id_to_name'].copy()
-            obj_names["right_gripper"] = "right-gripper"
-            if 'left_gripper' in objects:
-                obj_names["left_gripper"] = "left-gripper"
+            obj_names["right_end_effector"] = "right-end-effector"
+            if 'left_end_effector' in objects:
+                obj_names["left_end_effector"] = "left-end-effector"
 
-            BBOX_EPS = 100
+            BBOX_EPS = 25
 
             for step in range(traj_len):
                 keys.append(f"{traj_id}_{step}")
