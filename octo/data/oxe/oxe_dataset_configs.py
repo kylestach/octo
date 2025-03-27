@@ -90,8 +90,8 @@ OXE_DATASET_CONFIGS = {
         "proprio_encoding": ProprioEncoding.POS_EULER,
         "action_encoding": ActionEncoding.EEF_POS,
         "action_chunk_size": 4,
-        "cot_plan_horizon": 300,
-        "cot_plan_stride": 25,
+        "cot_plan_horizon": 50,
+        "cot_plan_stride": 4,
     },
     "hand_epic_dataset": {
         "image_obs_keys": {"primary": "image_0", "secondary": None, "wrist": None},
