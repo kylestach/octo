@@ -462,6 +462,7 @@ def make_dataset_from_rlds(
                         objects['left_end_effector'].append(None)
 
             # other objects
+            traj_data['obj_id_to_name'] = traj_data.get('obj_id_to_name', {})
             for obj_id, name in traj_data['obj_id_to_name'].items():
                 objects[obj_id] = []
                 for j in range(0, traj_len):

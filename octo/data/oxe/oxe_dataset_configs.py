@@ -109,6 +109,8 @@ OXE_DATASET_CONFIGS = {
         "state_obs_keys": ["proprio"],
         "proprio_encoding": ProprioEncoding.POS_EULER,
         "action_encoding": ActionEncoding.EEF_POS,
+        "cot_plan_horizon": 50,
+        "cot_plan_stride": 1,
     },
     "epic_kitchens": {
         "image_obs_keys": {"primary": "ego_image_1", "secondary": None, "wrist": None},
