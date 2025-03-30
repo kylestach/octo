@@ -490,29 +490,39 @@ def make_dataset_from_rlds(
                 obj_names["left_end_effector"] = "left-end-effector"
 
             BBOX_EPS = 25
+            MAX_PLAN_LENGTH = 5 ## added to make sure plans aren't too long, esp for human data
 
             for step in range(traj_len):
                 keys.append(f"{traj_id}_{step}")
 
                 cot_steps = []
-
+                
                 last_object_positions = {}
-                for future_step in range(step, min(step + cot_plan_horizon, traj_len), cot_plan_stride):
-                    current_objects = {
-                        name: object_traj[future_step]
-                        for name, object_traj in objects.items()
-                        if object_traj[future_step] is not None
-                    }
+                plan_length = 0
 
-                    for object_name, bbox in current_objects.items():
-                        if object_name not in last_object_positions:
-                            cot_steps.append((object_name, bbox))
-                            last_object_positions[object_name] = bbox
-                        else:
-                            bbox_diff = np.sum(np.abs(last_object_positions[object_name] - bbox))
-                            if bbox_diff > BBOX_EPS:
+                for future_step in range(step, min(step + cot_plan_horizon, traj_len), cot_plan_stride):
+                    
+                    if plan_length<MAX_PLAN_LENGTH:
+                        current_objects = {
+                            name: object_traj[future_step]
+                            for name, object_traj in objects.items()
+                            if object_traj[future_step] is not None
+                        }
+
+                        anything_added = False
+                        for object_name, bbox in current_objects.items():
+                            if object_name not in last_object_positions:
                                 cot_steps.append((object_name, bbox))
                                 last_object_positions[object_name] = bbox
+                                anything_added=True
+                            else:
+                                bbox_diff = np.sum(np.abs(last_object_positions[object_name] - bbox))
+                                if bbox_diff > BBOX_EPS:
+                                    cot_steps.append((object_name, bbox))
+                                    last_object_positions[object_name] = bbox
+                                    anything_added=True
+                        
+                        plan_length = plan_length+1 if anything_added else plan_length
 
                 cot_steps_str = "".join([
                     "".join([
