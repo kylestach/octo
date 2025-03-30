@@ -413,7 +413,14 @@ def make_dataset_from_rlds(
         # this means any trajectory without a language label will just have traj['reasonings']: None....
         if use_cot: 
             indices = tf.as_string(tf.range(traj_len))
-            reasonings = cot_lookup_table.lookup(tf.strings.as_string(traj['traj_idx'][0]) + "_" + indices)
+            traj_idx_len = tf.shape(traj['traj_idx'])[0]
+            reasonings = tf.cond(
+                traj_idx_len > 1,
+                lambda: cot_lookup_table.lookup(
+                    tf.strings.join([tf.strings.as_string(traj['traj_idx'][0]), "_", indices])
+                ),
+                lambda: tf.repeat(tf.constant("", dtype=tf.string), traj_len)
+            )
             traj['reasonings'] = reasonings
 
         return traj
