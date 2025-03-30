@@ -109,6 +109,7 @@ OXE_DATASET_CONFIGS = {
         "state_obs_keys": ["proprio"],
         "proprio_encoding": ProprioEncoding.POS_EULER,
         "action_encoding": ActionEncoding.EEF_POS,
+        "action_chunk_size": 1,
         "cot_plan_horizon": 50,
         "cot_plan_stride": 1,
     },
@@ -120,6 +121,9 @@ OXE_DATASET_CONFIGS = {
         "state_obs_keys": ["proprio"],
         "proprio_encoding": ProprioEncoding.POS_EULER,
         "action_encoding": ActionEncoding.EEF_POS,
+        "action_chunk_size": 1,
+        "cot_plan_horizon": 50,
+        "cot_plan_stride": 1,
     },
     "h2_o_dataset": {
         "image_obs_keys": {"primary": "ego_image_1", "secondary": None, "wrist": None},
@@ -129,6 +133,9 @@ OXE_DATASET_CONFIGS = {
         "state_obs_keys": ["proprio"],
         "proprio_encoding": ProprioEncoding.POS_EULER,
         "action_encoding": ActionEncoding.EEF_POS,
+        "action_chunk_size": 1,
+        "cot_plan_horizon": 50,
+        "cot_plan_stride": 1,
     },
     "fpha_dataset": {
         "image_obs_keys": {"primary": "ego_image_1", "secondary": None, "wrist": None},
@@ -138,6 +145,9 @@ OXE_DATASET_CONFIGS = {
         "state_obs_keys": ["proprio"],
         "proprio_encoding": ProprioEncoding.POS_EULER,
         "action_encoding": ActionEncoding.EEF_POS,
+        "action_chunk_size": 1,
+        "cot_plan_horizon": 50,
+        "cot_plan_stride": 1,
     },
     "taco_play": {
         "image_obs_keys": {
