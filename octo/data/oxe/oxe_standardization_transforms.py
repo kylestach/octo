@@ -129,7 +129,7 @@ def fpha_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
         3. Filter frames for which the **max** delta-keypoint norm of the next N steps
            is above a threshold (= usually jumps left-to-right hand).
     """
-    N = 3  # Number of future steps for action targets
+    N = 1  # Number of future steps for action targets. some trajs are only 1 step long, so i made N=1
     DELTA_SUM_MIN = 20  # minimum summed delta-keypoint norm for N steps
     DELTA_SUM_MAX = 150  # minimum summed delta-keypoint norm for N steps
     DELTA_MAX = 100  # max delta-keypoint norm for each of the N steps
@@ -141,42 +141,38 @@ def fpha_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
 
     # Chunk detected keypoints into N step-chunks
     traj_len = tf.shape(right_hand_kp)[0]
-    if traj_len <= N:
-        tf.print("[[[SKIPPING TRAJECTORY]]] traj_len:", traj_len, "<= N:", N)
-        total_mask = tf.zeros((traj_len,), dtype=tf.bool)
-        padded_kp_action = tf.zeros((traj_len, STATE_ACTION_DIM), dtype=tf.float32)
-    else:
-        kp_chunk_indices = tf.broadcast_to(tf.range(N + 1)[None], [traj_len - N, N + 1]) + tf.broadcast_to(
-            tf.range(traj_len - N)[:, None], [traj_len - N, N + 1]
-        )
-        chunked_kp = tf.gather(right_hand_kp, kp_chunk_indices)
 
-        # Detect any chunk that does not have all keypoints detected (ie some are (0, 0))
-        kp_norm = tf.linalg.norm(chunked_kp, axis=-1)
-        missing_detection_mask = tf.reduce_any(tf.equal(kp_norm, 0.0), axis=1)
+    kp_chunk_indices = tf.broadcast_to(tf.range(N + 1)[None], [traj_len - N, N + 1]) + tf.broadcast_to(
+        tf.range(traj_len - N)[:, None], [traj_len - N, N + 1]
+    )
+    chunked_kp = tf.gather(right_hand_kp, kp_chunk_indices)
 
-        # Compute delta keypoint actions
-        chunked_delta_kp = chunked_kp[:, 1:] - chunked_kp[:, :-1]
+    # Detect any chunk that does not have all keypoints detected (ie some are (0, 0))
+    kp_norm = tf.linalg.norm(chunked_kp, axis=-1)
+    missing_detection_mask = tf.reduce_any(tf.equal(kp_norm, 0.0), axis=1)
 
-        # Detect any chunks who's summed delta norms don't fall within the desired range
-        chunked_delta_kp_norm = tf.linalg.norm(chunked_delta_kp, axis=-1)
-        summed_delta_kp_norms = tf.reduce_sum(chunked_delta_kp_norm, axis=1)
-        small_summed_delta_norm_mask = summed_delta_kp_norms < DELTA_SUM_MIN
-        large_summed_delta_norm_mask = summed_delta_kp_norms > DELTA_SUM_MAX
+    # Compute delta keypoint actions
+    chunked_delta_kp = chunked_kp[:, 1:] - chunked_kp[:, :-1]
 
-        # Detect any chunks who's max delta norm is too large
-        max_delta_kp_norms = tf.reduce_max(chunked_delta_kp_norm, axis=1)
-        max_delta_norm_mask = max_delta_kp_norms > DELTA_MAX
+    # Detect any chunks who's summed delta norms don't fall within the desired range
+    chunked_delta_kp_norm = tf.linalg.norm(chunked_delta_kp, axis=-1)
+    summed_delta_kp_norms = tf.reduce_sum(chunked_delta_kp_norm, axis=1)
+    small_summed_delta_norm_mask = summed_delta_kp_norms < DELTA_SUM_MIN
+    large_summed_delta_norm_mask = summed_delta_kp_norms > DELTA_SUM_MAX
 
-        # Put all masks together for final filter
-        total_mask = (
-                ~missing_detection_mask & ~small_summed_delta_norm_mask & ~large_summed_delta_norm_mask & ~max_delta_norm_mask
-        )
+    # Detect any chunks who's max delta norm is too large
+    max_delta_kp_norms = tf.reduce_max(chunked_delta_kp_norm, axis=1)
+    max_delta_norm_mask = max_delta_kp_norms > DELTA_MAX
 
-        # Don't use last N steps (since we don't have future keypoints for them)
-        total_mask = tf.concat((total_mask, tf.zeros((N,), dtype=tf.bool)), axis=0)
-        kp_action = tf.reshape(chunked_delta_kp, (traj_len - N, 2 * N))
-        padded_kp_action = tf.pad(kp_action, [[0, N], [0, STATE_ACTION_DIM - 2 * N]])
+    # Put all masks together for final filter
+    total_mask = (
+            ~missing_detection_mask & ~small_summed_delta_norm_mask & ~large_summed_delta_norm_mask & ~max_delta_norm_mask
+    )
+
+    # Don't use last N steps (since we don't have future keypoints for them)
+    total_mask = tf.concat((total_mask, tf.zeros((N,), dtype=tf.bool)), axis=0)
+    kp_action = tf.reshape(chunked_delta_kp, (traj_len - N, 2 * N))
+    padded_kp_action = tf.pad(kp_action, [[0, N], [0, STATE_ACTION_DIM - 2 * N]])
 
     # Create padded versions of keypoint proprio and actions
     padded_proprio = tf.pad(right_hand_kp, [[0, 0], [0, STATE_ACTION_DIM - 2]])
@@ -185,7 +181,7 @@ def fpha_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
     trajectory["observation"]["ego_image_1"] = tf.boolean_mask(trajectory["observation"]["ego_image_1"], total_mask)
     trajectory["observation"]["proprio"] = tf.boolean_mask(padded_proprio, total_mask)
     trajectory["action"] = tf.boolean_mask(padded_kp_action, total_mask)
-    trajectory["language_instruction"] = tf.boolean_mask(trajectory["language_instruction"], total_mask)
+    trajectory["language_instruction"] = tf.boolean_mask(trajectory['traj_metadata']['episode_metadata']['narration'], total_mask)
 
     if "_traj_index" in trajectory:
         trajectory["_traj_index"] = tf.boolean_mask(trajectory["_traj_index"], total_mask)
@@ -255,7 +251,7 @@ def h2o_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
     trajectory["observation"]["ego_image_1"] = tf.boolean_mask(trajectory["observation"]["ego_image_1"], total_mask)
     trajectory["observation"]["proprio"] = tf.boolean_mask(padded_proprio, total_mask)
     trajectory["action"] = tf.boolean_mask(padded_kp_action, total_mask)
-    trajectory["language_instruction"] = tf.boolean_mask(trajectory["language_instruction"], total_mask)
+    trajectory["language_instruction"] = tf.boolean_mask(trajectory['traj_metadata']['episode_metadata']['narration'], total_mask)
 
     if "_traj_index" in trajectory:
         trajectory["_traj_index"] = tf.boolean_mask(trajectory["_traj_index"], total_mask)
@@ -325,7 +321,7 @@ def ssv2_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
     trajectory["observation"]["ego_image_1"] = tf.boolean_mask(trajectory["observation"]["ego_image_1"], total_mask)
     trajectory["observation"]["proprio"] = tf.boolean_mask(padded_proprio, total_mask)
     trajectory["action"] = tf.boolean_mask(padded_kp_action, total_mask)
-    trajectory["language_instruction"] = tf.boolean_mask(trajectory["language_instruction"], total_mask)
+    trajectory["language_instruction"] = tf.boolean_mask(trajectory['traj_metadata']['episode_metadata']['label'], total_mask)
 
     if "_traj_index" in trajectory:
         trajectory["_traj_index"] = tf.boolean_mask(trajectory["_traj_index"], total_mask)
@@ -345,7 +341,7 @@ def epic_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
         3. Filter frames for which the **max** delta-keypoint norm of the next N steps
            is above a threshold (= usually jumps left-to-right hand).
     """
-    N = 3  # Number of future steps for action targets
+    N = 2  # Number of future steps for action targets; changed bc some trajs are smaller than 3
     DELTA_SUM_MIN = 20  # minimum summed delta-keypoint norm for N steps
     DELTA_SUM_MAX = 150  # minimum summed delta-keypoint norm for N steps
     DELTA_MAX = 100  # max delta-keypoint norm for each of the N steps
@@ -357,42 +353,37 @@ def epic_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
 
     # Chunk detected keypoints into N step-chunks
     traj_len = tf.shape(right_hand_kp)[0]
-    if traj_len <= N:
-        tf.print("[[[SKIPPING TRAJECTORY]]] traj_len:", traj_len, "<= N:", N)
-        total_mask = tf.zeros((traj_len,), dtype=tf.bool)
-        padded_kp_action = tf.zeros((traj_len, STATE_ACTION_DIM), dtype=tf.float32)
-    else:
-      kp_chunk_indices = tf.broadcast_to(tf.range(N + 1)[None], [traj_len - N, N + 1]) + tf.broadcast_to(
-          tf.range(traj_len - N)[:, None], [traj_len - N, N + 1]
-      )
-      chunked_kp = tf.gather(right_hand_kp, kp_chunk_indices)
+    kp_chunk_indices = tf.broadcast_to(tf.range(N + 1)[None], [traj_len - N, N + 1]) + tf.broadcast_to(
+        tf.range(traj_len - N)[:, None], [traj_len - N, N + 1]
+    )
+    chunked_kp = tf.gather(right_hand_kp, kp_chunk_indices)
 
-      # Detect any chunk that does not have all keypoints detected (ie some are (0, 0))
-      kp_norm = tf.linalg.norm(chunked_kp, axis=-1)
-      missing_detection_mask = tf.reduce_any(tf.equal(kp_norm, 0.0), axis=1)
+    # Detect any chunk that does not have all keypoints detected (ie some are (0, 0))
+    kp_norm = tf.linalg.norm(chunked_kp, axis=-1)
+    missing_detection_mask = tf.reduce_any(tf.equal(kp_norm, 0.0), axis=1)
 
-      # Compute delta keypoint actions
-      chunked_delta_kp = chunked_kp[:, 1:] - chunked_kp[:, :-1]
+    # Compute delta keypoint actions
+    chunked_delta_kp = chunked_kp[:, 1:] - chunked_kp[:, :-1]
 
-      # Detect any chunks who's summed delta norms don't fall within the desired range
-      chunked_delta_kp_norm = tf.linalg.norm(chunked_delta_kp, axis=-1)
-      summed_delta_kp_norms = tf.reduce_sum(chunked_delta_kp_norm, axis=1)
-      small_summed_delta_norm_mask = summed_delta_kp_norms < DELTA_SUM_MIN
-      large_summed_delta_norm_mask = summed_delta_kp_norms > DELTA_SUM_MAX
+    # Detect any chunks who's summed delta norms don't fall within the desired range
+    chunked_delta_kp_norm = tf.linalg.norm(chunked_delta_kp, axis=-1)
+    summed_delta_kp_norms = tf.reduce_sum(chunked_delta_kp_norm, axis=1)
+    small_summed_delta_norm_mask = summed_delta_kp_norms < DELTA_SUM_MIN
+    large_summed_delta_norm_mask = summed_delta_kp_norms > DELTA_SUM_MAX
 
-      # Detect any chunks who's max delta norm is too large
-      max_delta_kp_norms = tf.reduce_max(chunked_delta_kp_norm, axis=1)
-      max_delta_norm_mask = max_delta_kp_norms > DELTA_MAX
+    # Detect any chunks who's max delta norm is too large
+    max_delta_kp_norms = tf.reduce_max(chunked_delta_kp_norm, axis=1)
+    max_delta_norm_mask = max_delta_kp_norms > DELTA_MAX
 
-      # Put all masks together for final filter
-      total_mask = (
-          ~missing_detection_mask & ~small_summed_delta_norm_mask & ~large_summed_delta_norm_mask & ~max_delta_norm_mask
-      )
+    # Put all masks together for final filter
+    total_mask = (
+        ~missing_detection_mask & ~small_summed_delta_norm_mask & ~large_summed_delta_norm_mask & ~max_delta_norm_mask
+    )
 
-      # Don't use last N steps (since we don't have future keypoints for them)
-      total_mask = tf.concat((total_mask, tf.zeros((N,), dtype=tf.bool)), axis=0)
-      kp_action = tf.reshape(chunked_delta_kp, (traj_len - N, 2 * N))
-      padded_kp_action = tf.pad(kp_action, [[0, N], [0, STATE_ACTION_DIM - 2 * N]])
+    # Don't use last N steps (since we don't have future keypoints for them)
+    total_mask = tf.concat((total_mask, tf.zeros((N,), dtype=tf.bool)), axis=0)
+    kp_action = tf.reshape(chunked_delta_kp, (traj_len - N, 2 * N))
+    padded_kp_action = tf.pad(kp_action, [[0, N], [0, STATE_ACTION_DIM - 2 * N]])
 
     # Create padded versions of keypoint proprio and actions
     padded_proprio = tf.pad(right_hand_kp, [[0, 0], [0, STATE_ACTION_DIM - 2]])
@@ -401,7 +392,7 @@ def epic_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
     trajectory["observation"]["ego_image_1"] = tf.boolean_mask(trajectory["observation"]["ego_image_1"], total_mask)
     trajectory["observation"]["proprio"] = tf.boolean_mask(padded_proprio, total_mask)
     trajectory["action"] = tf.boolean_mask(padded_kp_action, total_mask)
-    trajectory["language_instruction"] = tf.boolean_mask(trajectory["language_instruction"], total_mask)
+    trajectory["language_instruction"] = tf.boolean_mask(trajectory['traj_metadata']["language_instruction"], total_mask)
 
     if "_traj_index" in trajectory:
         trajectory["_traj_index"] = tf.boolean_mask(trajectory["_traj_index"], total_mask)
