@@ -20,10 +20,12 @@ BRIDGE_ALOHA_PICKPLACE = [
 
 HUMAN_ONLY_MIX = [
     ("ego4d_hamer", 1.0),
+    ('epic_kitchens', 1.0)
 ]
 
 HUMAN_BRIDGE_MIX = [
-    ("ego4d_hamer", 3.0),
+    ("epic_kitchens", 10.0),
+    ("ego4d_hamer", 1.0),
     ("bridge_dataset", 1.0),
 ]
 
@@ -309,4 +311,5 @@ OXE_NAMED_MIXES = {
     "higher_oxe_cross_embodiment": HIGHER_OXE_CROSS_EMBODIMENT,
     "bridge_aloha_pickplace": BRIDGE_ALOHA_PICKPLACE,
     "human_bridge": HUMAN_BRIDGE_MIX,
+    "human_only": HUMAN_ONLY_MIX,
 }
