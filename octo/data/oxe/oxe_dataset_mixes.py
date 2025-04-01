@@ -24,9 +24,9 @@ HUMAN_ONLY_MIX = [
 ]
 
 HUMAN_BRIDGE_MIX = [
-    ("epic_kitchens", 10.0),
-    ("ego4d_hamer", 1.0),
-    ("bridge_dataset", 1.0),
+    ("epic_kitchens", 5.0),
+    ("ego4d_hamer", 5.0),
+    ("bridge_dataset", 2.0),
 ]
 
 RT_X_MIX = [
