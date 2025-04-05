@@ -1450,6 +1450,30 @@ def droid_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
     )
     return trajectory
 
+def libero_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
+    # gripper action is in -1 (open)...1 (close) --> clip to 0...1, flip --> +1 = open, 0 = close
+    gripper_action = trajectory["action"][:, -1:]
+    gripper_action = invert_gripper_actions(tf.clip_by_value(gripper_action, 0, 1))
+
+    trajectory["action"] = tf.concat(
+        [
+            trajectory["action"][:, :6],
+            gripper_action,
+        ],
+        axis=1,
+    )
+    eef_state = trajectory["observation"]["state"][:, :6]
+    gripper_state = trajectory["observation"]["state"][:, -2:]  # 2D gripper state
+    
+    trajectory["observation"]["proprio"] = tf.concat(
+        (
+            eef_state,
+            gripper_state,
+        ),
+        axis=-1,
+    )
+    return trajectory
+
 
 OXE_STANDARDIZATION_TRANSFORMS = {
     "hand_epic_dataset": epic_dataset_transform,
@@ -1527,4 +1551,5 @@ OXE_STANDARDIZATION_TRANSFORMS = {
     "aloha_sushi_cut_full_dataset": aloha_dough_dataset_transform,
     "droid": droid_dataset_transform,
     "droid_wipe": droid_dataset_transform,
+    "libero_90": libero_dataset_transform,
 }
