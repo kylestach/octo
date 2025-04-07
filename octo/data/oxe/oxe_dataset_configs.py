@@ -46,6 +46,40 @@ class ActionEncoding(IntEnum):
 
 
 OXE_DATASET_CONFIGS = {
+    "bridge_dataset": {
+        "image_obs_keys": {
+            "primary": "image_0",
+            "high": None,
+            "nav": None,
+            "left_wrist": None,
+            "right_wrist": None,
+        },
+        "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
+        "proprio_obs_keys": {"bimanual": None},
+        "proprio_obs_dims": {"bimanual": 14},
+        "proprio_encoding": ProprioEncoding.POS_EULER,
+        "action_encoding": ActionEncoding.EEF_POS,
+        "action_chunk_size": 4,
+        "cot_plan_horizon": 50,
+        "cot_plan_stride": 4,
+    },
+    "aloha_pick_place_full_dataset": {
+        "image_obs_keys": {
+            "primary": "cam_high",
+            "high": None,
+            "nav": None,
+            "left_wrist": "cam_left_wrist",
+            "right_wrist": "cam_right_wrist",
+        },
+        "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
+        "proprio_obs_keys": {"bimanual": "proprio" },
+        "proprio_obs_dims": {"bimanual": 14},
+        "proprio_encoding": ProprioEncoding.JOINT_BIMANUAL,
+        "action_encoding": ActionEncoding.JOINT_POS_BIMANUAL,
+        "action_chunk_size": 50,
+        "cot_plan_horizon": 300,
+        "cot_plan_stride": 15,
+    },
     "libero_90": {
         "image_obs_keys": {
             "primary": "image", 
@@ -57,6 +91,33 @@ OXE_DATASET_CONFIGS = {
         "proprio_obs_dims": {},
         "proprio_encoding": ProprioEncoding.POS_EULER,
         "action_encoding": ActionEncoding.EEF_POS,
+        "action_chunk_size": 4,
+        "cot_plan_horizon": 200,
+        "cot_plan_stride": 10,
+    },
+    "ego4d_hamer": {
+        "image_obs_keys": {"primary": "ego_image_1", "secondary": None, "wrist": None},
+        "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
+        "proprio_obs_keys": {"bimanual": None},
+        "proprio_obs_dims": {"bimanual": 14},
+        "state_obs_keys": ["proprio"],
+        "proprio_encoding": ProprioEncoding.POS_EULER,
+        "action_encoding": ActionEncoding.EEF_POS,
+        "action_chunk_size": 1,
+        "cot_plan_horizon": 50,
+        "cot_plan_stride": 1,
+    },
+    "epic_kitchens": {
+        "image_obs_keys": {"primary": "ego_image_1", "secondary": None, "wrist": None},
+        "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
+        "proprio_obs_keys": {"bimanual": None},
+        "proprio_obs_dims": {"bimanual": 14},
+        "state_obs_keys": ["proprio"],
+        "proprio_encoding": ProprioEncoding.POS_EULER,
+        "action_encoding": ActionEncoding.EEF_POS,
+        "action_chunk_size": 1,
+        "cot_plan_horizon": 50,
+        "cot_plan_stride": 1,
     },
     "fractal20220817_data": {
         "image_obs_keys": {
@@ -88,23 +149,6 @@ OXE_DATASET_CONFIGS = {
     },
     # NOTE: this is not actually the official OXE copy of bridge, it is our own more up-to-date copy that you
     # can find at https://rail.eecs.berkeley.edu/datasets/bridge_release/data/tfds/
-    "bridge_dataset": {
-        "image_obs_keys": {
-            "primary": "image_0",
-            "high": None,
-            "nav": None,
-            "left_wrist": None,
-            "right_wrist": None,
-        },
-        "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
-        "proprio_obs_keys": {"bimanual": None},
-        "proprio_obs_dims": {"bimanual": 14},
-        "proprio_encoding": ProprioEncoding.POS_EULER,
-        "action_encoding": ActionEncoding.EEF_POS,
-        "action_chunk_size": 4,
-        "cot_plan_horizon": 50,
-        "cot_plan_stride": 4,
-    },
     "hand_epic_dataset": {
         "image_obs_keys": {"primary": "image_0", "secondary": None, "wrist": None},
         "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
@@ -112,30 +156,6 @@ OXE_DATASET_CONFIGS = {
         "proprio_obs_dims": {"bimanual": 14},
         "proprio_encoding": ProprioEncoding.NONE,
         "action_encoding": ActionEncoding.EEF_POS,
-    },
-    "ego4d_hamer": {
-        "image_obs_keys": {"primary": "ego_image_1", "secondary": None, "wrist": None},
-        "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
-        "proprio_obs_keys": {"bimanual": None},
-        "proprio_obs_dims": {"bimanual": 14},
-        "state_obs_keys": ["proprio"],
-        "proprio_encoding": ProprioEncoding.POS_EULER,
-        "action_encoding": ActionEncoding.EEF_POS,
-        "action_chunk_size": 1,
-        "cot_plan_horizon": 50,
-        "cot_plan_stride": 1,
-    },
-    "epic_kitchens": {
-        "image_obs_keys": {"primary": "ego_image_1", "secondary": None, "wrist": None},
-        "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
-        "proprio_obs_keys": {"bimanual": None},
-        "proprio_obs_dims": {"bimanual": 14},
-        "state_obs_keys": ["proprio"],
-        "proprio_encoding": ProprioEncoding.POS_EULER,
-        "action_encoding": ActionEncoding.EEF_POS,
-        "action_chunk_size": 1,
-        "cot_plan_horizon": 50,
-        "cot_plan_stride": 1,
     },
     "h2_o_dataset": {
         "image_obs_keys": {"primary": "ego_image_1", "secondary": None, "wrist": None},
@@ -857,23 +877,6 @@ OXE_DATASET_CONFIGS = {
         "proprio_obs_dims": {"bimanual": 14},
         "proprio_encoding": ProprioEncoding.JOINT_BIMANUAL,
         "action_encoding": ActionEncoding.JOINT_POS_BIMANUAL,
-    },
-    "aloha_pick_place_full_dataset": {
-        "image_obs_keys": {
-            "primary": "cam_high",
-            "high": None,
-            "nav": None,
-            "left_wrist": "cam_left_wrist",
-            "right_wrist": "cam_right_wrist",
-        },
-        "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
-        "proprio_obs_keys": {"bimanual": "proprio" },
-        "proprio_obs_dims": {"bimanual": 14},
-        "proprio_encoding": ProprioEncoding.JOINT_BIMANUAL,
-        "action_encoding": ActionEncoding.JOINT_POS_BIMANUAL,
-        "action_chunk_size": 50,
-        "cot_plan_horizon": 300,
-        "cot_plan_stride": 25,
     },
     "aloha_static_dataset": {
         "image_obs_keys": {
