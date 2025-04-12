@@ -4,6 +4,26 @@ BRIDGE_MIX = [
     ("bridge_dataset", 1.0),
 ]
 
+ALOHA_PP_MIX = [
+    ("aloha_pick_place_full_dataset", 1.0),
+]
+
+CROSS_EMB_DATA_MIX = [
+    ("ego4d_hamer", 4.0),
+    ("epic_kitchens", 6.0),
+    ("bridge_dataset", 3.0),
+    ('aloha_pick_place_full_dataset', 5.0),
+    ('libero_90', 2.0),
+]
+
+TEST_CROSS_EMB_DATA_MIX = [
+    ("epic_kitchens", 1.0),
+    ("ego4d_hamer", 1.0),
+    ("bridge_dataset", 40.0),
+    ('libero_90', 1.0),
+    ('aloha_pick_place_full_dataset', 1.0)
+]
+
 FRACTAL_MIX = [
     ("fractal20220817_data", 1.0),
 ]
@@ -312,4 +332,7 @@ OXE_NAMED_MIXES = {
     "bridge_aloha_pickplace": BRIDGE_ALOHA_PICKPLACE,
     "human_bridge": HUMAN_BRIDGE_MIX,
     "human_only": HUMAN_ONLY_MIX,
+    "all": CROSS_EMB_DATA_MIX,
+    "test_cross_emb": TEST_CROSS_EMB_DATA_MIX,
+    "aloha_pp_mix": ALOHA_PP_MIX,
 }

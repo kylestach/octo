@@ -86,11 +86,13 @@ OXE_DATASET_CONFIGS = {
         "image_obs_keys": {
             "primary": "image", 
             "secondary": None, 
-            "wrist": "wrist_image"
+            "wrist": "wrist_image",
+            "left_wrist": None,
+            "right_wrist": None,
         },
         "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
-        "proprio_obs_keys": {"single_arm": "proprio"},
-        "proprio_obs_dims": {},
+        "proprio_obs_keys": {"bimanual": None},
+        "proprio_obs_dims": {"bimanual": 14},
         "proprio_encoding": ProprioEncoding.POS_EULER,
         "action_encoding": ActionEncoding.EEF_POS,
         "action_chunk_size": 4,
@@ -99,7 +101,7 @@ OXE_DATASET_CONFIGS = {
         "use_actions": True,
     },
     "ego4d_hamer": {
-        "image_obs_keys": {"primary": "ego_image_1", "secondary": None, "wrist": None},
+        "image_obs_keys": {"primary": "ego_image_1", "secondary": None, "wrist": None, "left_wrist": None, "right_wrist": None,},
         "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
         "proprio_obs_keys": {"bimanual": None},
         "proprio_obs_dims": {"bimanual": 14},
@@ -112,7 +114,7 @@ OXE_DATASET_CONFIGS = {
         "use_actions": True,
     },
     "epic_kitchens": {
-        "image_obs_keys": {"primary": "ego_image_1", "secondary": None, "wrist": None},
+        "image_obs_keys": {"primary": "ego_image_1", "secondary": None, "wrist": None, "left_wrist": None, "right_wrist": None,},
         "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
         "proprio_obs_keys": {"bimanual": None},
         "proprio_obs_dims": {"bimanual": 14},
