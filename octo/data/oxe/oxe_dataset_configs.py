@@ -62,6 +62,7 @@ OXE_DATASET_CONFIGS = {
         "action_chunk_size": 4,
         "cot_plan_horizon": 50,
         "cot_plan_stride": 4,
+        "use_actions": True,
     },
     "aloha_pick_place_full_dataset": {
         "image_obs_keys": {
@@ -79,6 +80,7 @@ OXE_DATASET_CONFIGS = {
         "action_chunk_size": 50,
         "cot_plan_horizon": 300,
         "cot_plan_stride": 15,
+        "use_actions": True,
     },
     "libero_90": {
         "image_obs_keys": {
@@ -94,6 +96,7 @@ OXE_DATASET_CONFIGS = {
         "action_chunk_size": 4,
         "cot_plan_horizon": 200,
         "cot_plan_stride": 10,
+        "use_actions": True,
     },
     "ego4d_hamer": {
         "image_obs_keys": {"primary": "ego_image_1", "secondary": None, "wrist": None},
@@ -106,6 +109,7 @@ OXE_DATASET_CONFIGS = {
         "action_chunk_size": 1,
         "cot_plan_horizon": 50,
         "cot_plan_stride": 1,
+        "use_actions": True,
     },
     "epic_kitchens": {
         "image_obs_keys": {"primary": "ego_image_1", "secondary": None, "wrist": None},
@@ -118,6 +122,7 @@ OXE_DATASET_CONFIGS = {
         "action_chunk_size": 1,
         "cot_plan_horizon": 50,
         "cot_plan_stride": 1,
+        "use_actions": True,
     },
     "fractal20220817_data": {
         "image_obs_keys": {
@@ -168,6 +173,7 @@ OXE_DATASET_CONFIGS = {
         "action_chunk_size": 1,
         "cot_plan_horizon": 50,
         "cot_plan_stride": 1,
+        "use_actions": True,
     },
     "fpha_dataset": {
         "image_obs_keys": {"primary": "ego_image_1", "secondary": None, "wrist": None},
@@ -180,6 +186,7 @@ OXE_DATASET_CONFIGS = {
         "action_chunk_size": 1,
         "cot_plan_horizon": 50,
         "cot_plan_stride": 1,
+        "use_actions": True,
     },
     "taco_play": {
         "image_obs_keys": {

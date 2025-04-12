@@ -281,6 +281,7 @@ def make_dataset_from_rlds(
     cot_plan_horizon: int = 50,
     cot_plan_stride: int = 4,
     action_chunk_size: int = 1,
+    use_actions: bool = True,
     **kwargs,
 ) -> Tuple[dl.DLataset, dict]:
     """This function is responsible for loading a specific RLDS dataset from storage and getting it into a
@@ -407,6 +408,7 @@ def make_dataset_from_rlds(
             "traj_idx": traj["_traj_index"],
             "frame_idx": traj["_frame_index"],
             "action_chunk_size": tf.repeat(action_chunk_size, traj_len),
+            "use_actions": tf.repeat(use_actions, traj_len)
             # 'metadata': traj['traj_metadata']['episode_metadata']
         }
 
