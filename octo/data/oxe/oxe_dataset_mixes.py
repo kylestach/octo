@@ -8,6 +8,11 @@ ALOHA_PP_MIX = [
     ("aloha_pick_place_full_dataset", 1.0),
 ]
 
+BRIDGE_LIBERO_MIX = [
+    ("bridge_dataset", 1.0),
+    ("libero_90", 1.0),
+]
+
 CROSS_EMB_DATA_MIX = [
     ("ego4d_hamer", 4.0),
     ("epic_kitchens", 6.0),
@@ -335,4 +340,5 @@ OXE_NAMED_MIXES = {
     "all": CROSS_EMB_DATA_MIX,
     "test_cross_emb": TEST_CROSS_EMB_DATA_MIX,
     "aloha_pp_mix": ALOHA_PP_MIX,
+    "bridge_libero": BRIDGE_LIBERO_MIX,
 }
