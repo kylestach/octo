@@ -8,6 +8,11 @@ ALOHA_PP_MIX = [
     ("aloha_pick_place_full_dataset", 1.0),
 ]
 
+BRIDGE_ALOHA_PP_MIX = [
+    ("bridge_dataset", 1.0),
+    ("aloha_pick_place_full_dataset", 1.0),
+]
+
 BRIDGE_LIBERO_MIX = [
     ("bridge_dataset", 1.0),
     ("libero_90", 1.0),
@@ -341,4 +346,5 @@ OXE_NAMED_MIXES = {
     "test_cross_emb": TEST_CROSS_EMB_DATA_MIX,
     "aloha_pp_mix": ALOHA_PP_MIX,
     "bridge_libero": BRIDGE_LIBERO_MIX,
+    "bridge_aloha_pp": BRIDGE_ALOHA_PP_MIX,
 }
