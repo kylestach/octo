@@ -170,7 +170,7 @@ OXE_DATASET_CONFIGS = {
         "action_chunk_size": 4,
         "cot_plan_horizon": 200,
         "cot_plan_stride": 10,
-        "use_actions": True,
+        "use_actions": False,
     },
     "ego4d_hamer": {
         "image_obs_keys": {"primary": "ego_image_1", "secondary": None, "wrist": None, "left_wrist": None, "right_wrist": None,},
@@ -183,7 +183,7 @@ OXE_DATASET_CONFIGS = {
         "action_chunk_size": 1,
         "cot_plan_horizon": 50,
         "cot_plan_stride": 1,
-        "use_actions": True,
+        "use_actions": False,
     },
     "epic_kitchens": {
         "image_obs_keys": {"primary": "ego_image_1", "secondary": None, "wrist": None, "left_wrist": None, "right_wrist": None,},
@@ -196,7 +196,7 @@ OXE_DATASET_CONFIGS = {
         "action_chunk_size": 1,
         "cot_plan_horizon": 50,
         "cot_plan_stride": 1,
-        "use_actions": True,
+        "use_actions": False,
     },
     "fractal20220817_data": {
         "image_obs_keys": {
