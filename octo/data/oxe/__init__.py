@@ -20,7 +20,7 @@ def make_oxe_dataset_kwargs(
     action_proprio_normalization_type: NormalizationType = NormalizationType.NORMAL,
     use_cot:bool = False,
     cot_data_path: str = None, 
-    override_and_use_reasonings_only: bool = False,
+    use_actions: bool = True,
 ) -> Dict[str, Any]:
     """Generates dataset kwargs for a given dataset from Open X-Embodiment. The returned kwargs can be passed
     directly into `octo.data.dataset.make_dataset_from_rlds`.
@@ -117,9 +117,7 @@ def make_oxe_dataset_kwargs(
 
     dataset_kwargs['use_cot'] = use_cot
     dataset_kwargs['cot_data_path'] = cot_data_path
-
-    if override_and_use_reasonings_only:
-        dataset_kwargs['use_actions'] = False
+    dataset_kwargs['use_actions'] = use_actions
 
     return {"name": name, "data_dir": data_dir, **dataset_kwargs}
 
@@ -135,7 +133,7 @@ def make_oxe_dataset_kwargs_and_weights(
     action_proprio_normalization_type: NormalizationType = NormalizationType.NORMAL,
     use_cot: bool = False, 
     cot_data_path: str = None,
-    override_and_use_reasonings_only: bool = False,
+    use_actions_dct: dict = None,
 ) -> Tuple[Dict[str, Any], List[float]]:
     """
     Generates dataset kwargs for a given dataset mix from the Open X-Embodiment dataset. The returned kwargs
@@ -181,7 +179,7 @@ def make_oxe_dataset_kwargs_and_weights(
                     action_proprio_normalization_type,
                     use_cot,
                     cot_data_path,
-                    override_and_use_reasonings_only,
+                    use_actions=use_actions_dct.get(name, True),
                 )
             )
             weights.append(weight)

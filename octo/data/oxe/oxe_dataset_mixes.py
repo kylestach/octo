@@ -36,6 +36,15 @@ CROSS_EMB_DATA_MIX = [
     ('libero_90', 2.0),
 ]
 
+BRIDGE_ACTIONS_REST_REASONINGS_MIX = [
+    ("ego4d_hamer", 1.0),
+    ("bridge_dataset", 4.0),
+    ("aloha_pick_place_full_dataset", 2.0),
+    ("libero_90", 1.0),
+    ("aloha_spoons_in_bowls_dataset", 30.0),
+    ("aloha_long_horizon_dataset", 24.0),
+]
+
 TEST_CROSS_EMB_DATA_MIX = [
     ("epic_kitchens", 1.0),
     ("ego4d_hamer", 1.0),
@@ -359,4 +368,5 @@ OXE_NAMED_MIXES = {
     "bridge_libero_ego": BRIDGE_LIBERO_EGO_MIX,
     "bridge_aloha_pp": BRIDGE_ALOHA_PP_MIX,
     "aloha_spoons": ALOHA_SPOONS_MIX,
+    "bridge_actions_rest_reasonings": BRIDGE_ACTIONS_REST_REASONINGS_MIX,
 }

@@ -62,7 +62,7 @@ OXE_DATASET_CONFIGS = {
         "action_chunk_size": 4,
         "cot_plan_horizon": 50,
         "cot_plan_stride": 4,
-        "use_actions": True,
+        # "use_actions": True,
     },
     "hard_bridge_eval": {
         "image_obs_keys": {
@@ -80,7 +80,7 @@ OXE_DATASET_CONFIGS = {
         "action_chunk_size": 4,
         "cot_plan_horizon": 50,
         "cot_plan_stride": 4,
-        "use_actions": True,
+        # "use_actions": True,
     },
     "aloha_pick_place_full_dataset": {
         "image_obs_keys": {
@@ -98,7 +98,7 @@ OXE_DATASET_CONFIGS = {
         "action_chunk_size": 50,
         "cot_plan_horizon": 300,
         "cot_plan_stride": 15,
-        "use_actions": True,
+        # "use_actions": False,
     },
     "aloha_bread_dataset": {
         "image_obs_keys": {
@@ -116,7 +116,7 @@ OXE_DATASET_CONFIGS = {
         "action_chunk_size": 50,
         "cot_plan_horizon": 300,
         "cot_plan_stride": 15,
-        "use_actions": True,
+        # "use_actions": False,
     },
     "aloha_spoons_in_bowls_dataset": {
         "image_obs_keys": {
@@ -134,7 +134,7 @@ OXE_DATASET_CONFIGS = {
         "action_chunk_size": 50,
         "cot_plan_horizon": 300,
         "cot_plan_stride": 15,
-        "use_actions": True,
+        # "use_actions": False,
     },
     "aloha_wipe_plate": {
         "image_obs_keys": {
@@ -152,7 +152,7 @@ OXE_DATASET_CONFIGS = {
         "action_chunk_size": 50,
         "cot_plan_horizon": 300,
         "cot_plan_stride": 15,
-        "use_actions": True,
+        # "use_actions": False,
     },
     "aloha_long_horizon_dataset": {
         "image_obs_keys": {
@@ -170,7 +170,7 @@ OXE_DATASET_CONFIGS = {
         "action_chunk_size": 50,
         "cot_plan_horizon": 300,
         "cot_plan_stride": 15,
-        "use_actions": True,
+        # "use_actions": False,
     },
     "libero_90": {
         "image_obs_keys": {
@@ -188,7 +188,7 @@ OXE_DATASET_CONFIGS = {
         "action_chunk_size": 4,
         "cot_plan_horizon": 200,
         "cot_plan_stride": 10,
-        "use_actions": False,
+        # "use_actions": False,
     },
     "ego4d_hamer": {
         "image_obs_keys": {"primary": "ego_image_1", "secondary": None, "wrist": None, "left_wrist": None, "right_wrist": None,},
@@ -201,7 +201,7 @@ OXE_DATASET_CONFIGS = {
         "action_chunk_size": 1,
         "cot_plan_horizon": 50,
         "cot_plan_stride": 1,
-        "use_actions": False,
+        # "use_actions": False,
     },
     "epic_kitchens": {
         "image_obs_keys": {"primary": "ego_image_1", "secondary": None, "wrist": None, "left_wrist": None, "right_wrist": None,},
@@ -214,7 +214,7 @@ OXE_DATASET_CONFIGS = {
         "action_chunk_size": 1,
         "cot_plan_horizon": 50,
         "cot_plan_stride": 1,
-        "use_actions": False,
+        # "use_actions": False,
     },
     "fractal20220817_data": {
         "image_obs_keys": {
@@ -265,7 +265,7 @@ OXE_DATASET_CONFIGS = {
         "action_chunk_size": 1,
         "cot_plan_horizon": 50,
         "cot_plan_stride": 1,
-        "use_actions": True,
+        # "use_actions": True,
     },
     "fpha_dataset": {
         "image_obs_keys": {"primary": "ego_image_1", "secondary": None, "wrist": None},
@@ -278,7 +278,7 @@ OXE_DATASET_CONFIGS = {
         "action_chunk_size": 1,
         "cot_plan_horizon": 50,
         "cot_plan_stride": 1,
-        "use_actions": True,
+        # "use_actions": True,
     },
     "taco_play": {
         "image_obs_keys": {

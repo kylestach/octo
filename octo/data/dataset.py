@@ -409,7 +409,7 @@ def make_dataset_from_rlds(
             "frame_idx": traj["_frame_index"],
             "action_chunk_size": tf.repeat(action_chunk_size, traj_len),
             "use_actions": tf.repeat(use_actions, traj_len),
-            'metadata': traj['traj_metadata']['episode_metadata']
+            # 'metadata': traj['traj_metadata']['episode_metadata']
         }
 
         # this means any trajectory without a language label will just have traj['reasonings']: None....
