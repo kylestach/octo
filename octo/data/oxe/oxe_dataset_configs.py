@@ -64,6 +64,24 @@ OXE_DATASET_CONFIGS = {
         "cot_plan_stride": 4,
         "use_actions": True,
     },
+    "hard_bridge_eval": {
+        "image_obs_keys": {
+            "primary": "image_0",
+            "high": None,
+            "nav": None,
+            "left_wrist": None,
+            "right_wrist": None,
+        },
+        "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
+        "proprio_obs_keys": {"bimanual": None},
+        "proprio_obs_dims": {"bimanual": 14},
+        "proprio_encoding": ProprioEncoding.POS_EULER,
+        "action_encoding": ActionEncoding.EEF_POS,
+        "action_chunk_size": 4,
+        "cot_plan_horizon": 50,
+        "cot_plan_stride": 4,
+        "use_actions": True,
+    },
     "aloha_pick_place_full_dataset": {
         "image_obs_keys": {
             "primary": "cam_high",
@@ -100,7 +118,7 @@ OXE_DATASET_CONFIGS = {
         "cot_plan_stride": 15,
         "use_actions": True,
     },
-    "aloha_spoons_in_bowls": {
+    "aloha_spoons_in_bowls_dataset": {
         "image_obs_keys": {
             "primary": "cam_high",
             "high": None,

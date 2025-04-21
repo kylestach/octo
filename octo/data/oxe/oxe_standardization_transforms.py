@@ -1548,7 +1548,7 @@ OXE_STANDARDIZATION_TRANSFORMS = {
     "aloha_pick_place_dataset": aloha_dough_dataset_transform,
     "aloha_pick_place_full_dataset": aloha_pick_place_full_dataset_transform,
     "aloha_bread_dataset": aloha_pick_place_full_dataset_transform,
-    "aloha_spoons_in_bowls": aloha_pick_place_full_dataset_transform,
+    "aloha_spoons_in_bowls_dataset": aloha_pick_place_full_dataset_transform,
     "aloha_wipe_plate": aloha_pick_place_full_dataset_transform,
     "aloha_long_horizon_dataset": aloha_pick_place_full_dataset_transform,
     "aloha_static_dataset": aloha_dough_dataset_transform,
@@ -1556,4 +1556,5 @@ OXE_STANDARDIZATION_TRANSFORMS = {
     "droid": droid_dataset_transform,
     "droid_wipe": droid_dataset_transform,
     "libero_90": libero_dataset_transform,
+    "hard_bridge_eval": bridge_dataset_transform,
 }
