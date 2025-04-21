@@ -48,6 +48,19 @@ def bridge_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
     trajectory["observation"]["proprio"] = trajectory["observation"]["state"]
     return trajectory
 
+def hard_bridge_eval_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
+    # NOTE: this is not actually the official OXE copy of bridge, it is our own more up-to-date copy that you
+    # can find at https://rail.eecs.berkeley.edu/datasets/bridge_release/data/tfds/
+    trajectory["action"] = tf.concat(
+        [
+            trajectory["action"][:, :6],
+            binarize_gripper_actions(trajectory["action"][:, -1])[:, None],
+        ],
+        axis=1,
+    )
+    trajectory["observation"]["proprio"] = trajectory["observation"]["state"]
+    return trajectory
+
 def ego4d_hamer_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
     """
     Ego4D Hamer hand detection data transform.
@@ -1556,5 +1569,5 @@ OXE_STANDARDIZATION_TRANSFORMS = {
     "droid": droid_dataset_transform,
     "droid_wipe": droid_dataset_transform,
     "libero_90": libero_dataset_transform,
-    "hard_bridge_eval": bridge_dataset_transform,
+    "hard_bridge_eval": hard_bridge_eval_transform,
 }
