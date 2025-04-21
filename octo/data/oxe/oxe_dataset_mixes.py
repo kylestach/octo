@@ -20,7 +20,7 @@ BRIDGE_LIBERO_MIX = [
 
 BRIDGE_LIBERO_EGO_MIX = [
     ("bridge_dataset", 1.0),
-    ("libero_90", 1.0),
+    ("libero_90", 2.0),
     ("ego4d_hamer", 1.0),
 ]
 
