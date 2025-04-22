@@ -67,6 +67,15 @@ BRIDGE_ALOHA_PICKPLACE = [
     ("aloha_pick_place_full_dataset", 1.0),
 ]
 
+ALL_MIX = [
+    ("ego4d_hamer", 3.0),
+    ("bridge_dataset", 2.0),
+    ("aloha_pick_place_full_dataset", 6.0),
+    ("libero_90", 3.0),
+    ("aloha_spoons_in_bowls_dataset", 22.0),
+    ("aloha_long_horizon_dataset", 20.0),
+]
+
 HUMAN_ONLY_MIX = [
     ("ego4d_hamer", 1.0),
     ('epic_kitchens', 1.0)
@@ -361,7 +370,7 @@ OXE_NAMED_MIXES = {
     "bridge_aloha_pickplace": BRIDGE_ALOHA_PICKPLACE,
     "human_bridge": HUMAN_BRIDGE_MIX,
     "human_only": HUMAN_ONLY_MIX,
-    "all": CROSS_EMB_DATA_MIX,
+    # "all": CROSS_EMB_DATA_MIX,
     "test_cross_emb": TEST_CROSS_EMB_DATA_MIX,
     "aloha_pp_mix": ALOHA_PP_MIX,
     "bridge_libero": BRIDGE_LIBERO_MIX,
@@ -369,4 +378,5 @@ OXE_NAMED_MIXES = {
     "bridge_aloha_pp": BRIDGE_ALOHA_PP_MIX,
     "aloha_spoons": ALOHA_SPOONS_MIX,
     "bridge_actions_rest_reasonings": BRIDGE_ACTIONS_REST_REASONINGS_MIX,
+    "all_mix": ALL_MIX,
 }
