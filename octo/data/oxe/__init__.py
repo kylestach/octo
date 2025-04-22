@@ -21,6 +21,7 @@ def make_oxe_dataset_kwargs(
     use_cot:bool = False,
     cot_data_path: str = None, 
     use_actions: bool = True,
+    override_chunk_size: int = None,
 ) -> Dict[str, Any]:
     """Generates dataset kwargs for a given dataset from Open X-Embodiment. The returned kwargs can be passed
     directly into `octo.data.dataset.make_dataset_from_rlds`.
@@ -118,6 +119,8 @@ def make_oxe_dataset_kwargs(
     dataset_kwargs['use_cot'] = use_cot
     dataset_kwargs['cot_data_path'] = cot_data_path
     dataset_kwargs['use_actions'] = use_actions
+    if override_chunk_size is not None:
+        dataset_kwargs['action_chunk_size'] = override_chunk_size
 
     return {"name": name, "data_dir": data_dir, **dataset_kwargs}
 
@@ -134,6 +137,7 @@ def make_oxe_dataset_kwargs_and_weights(
     use_cot: bool = False, 
     cot_data_path: str = None,
     use_actions_dct: dict = None,
+    override_chunk_size: int = None,
 ) -> Tuple[Dict[str, Any], List[float]]:
     """
     Generates dataset kwargs for a given dataset mix from the Open X-Embodiment dataset. The returned kwargs
@@ -180,6 +184,7 @@ def make_oxe_dataset_kwargs_and_weights(
                     use_cot,
                     cot_data_path,
                     use_actions=use_actions_dct.get(name, True),
+                    override_chunk_size=override_chunk_size,
                 )
             )
             weights.append(weight)
