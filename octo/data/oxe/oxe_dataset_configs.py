@@ -25,9 +25,10 @@ class ProprioEncoding(IntEnum):
     POS_EULER = 1  # EEF XYZ + roll-pitch-yaw + gripper open/close
     POS_QUAT = 2  # EEF XYZ + quaternion + gripper open/close
     JOINT = 3  # joint angles + gripper open/close
-    JOINT_BIMANUAL = 4  # 2 x [6 x joint angles + gripper open/close]
+    JOINT_BIMANUAL = 14  # 2 x [6 x joint angles + gripper open/close]
     POS_NAV = 5  # XY + yaw
     QUADRUPED = 6
+    JOINT_POS_GRIPPER = 8
 
 
 class ActionEncoding(IntEnum):
@@ -43,6 +44,8 @@ class ActionEncoding(IntEnum):
     QUADRUPED = 6
     BIMANUAL_HUMAN_DEPTH = 6
     BIMANUAL_HUMAN = 7
+    ARIA = 6
+    FRANKA = 8
 
 
 OXE_DATASET_CONFIGS = {
@@ -81,6 +84,23 @@ OXE_DATASET_CONFIGS = {
         "cot_plan_horizon": 50,
         "cot_plan_stride": 4,
         # "use_actions": True,
+    },
+    "droid_dataset": { # this is fake droid!! just demos we collected
+        "image_obs_keys": {
+            "primary": "right_shoulder",
+            "high": "left_shoulder",
+            "nav": None,
+            "left_wrist": "wrist",
+            "right_wrist": None,
+        },
+        "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
+        "proprio_obs_keys": {"bimanual": None},
+        "proprio_obs_dims": {"bimanual": 14},
+        "proprio_encoding": ProprioEncoding.JOINT_POS_GRIPPER,
+        "action_encoding": ActionEncoding.FRANKA,
+        "action_chunk_size": 4,
+        "cot_plan_horizon": 50,
+        "cot_plan_stride": 4,
     },
     "aloha_pick_place_full_dataset": {
         "image_obs_keys": {
@@ -167,6 +187,24 @@ OXE_DATASET_CONFIGS = {
         "proprio_obs_dims": {"bimanual": 14},
         "proprio_encoding": ProprioEncoding.JOINT_BIMANUAL,
         "action_encoding": ActionEncoding.JOINT_POS_BIMANUAL,
+        "action_chunk_size": 50,
+        "cot_plan_horizon": 300,
+        "cot_plan_stride": 15,
+        # "use_actions": False,
+    },
+    "aria_dataset": {
+        "image_obs_keys": {
+            "primary": "image_0",
+            "high": None,
+            "nav": None,
+            "left_wrist": None,
+            "right_wrist": None,
+        },
+        "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
+        "proprio_obs_keys": {"bimanual": None },
+        "proprio_obs_dims": {"bimanual": 14},
+        "proprio_encoding": ProprioEncoding.NONE,
+        "action_encoding": ActionEncoding.ARIA,
         "action_chunk_size": 50,
         "cot_plan_horizon": 300,
         "cot_plan_stride": 15,
@@ -1042,4 +1080,6 @@ OXE_DATASET_CONFIGS = {
         "proprio_encoding": ProprioEncoding.POS_EULER,
         "action_encoding": ActionEncoding.EEF_POS,
     },
+
+    
 }

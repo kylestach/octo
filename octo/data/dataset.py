@@ -399,7 +399,7 @@ def make_dataset_from_rlds(
                     f"Language key {language_key} has dtype {task['language_instruction'].dtype}, "
                     "but it must be tf.string."
                 )
-
+        
         traj = {
             "observation": new_obs,
             "task": task,
@@ -409,7 +409,12 @@ def make_dataset_from_rlds(
             "frame_idx": traj["_frame_index"],
             "action_chunk_size": tf.repeat(action_chunk_size, traj_len),
             "use_actions": tf.repeat(use_actions, traj_len),
-            # 'metadata': traj['traj_metadata']['episode_metadata']
+            # 'hand_left': traj['hand_left'],
+            # 'hand_right': traj['hand_right'],
+            # 'has_hand_left': traj['has_hand_left'],
+            # 'has_hand_right': traj['has_hand_right'],
+            # 'gaze_3d': traj['gaze_3d'],
+            # 'metadata': traj['traj_metadata']['episode_metadata'],
         }
 
         # this means any trajectory without a language label will just have traj['reasonings']: None....

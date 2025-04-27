@@ -1445,6 +1445,8 @@ def aloha_pick_place_full_dataset_transform(trajectory: Dict[str, Any]) -> Dict[
     trajectory["observation"]["proprio"] = trajectory["observation"]["state"]
     return trajectory
 
+def aria_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
+    return trajectory
 
 def droid_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
     trajectory["action"] = tf.concat(
@@ -1461,6 +1463,10 @@ def droid_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
         ),
         axis=-1,
     )
+    return trajectory
+
+# fake droid!! just demos we collected
+def ria_droid_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
     return trajectory
 
 def libero_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
@@ -1570,4 +1576,7 @@ OXE_STANDARDIZATION_TRANSFORMS = {
     "droid_wipe": droid_dataset_transform,
     "libero_90": libero_dataset_transform,
     "hard_bridge_eval": hard_bridge_eval_transform,
+    "aria_dataset": aria_dataset_transform,
+    "droid_dataset": ria_droid_dataset_transform, # fake droid!! just demos we collected
+
 }

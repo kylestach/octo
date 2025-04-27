@@ -67,6 +67,11 @@ def make_oxe_dataset_kwargs(
         )
     elif dataset_kwargs["action_encoding"] is ActionEncoding.QUADRUPED:
         dataset_kwargs["action_normalization_mask"] = [True] * 12
+    elif dataset_kwargs["action_encoding"] is ActionEncoding.FRANKA:
+        # with FRANKA actions, 8th dimension is gripper
+        dataset_kwargs["action_normalization_mask"] = (
+            [True] * 7 + [False]
+        )
     else:
         raise ValueError(
             f"Cannot load {name} with unsupported action encoding {dataset_kwargs['action_encoding']}."
