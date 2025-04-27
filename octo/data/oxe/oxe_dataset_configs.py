@@ -87,8 +87,8 @@ OXE_DATASET_CONFIGS = {
     },
     "droid_dataset": { # this is fake droid!! just demos we collected
         "image_obs_keys": {
-            "primary": "right_shoulder",
-            "high": "left_shoulder",
+            "primary": "left_shoulder",
+            "high": "right_shoulder",
             "nav": None,
             "left_wrist": "wrist",
             "right_wrist": None,
