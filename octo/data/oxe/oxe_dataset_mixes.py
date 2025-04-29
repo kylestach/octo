@@ -6,6 +6,7 @@ BRIDGE_MIX = [
 
 ALOHA_PP_MIX = [
     ("aloha_pick_place_full_dataset", 1.0),
+    ('aloha_spoons_in_bowls_dataset', 10.0),
 ]
 
 ALOHA_SPOONS_MIX = [
@@ -36,6 +37,19 @@ CROSS_EMB_DATA_MIX = [
     ('libero_90', 2.0),
 ]
 
+CO_TRAIN = [
+    ("aloha_bread_dataset", 24.0),
+    ("fractal20220817_data", 1.0),
+    ("droid_dataset", 40.0),
+    ("aria_dataset", 200.0),
+    ("ego4d_hamer", 1.0),
+    ("bridge_dataset", 4.0),
+    ("aloha_pick_place_full_dataset", 4.0),
+    ("libero_90", 2.0),
+    ("aloha_spoons_in_bowls_dataset", 30.0),
+    ("aloha_long_horizon_dataset", 20.0),
+]
+
 BRIDGE_ACTIONS_REST_REASONINGS_MIX = [
     ("ego4d_hamer", 1.0),
     ("bridge_dataset", 4.0),
@@ -43,6 +57,7 @@ BRIDGE_ACTIONS_REST_REASONINGS_MIX = [
     ("libero_90", 1.0),
     ("aloha_spoons_in_bowls_dataset", 30.0),
     ("aloha_long_horizon_dataset", 24.0),
+
 ]
 
 TEST_CROSS_EMB_DATA_MIX = [
@@ -379,4 +394,5 @@ OXE_NAMED_MIXES = {
     "aloha_spoons": ALOHA_SPOONS_MIX,
     "bridge_actions_rest_reasonings": BRIDGE_ACTIONS_REST_REASONINGS_MIX,
     "all_mix": ALL_MIX,
+    "cotraining_mix": CO_TRAIN,
 }
