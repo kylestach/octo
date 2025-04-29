@@ -195,13 +195,16 @@ def pad_actions_and_proprio(
                 ],
             )
 
-    if max_proprio_dim is not None and "proprio" in traj["observation"]:
-        proprio_dim = traj["observation"]["proprio"].shape[-1]
-        if proprio_dim > max_proprio_dim:
-            raise ValueError(
-                f"proprio_dim ({proprio_dim}) is greater than max_proprio_dim ({max_proprio_dim})"
-            )
-        traj["observation"]["proprio"] = tf.pad(
-            traj["observation"]["proprio"], [[0, 0], [0, max_proprio_dim - proprio_dim]]
-        )
+    if max_proprio_dim is not None:
+        proprio_keys = [k for k in traj["observation"].keys() if k.startswith("proprio_")]
+        if proprio_keys:
+            for key in proprio_keys:
+                proprio_dim = traj["observation"][key].shape[-1]
+                if proprio_dim > max_proprio_dim:
+                    raise ValueError(
+                        f"proprio_dim ({proprio_dim}) is greater than max_proprio_dim ({max_proprio_dim})"
+                    )
+                traj["observation"][key] = tf.pad(
+                    traj["observation"][key], [[0, 0], [0, max_proprio_dim - proprio_dim]]
+                )
     return traj
