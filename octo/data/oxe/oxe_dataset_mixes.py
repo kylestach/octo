@@ -50,6 +50,11 @@ CO_TRAIN = [
     ("aloha_long_horizon_dataset", 20.0),
 ]
 
+FRANKA_ALOHA = [
+    ("droid_dataset", 1.0),
+    ("aloha_bread_dataset", 1.0),
+]
+
 BRIDGE_ACTIONS_REST_REASONINGS_MIX = [
     ("ego4d_hamer", 1.0),
     ("bridge_dataset", 4.0),
@@ -395,4 +400,5 @@ OXE_NAMED_MIXES = {
     "bridge_actions_rest_reasonings": BRIDGE_ACTIONS_REST_REASONINGS_MIX,
     "all_mix": ALL_MIX,
     "cotraining_mix": CO_TRAIN,
+    "franka_aloha_mix": FRANKA_ALOHA,
 }
