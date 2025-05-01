@@ -51,8 +51,12 @@ CO_TRAIN = [
 ]
 
 FRANKA_ALOHA = [
+    ("droid_dataset", 10.0),
+    ("aloha_pick_place_full_dataset", 1.0),
+]
+
+FRANKA = [
     ("droid_dataset", 1.0),
-    ("aloha_bread_dataset", 1.0),
 ]
 
 BRIDGE_ACTIONS_REST_REASONINGS_MIX = [
@@ -401,4 +405,6 @@ OXE_NAMED_MIXES = {
     "all_mix": ALL_MIX,
     "cotraining_mix": CO_TRAIN,
     "franka_aloha_mix": FRANKA_ALOHA,
+    "franka": FRANKA,
+    "bridge_fractal": BRIDGE_FRACTAL_MIX,
 }
