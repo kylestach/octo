@@ -1578,5 +1578,6 @@ OXE_STANDARDIZATION_TRANSFORMS = {
     "hard_bridge_eval": hard_bridge_eval_transform,
     "aria_dataset": aria_dataset_transform,
     "droid_dataset": ria_droid_dataset_transform, # fake droid!! just demos we collected
+    "droid_drawer_dataset": ria_droid_dataset_transform, 
 
 }

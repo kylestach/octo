@@ -105,9 +105,26 @@ OXE_DATASET_CONFIGS = {
     "droid_dataset": { # this is fake droid!! just demos we collected
         "image_obs_keys": {
             "primary": "left_shoulder",
-            "high": "right_shoulder",
+            "high": None,
             "nav": None,
-            "left_wrist": "wrist",
+            "left_wrist": None,
+            "right_wrist": None,
+        },
+        "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
+        "proprio_obs_keys": {"franka": "proprio", "bimanual": None},
+        "proprio_obs_dims": {"franka": 8, "bimanual": 14},
+        "proprio_encoding": ProprioEncoding.JOINT_POS_GRIPPER,
+        "action_encoding": ActionEncoding.FRANKA,
+        "action_chunk_size": 15,
+        "cot_plan_horizon": 100,
+        "cot_plan_stride": 8,
+    },
+    "droid_drawer_dataset": { # this is fake droid!! just demos we collected
+        "image_obs_keys": {
+            "primary": "left_shoulder",
+            "high": None,
+            "nav": None,
+            "left_wrist": None,
             "right_wrist": None,
         },
         "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},

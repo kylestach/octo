@@ -37,13 +37,24 @@ CROSS_EMB_DATA_MIX = [
     ('libero_90', 2.0),
 ]
 
+NEW_ALOHA_MIX = [
+    ('aloha_bread_dataset', 2.0),
+    ('aloha_pick_place_full_dataset', 1.0),
+    ('aloha_spoons_in_bowls_dataset', 3.0),
+    ('aloha_long_horizon_dataset', 2.0),
+]
+
+DROID_DRAWER = [
+    ("droid_drawer_dataset", 1.0),
+]
+
 CO_TRAIN = [
     ("aloha_bread_dataset", 24.0),
-    ("fractal20220817_data", 1.0),
-    ("droid_dataset", 40.0),
+    ("fractal20220817_data", 2.0),
+    ("droid_drawer_dataset", 80.0),
     ("aria_dataset", 200.0),
     ("ego4d_hamer", 1.0),
-    ("bridge_dataset", 4.0),
+    ("bridge_dataset", 8.0),
     ("aloha_pick_place_full_dataset", 4.0),
     ("libero_90", 2.0),
     ("aloha_spoons_in_bowls_dataset", 30.0),
@@ -56,7 +67,7 @@ FRANKA_ALOHA = [
 ]
 
 FRANKA = [
-    ("droid_dataset", 1.0),
+    ("droid_drawer_dataset", 1.0),
 ]
 
 BRIDGE_ACTIONS_REST_REASONINGS_MIX = [
@@ -407,4 +418,6 @@ OXE_NAMED_MIXES = {
     "franka_aloha_mix": FRANKA_ALOHA,
     "franka": FRANKA,
     "bridge_fractal": BRIDGE_FRACTAL_MIX,
+    "droid_drawer": DROID_DRAWER,
+    'new_aloha_mix': NEW_ALOHA_MIX,
 }
